@@ -1,3 +1,4 @@
 {
-  "builder": "static"
+  "root": ".",
+  "clean_urls": true
 }
