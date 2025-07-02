@@ -69,5 +69,22 @@
 
   <!-- Retell Script de carga -->
   <script src="https://cdn.retellai.com/retell-sdk/v1.js"></script>
+  <script>
+  const params = new URLSearchParams(window.location.search);
+  const vinoId = params.get("vino_id");
+
+  if (vinoId) {
+    fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-vino?vino_id=${vinoId}`)
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById("respuesta").innerHTML = data.output;
+      })
+      .catch(error => {
+        console.error("Error:", error);
+        document.getElementById("respuesta").innerText = "Lo sentimos, algo ha fallado.";
+      });
+  }
+</script>
+
 </body>
 </html>
