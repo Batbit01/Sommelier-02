@@ -47,7 +47,7 @@
     // 👉 Extraer el vino_id desde la URL (ej: ?vino_id=V003)
     const params = new URLSearchParams(window.location.search);
     const vinoId = params.get('vino_id') || 'V001'; // Por defecto uno cualquiera
-    const retellAgentId = 'TU_AGENT_ID'; // ⛳ Sustituye esto por tu Agent ID de Retell
+    const retellAgentId = 'key_e11e9305ec21d7b798220549ce02'; // ⛳ Sustituye esto por tu Agent ID de Retell
     const webhookBase = 'https://n8n-production-cb18.up.railway.app/webhook/consultar-vino';
 
     // Mostrar nombre vino (puedes mejorar esto con una tabla local si quieres)
