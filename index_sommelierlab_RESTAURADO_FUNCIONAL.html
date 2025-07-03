@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SommelierLab - Ficha del Vino</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #fefefe;
+      color: #222;
+      max-width: 600px;
+      margin: auto;
+    }
+    .vino-ficha img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 1rem;
+    }
+    .vino-dato {
+      margin-bottom: 1rem;
+    }
+    .vino-dato strong {
+      display: inline-block;
+      width: 100px;
+    }
+    #respuesta {
+      margin-top: 2rem;
+      font-style: italic;
+      background: #f1f1f1;
+      padding: 1rem;
+      border-radius: 0.5rem;
+    }
+    #hablar {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: #800000;
+      color: white;
+      border: none;
+      border-radius: 1rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Ficha del Vino</h1>
+  <div class="vino-ficha">
+    <img id="vino-img" src="" alt="Imagen del vino" />
+    <div class="vino-dato"><strong>Nombre:</strong> <span id="vino-nombre">-</span></div>
+    <div class="vino-dato"><strong>Tipo:</strong> <span id="vino-tipo">-</span></div>
+    <div class="vino-dato"><strong>Añada:</strong> <span id="vino-anada">-</span></div>
+    <div class="vino-dato"><strong>Origen:</strong> <span id="vino-origen">-</span></div>
+    <div class="vino-dato"><strong>Variedad:</strong> <span id="vino-variedad">-</span></div>
+  </div>
+
+  <div id="respuesta">Cargando descripción del vino...</div>
+
+  <button id="hablar">Hablar con el sommelier</button>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const vinoId = params.get("vino_id") || "V001";
+      const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
+
+      fetch(`${webhookBase}?vino_id=${vinoId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.imagen_url) document.getElementById("vino-img").src = data.imagen_url;
+          if (data.nombre) document.getElementById("vino-nombre").textContent = data.nombre;
+          if (data.tipo) document.getElementById("vino-tipo").textContent = data.tipo;
+          if (data.anada) document.getElementById("vino-anada").textContent = data.anada;
+          if (data.origen) document.getElementById("vino-origen").textContent = data.origen;
+          if (data.variedad) document.getElementById("vino-variedad").textContent = data.variedad;
+          if (data.narrativa) document.getElementById("respuesta").textContent = data.narrativa;
+        })
+        .catch(err => {
+          document.getElementById("respuesta").textContent = "Error cargando la información del vino.";
+          console.error(err);
+        });
+
+      // Retell solo si se pulsa el botón
+      document.getElementById("hablar").addEventListener("click", () => {
+        fetch(`${webhookBase}?vino_id=${vinoId}&accion=retell`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.call_id) {
+              RetellWebSDK.init({ callId: data.call_id });
+            } else {
+              alert("No se recibió call_id desde n8n.");
+            }
+          })
+          .catch(err => console.error("Error al activar Retell:", err));
+      });
+    });
+  </script>
+  <script src="https://web.retellai.com/retell-web-sdk.js"></script>
+</body>
+</html>
