@@ -90,21 +90,15 @@
     if (hablarBtn) {
       hablarBtn.addEventListener("click", () => {
         console.log("Activando agente Retell...");
-       fetch(`${webhookBase}?vino_id=${vinoId}&accion=retell`)
-  .then(res => res.json())
-  .then(data => {
-    console.log("call_id recibido:", data.call_id);
-    if (data.call_id) {
-      RetellWebSDK.init({
-        callId: data.call_id
-      });
-    } else {
-      alert("Error: no se recibió call_id");
-    }
-  })
-  .catch(err => {
-    console.error("Error al llamar al webhook de retell:", err);
+       fetch(`${webhookBase}?vino_id=${vinoId}&accion=retell`).then(() => {
+  RetellWebSDK.init({
+    agentId: retellAgentId,
+    callType: 'web',
+    context: { vino_id: vinoId },
+    start: true
   });
+});
+
 
         });
       });
