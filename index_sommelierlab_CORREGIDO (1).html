@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SommelierLab - Ficha del Vino</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #fefefe;
+      color: #222;
+      max-width: 600px;
+      margin: auto;
+    }
+    .vino-ficha img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 1rem;
+    }
+    .vino-dato {
+      margin-bottom: 1rem;
+    }
+    .vino-dato strong {
+      display: inline-block;
+      width: 100px;
+    }
+    #respuesta {
+      margin-top: 2rem;
+      font-style: italic;
+      background: #f1f1f1;
+      padding: 1rem;
+      border-radius: 0.5rem;
+    }
+    #hablar {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: #800000;
+      color: white;
+      border: none;
+      border-radius: 1rem;
+      cursor: pointer;
+    }
+    .redes a {
+      margin-right: 1rem;
+      text-decoration: none;
+      color: #800000;
+    }
+  </style>
+</head>
+<body>
+  <h1>Ficha del Vino</h1>
+  <div class="vino-ficha">
+    <img id="vino-img" src="" alt="Imagen del vino" />
+    <div class="vino-dato"><strong>Nombre:</strong> <span id="vino-nombre">-</span></div>
+    <div class="vino-dato"><strong>Tipo:</strong> <span id="vino-tipo">-</span></div>
+    <div class="vino-dato"><strong>Origen:</strong> <span id="vino-origen">-</span></div>
+    <div class="vino-dato"><strong>Variedad:</strong> <span id="vino-variedad">-</span></div>
+  </div>
+
+  <div id="respuesta">Cargando descripción del vino...</div>
+
+  <button id="hablar">Hablar con el sommelier</button>
+
+  
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const params = new URLSearchParams(window.location.search);
+  const vinoId = params.get("vino_id");
+  if (!vinoId) return;
+
+  const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
+
+  // 1. Cargar ficha del vino (respuesta en JSON con info del vino + bodega)
+  try {
+    const fichaResponse = await fetch(`${webhookBase}?vino_id=${vinoId}`);
+    const data = await fichaResponse.json();
+
+    document.getElementById("vino-nombre").textContent = data.nombre;
+    document.getElementById("vino-tipo").textContent = data.tipo;
+    document.getElementById("vino-uva").textContent = data.variedad;
+    document.getElementById("vino-origen").textContent = data.origen;
+    document.getElementById("vino-bodega").textContent = data.bodega;
+    document.getElementById("vino-img").src = data.imagen;
+
+    if (data.bodega_web) {
+      document.getElementById("bodega-web").href = data.bodega_web;
+      document.getElementById("bodega-web").textContent = "Web de la bodega";
+    }
+
+    const redes = data.redes || {};
+    let socialHTML = "";
+    if (redes.facebook) socialHTML += `<a href="${redes.facebook}" target="_blank">Facebook</a> `;
+    if (redes.instagram) socialHTML += `<a href="${redes.instagram}" target="_blank">Instagram</a> `;
+    if (redes.twitter) socialHTML += `<a href="${redes.twitter}" target="_blank">X</a>`;
+    document.getElementById("social-links").innerHTML = socialHTML;
+
+    // 2. Mostrar narrativa (como texto mientras se integra voz)
+    if (data.narrativa) {
+      document.getElementById("narrativa").textContent = data.narrativa;
+    }
+
+  } catch (error) {
+    console.error("Error al cargar la ficha del vino:", error);
+  }
+
+  // 3. Botón para activar Retell
+  document.getElementById("btnHablarSommelier").addEventListener("click", async () => {
+    try {
+      await fetch(`${webhookBase}?vino_id=${vinoId}&accion=retell`);
+      RetellWebSDK.init({
+        agentId: "agent_dd24626bd6f65f2453277829bb",
+        callType: "web",
+        context: { vino_id: vinoId },
+        start: true
+      });
+    } catch (err) {
+      console.error("Error al iniciar Retell:", err);
+    }
+  });
+});
+</script>
+
+</body>
+</html>
