@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -59,13 +58,13 @@
     <div class="vino-dato"><strong>Tipo:</strong> <span id="vino-tipo">-</span></div>
     <div class="vino-dato"><strong>Origen:</strong> <span id="vino-origen">-</span></div>
     <div class="vino-dato"><strong>Variedad:</strong> <span id="vino-variedad">-</span></div>
+    <div class="vino-dato"><strong>Bodega:</strong> <span id="bodega-nombre">-</span></div>
+    <div class="vino-dato redes" id="bodega-redes"></div>
   </div>
 
   <div id="respuesta">Cargando descripción del vino...</div>
 
   <button id="hablar">Hablar con el sommelier</button>
-
-  
 
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
@@ -73,11 +72,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const vinoId = urlParams.get("vino_id");
 
   if (!vinoId) {
-    console.error("vino_id no proporcionado");
+    document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
     return;
   }
 
-  const apiBase = "https://sommelierlab-api.vercel.app/api/vino";
+  const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
   const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
 
   // 1️⃣ FICHA DEL VINO
@@ -85,54 +84,51 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
     const fichaData = await fichaResponse.json();
 
-    // Mostrar datos en la ficha
-    document.getElementById("vinoImagen").src = fichaData.imagen;
-    document.getElementById("vinoNombre").innerText = fichaData.nombre;
-    document.getElementById("vinoTipo").innerText = fichaData.tipo;
-    document.getElementById("vinoUva").innerText = fichaData.variedad;
-    document.getElementById("vinoOrigen").innerText = fichaData.origen;
-    document.getElementById("bodegaNombre").innerText = fichaData.bodega.nombre;
+    document.getElementById("vino-img").src = fichaData.imagen;
+    document.getElementById("vino-nombre").innerText = fichaData.nombre;
+    document.getElementById("vino-tipo").innerText = fichaData.tipo;
+    document.getElementById("vino-variedad").innerText = fichaData.variedad;
+    document.getElementById("vino-origen").innerText = fichaData.origen;
+    document.getElementById("bodega-nombre").innerText = fichaData.bodega.nombre;
 
-    // Botón a redes sociales
     const redesHtml = [];
     if (fichaData.bodega.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
     if (fichaData.bodega.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
     if (fichaData.bodega.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
     if (fichaData.bodega.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
-    document.getElementById("bodegaRedes").innerHTML = redesHtml.join(" · ");
+    document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+
   } catch (error) {
-    console.error("Error cargando ficha del vino:", error);
+    console.error("❌ Error cargando ficha del vino:", error);
+    document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
   }
 
   // 2️⃣ NARRATIVA (via n8n)
   try {
     const narrativaRes = await fetch(`${webhookBase}?vino_id=${vinoId}`);
     const narrativaData = await narrativaRes.json();
-    document.getElementById("vinoNarrativa").innerText = narrativaData.narrativa || "Narrativa no disponible.";
+    document.getElementById("respuesta").innerText = narrativaData.narrativa || "Narrativa no disponible.";
   } catch (error) {
-    console.error("Error cargando narrativa:", error);
+    console.error("❌ Error cargando narrativa:", error);
   }
 
   // 3️⃣ RETELL AL PULSAR BOTÓN
-  const btn = document.getElementById("btnHablarSommelier");
-  if (btn) {
-    btn.addEventListener("click", async () => {
-      try {
-        await fetch(`${webhookBase}?vino_id=${vinoId}&accion=retell`);
-        RetellWebSDK.init({
-          agentId: "agent_dd24626bd6f65f2453277829bb",
-          callType: "web",
-          context: { vino_id: vinoId },
-          start: true
-        });
-      } catch (e) {
-        console.error("Error iniciando Retell:", e);
-      }
-    });
-  }
+  const btn = document.getElementById("hablar");
+  btn.addEventListener("click", async () => {
+    try {
+      await fetch(`${webhookBase}?vino_id=${vinoId}&accion=retell`);
+      RetellWebSDK.init({
+        agentId: "agent_dd24626bd6f65f2453277829bb",
+        callType: "web",
+        context: { vino_id: vinoId },
+        start: true
+      });
+    } catch (e) {
+      console.error("❌ Error iniciando Retell:", e);
+    }
+  });
 });
 </script>
-
-
 </body>
 </html>
+
