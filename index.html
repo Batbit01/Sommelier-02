@@ -50,15 +50,16 @@
     }
   </style>
 </head>
+
 <body>
   <h1>Ficha del Vino</h1>
   <div class="vino-ficha">
-    <img id="vino-img" src="" alt="Imagen del vino" />
-    <div class="vino-dato"><strong>Nombre:</strong> <span id="vino-nombre">-</span></div>
-    <div class="vino-dato"><strong>Tipo:</strong> <span id="vino-tipo">-</span></div>
-    <div class="vino-dato"><strong>Origen:</strong> <span id="vino-origen">-</span></div>
-    <div class="vino-dato"><strong>Variedad:</strong> <span id="vino-variedad">-</span></div>
-    <div class="vino-dato"><strong>Bodega:</strong> <span id="bodega-nombre">-</span></div>
+    <img id="vinoImagen" src="" alt="Imagen del vino" />
+    <div class="vino-dato"><strong>Nombre:</strong> <span id="vinoNombre">-</span></div>
+    <div class="vino-dato"><strong>Tipo:</strong> <span id="vinoTipo">-</span></div>
+    <div class="vino-dato"><strong>Origen:</strong> <span id="vinoOrigen">-</span></div>
+    <div class="vino-dato"><strong>Variedad:</strong> <span id="vinoUva">-</span></div>
+    <div class="vino-dato"><strong>Bodega:</strong> <span id="bodegaNombre">-</span></div>
     <div class="vino-dato redes" id="bodega-redes"></div>
   </div>
 
@@ -79,17 +80,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
   const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
 
-  // 1️⃣ FICHA DEL VINO
   try {
     const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
     const fichaData = await fichaResponse.json();
 
-    document.getElementById("vino-img").src = fichaData.imagen;
-    document.getElementById("vino-nombre").innerText = fichaData.nombre;
-    document.getElementById("vino-tipo").innerText = fichaData.tipo;
-    document.getElementById("vino-variedad").innerText = fichaData.variedad;
-    document.getElementById("vino-origen").innerText = fichaData.origen;
-    document.getElementById("bodega-nombre").innerText = fichaData.bodega.nombre;
+    document.getElementById("vinoImagen").src = fichaData.imagen;
+    document.getElementById("vinoNombre").innerText = fichaData.nombre;
+    document.getElementById("vinoTipo").innerText = fichaData.tipo;
+    document.getElementById("vinoUva").innerText = fichaData.variedad;
+    document.getElementById("vinoOrigen").innerText = fichaData.origen;
+    document.getElementById("bodegaNombre").innerText = fichaData.bodega.nombre;
 
     const redesHtml = [];
     if (fichaData.bodega.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
@@ -97,13 +97,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (fichaData.bodega.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
     if (fichaData.bodega.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
     document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
-
   } catch (error) {
     console.error("❌ Error cargando ficha del vino:", error);
     document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
   }
 
-  // 2️⃣ NARRATIVA (via n8n)
   try {
     const narrativaRes = await fetch(`${webhookBase}?vino_id=${vinoId}`);
     const narrativaData = await narrativaRes.json();
@@ -112,7 +110,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("❌ Error cargando narrativa:", error);
   }
 
-  // 3️⃣ RETELL AL PULSAR BOTÓN
   const btn = document.getElementById("hablar");
   btn.addEventListener("click", async () => {
     try {
@@ -131,4 +128,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 </script>
 </body>
 </html>
+
 
