@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
     const fichaData = await fichaResponse.json();
 
-    document.getElementById("vinoImagen").src = fichaData.imagen;
+    document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
     document.getElementById("vinoNombre").innerText = fichaData.nombre;
     document.getElementById("vinoTipo").innerText = fichaData.tipo;
     document.getElementById("vinoUva").innerText = fichaData.variedad;
