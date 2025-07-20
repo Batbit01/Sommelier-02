@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title id="pageTitle">SommelierLab</title>
+  <title>SommelierLab - Ficha del Vino</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -20,8 +20,13 @@
       object-fit: contain;
       border-radius: 1rem;
     }
-    .vino-dato { margin-bottom: 1rem; }
-    .vino-dato strong { display: inline-block; width: 100px; }
+    .vino-dato {
+      margin-bottom: 1rem;
+    }
+    .vino-dato strong {
+      display: inline-block;
+      width: 100px;
+    }
     #respuesta {
       margin-top: 2rem;
       font-style: italic;
@@ -71,7 +76,6 @@
   </div>
 
   <div id="respuesta">Cargando descripción del vino...</div>
-
   <button id="hablar">Hablar con el sommelier</button>
 
   <div id="radar-container">
@@ -90,7 +94,7 @@ let organo = {};
 
 function renderRadar(tipo) {
   if (!organo || Object.keys(organo).length === 0) {
-    console.warn("Datos organolépticos no cargados todavía.");
+    console.warn("❗ Datos organolépticos no cargados.");
     return;
   }
 
@@ -99,32 +103,13 @@ function renderRadar(tipo) {
 
   if (tipo === 'gustativo') {
     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
-    data = [
-      organo.Cuerpo || 0,
-      organo.Acidez || 0,
-      organo.Dulzor || 0,
-      organo.Taninos || 0,
-      organo.Frescura || 0,
-      organo.Mineralidad || 0
-    ];
+    data = labels.map(label => organo[label] || 0);
   } else if (tipo === 'aromatico') {
     labels = ["Frutal", "Floral", "Especiado", "Tostado", "Herbáceo"];
-    data = [
-      organo.Frutal || 0,
-      organo.Floral || 0,
-      organo.Especiado || 0,
-      organo.Tostado || 0,
-      organo.Herbáceo || 0
-    ];
+    data = labels.map(label => organo[label] || 0);
   } else if (tipo === 'sensorial') {
     labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
-    data = [
-      organo.Persistencia || 0,
-      organo.Complejidad || 0,
-      organo.Astringencia || 0,
-      organo["Alcohol percibido"] || 0,
-      organo.Armonía || 0
-    ];
+    data = labels.map(label => organo[label] || 0);
   }
 
   if (radarChart) radarChart.destroy();
@@ -174,8 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
     const fichaData = await fichaResponse.json();
 
-    document.getElementById("pageTitle").innerText = fichaData.nombre;
-    document.getElementById("vinoTitulo").innerText = fichaData.nombre;
+    document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
     document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
     document.getElementById("vinoTipo").innerText = fichaData.tipo;
     document.getElementById("vinoUva").innerText = fichaData.variedad;
@@ -226,4 +210,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 </script>
 </body>
 </html>
-
