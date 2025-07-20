@@ -75,7 +75,6 @@
   </div>
   <div id="respuesta">Cargando descripción del vino...</div>
   <button id="hablar">Hablar con el sommelier</button>
-
   <div id="radar-container">
     <h3>Perfil organoléptico</h3>
     <div class="switch-buttons">
@@ -84,18 +83,42 @@
     </div>
     <canvas id="radarChart" width="400" height="400"></canvas>
   </div>
-
 <script>
 let radarChart;
+let organo = {};
+
 function renderRadar(tipo) {
+  if (!organo || Object.keys(organo).length === 0) {
+    console.warn("Datos organolépticos no cargados todavía.");
+    return;
+  }
+
   const ctx = document.getElementById('radarChart').getContext('2d');
-  const labels = tipo === 'gustativo'
-    ? ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Fruta", "Frescura", "Mineralidad"]
-    : ["Frutal", "Floral", "Especiado", "Tostado", "Herbáceo"];
-  const data = tipo === 'gustativo'
-    ? [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.fruta, organo.frescura, organo.mineralidad]
-    : [organo.frutal, organo.floral, organo.especiado, organo.tostado, organo.herbaceo];
+  let labels, data;
+
+  if (tipo === 'gustativo') {
+    labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
+    data = [
+      organo["Cuerpo"] || 0,
+      organo["Acidez"] || 0,
+      organo["Dulzor"] || 0,
+      organo["Taninos"] || 0,
+      organo["Frescura"] || 0,
+      organo["Mineralidad"] || 0
+    ];
+  } else {
+    labels = ["Frutal", "Floral", "Especiado", "Tostado", "Herbáceo"];
+    data = [
+      organo["Frutal"] || 0,
+      organo["Floral"] || 0,
+      organo["Especiado"] || 0,
+      organo["Tostado"] || 0,
+      organo["Herbáceo"] || 0
+    ];
+  }
+
   if (radarChart) radarChart.destroy();
+
   radarChart = new Chart(ctx, {
     type: 'radar',
     data: {
@@ -124,54 +147,56 @@ function renderRadar(tipo) {
   });
 }
 
-let organo = {};
 document.addEventListener("DOMContentLoaded", async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const vinoId = urlParams.get("vino_id");
-  const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
-  const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
-  const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
 
   if (!vinoId) {
     document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
     return;
   }
 
-  try {
-    const fichaRes = await fetch(`${apiBase}/${vinoId}`);
-    const ficha = await fichaRes.json();
-    document.getElementById("vinoImagen").src = ficha.imagen?.[0]?.url || "";
-    document.getElementById("vinoNombre").innerText = ficha.nombre;
-    document.getElementById("vinoTipo").innerText = ficha.tipo;
-    document.getElementById("vinoUva").innerText = ficha.variedad;
-    document.getElementById("vinoOrigen").innerText = ficha.origen;
-    document.getElementById("bodegaNombre").innerText = ficha.bodega.nombre;
+  const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
+  const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
+  const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
 
-    const redes = ficha.bodega;
+  try {
+    const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
+    const fichaData = await fichaResponse.json();
+
+    document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
+    document.getElementById("vinoNombre").innerText = fichaData.nombre;
+    document.getElementById("vinoTipo").innerText = fichaData.tipo;
+    document.getElementById("vinoUva").innerText = fichaData.variedad;
+    document.getElementById("vinoOrigen").innerText = fichaData.origen;
+    document.getElementById("bodegaNombre").innerText = fichaData.bodega.nombre;
+
     const redesHtml = [];
-    if (redes.web) redesHtml.push(`<a href="${redes.web}" target="_blank">🌐 Web</a>`);
-    if (redes.facebook) redesHtml.push(`<a href="${redes.facebook}" target="_blank">📘 Facebook</a>`);
-    if (redes.instagram) redesHtml.push(`<a href="${redes.instagram}" target="_blank">📸 Instagram</a>`);
-    if (redes.twitter) redesHtml.push(`<a href="${redes.twitter}" target="_blank">🐦 Twitter</a>`);
+    if (fichaData.bodega.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
+    if (fichaData.bodega.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
+    if (fichaData.bodega.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
+    if (fichaData.bodega.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
     document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
-  } catch (e) {
-    console.error("Error ficha:", e);
+  } catch (error) {
+    console.error("❌ Error cargando ficha del vino:", error);
+    document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
   }
 
   try {
     const narrativaRes = await fetch(`${webhookBase}?vino_id=${vinoId}`);
-    const narrativa = await narrativaRes.json();
-    document.getElementById("respuesta").innerText = narrativa.narrativa || "Narrativa no disponible.";
-  } catch (e) {
-    console.error("Error narrativa:", e);
+    const narrativaData = await narrativaRes.json();
+    document.getElementById("respuesta").innerText = narrativaData.narrativa || "Narrativa no disponible.";
+  } catch (error) {
+    console.error("❌ Error cargando narrativa:", error);
   }
 
   try {
     const organoRes = await fetch(`${organoBase}/${vinoId}`);
     organo = await organoRes.json();
-    renderRadar('gustativo');
-  } catch (e) {
-    console.error("Error organoléptico:", e);
+    console.log("✅ Datos organolépticos:", organo);
+    renderRadar("gustativo");
+  } catch (error) {
+    console.error("❌ Error cargando gráfico organoléptico:", error);
   }
 
   document.getElementById("hablar").addEventListener("click", async () => {
@@ -184,7 +209,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         start: true
       });
     } catch (e) {
-      console.error("Error Retell:", e);
+      console.error("❌ Error iniciando Retell:", e);
     }
   });
 });
