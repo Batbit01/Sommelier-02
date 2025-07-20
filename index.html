@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SommelierLab</title>
+  <title id="pageTitle">SommelierLab</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -14,28 +14,14 @@
       max-width: 600px;
       margin: auto;
     }
-
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 1.5rem;
-    }
-
     .vino-ficha img {
       width: 100%;
       max-height: 300px;
       object-fit: contain;
       border-radius: 1rem;
     }
-
-    .vino-dato {
-      margin-bottom: 1rem;
-    }
-
-    .vino-dato strong {
-      display: inline-block;
-      width: 100px;
-    }
-
+    .vino-dato { margin-bottom: 1rem; }
+    .vino-dato strong { display: inline-block; width: 100px; }
     #respuesta {
       margin-top: 2rem;
       font-style: italic;
@@ -43,7 +29,6 @@
       padding: 1rem;
       border-radius: 0.5rem;
     }
-
     #hablar {
       display: inline-block;
       margin-top: 2rem;
@@ -54,17 +39,14 @@
       border-radius: 1rem;
       cursor: pointer;
     }
-
     .redes a {
       margin-right: 1rem;
       text-decoration: none;
       color: #800000;
     }
-
     #radar-container {
       margin-top: 3rem;
     }
-
     .switch-buttons button {
       margin-right: 1rem;
       padding: 0.5rem 1rem;
@@ -75,8 +57,8 @@
     }
   </style>
 </head>
-
 <body>
+
   <h1 id="vinoTitulo">Ficha del Vino</h1>
 
   <div class="vino-ficha">
@@ -89,6 +71,7 @@
   </div>
 
   <div id="respuesta">Cargando descripción del vino...</div>
+
   <button id="hablar">Hablar con el sommelier</button>
 
   <div id="radar-container">
@@ -96,6 +79,7 @@
     <div class="switch-buttons">
       <button onclick="renderRadar('gustativo')">Gustativo</button>
       <button onclick="renderRadar('aromatico')">Aromático</button>
+      <button onclick="renderRadar('sensorial')">Sensorial</button>
     </div>
     <canvas id="radarChart" width="400" height="400"></canvas>
   </div>
@@ -105,29 +89,41 @@ let radarChart;
 let organo = {};
 
 function renderRadar(tipo) {
-  if (!organo || Object.keys(organo).length === 0) return;
+  if (!organo || Object.keys(organo).length === 0) {
+    console.warn("Datos organolépticos no cargados todavía.");
+    return;
+  }
 
   const ctx = document.getElementById('radarChart').getContext('2d');
-  let labels, data;
+  let labels = [], data = [];
 
   if (tipo === 'gustativo') {
     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
     data = [
-      organo["Cuerpo"] || 0,
-      organo["Acidez"] || 0,
-      organo["Dulzor"] || 0,
-      organo["Taninos"] || 0,
-      organo["Frescura"] || 0,
-      organo["Mineralidad"] || 0
+      organo.Cuerpo || 0,
+      organo.Acidez || 0,
+      organo.Dulzor || 0,
+      organo.Taninos || 0,
+      organo.Frescura || 0,
+      organo.Mineralidad || 0
     ];
-  } else {
+  } else if (tipo === 'aromatico') {
     labels = ["Frutal", "Floral", "Especiado", "Tostado", "Herbáceo"];
     data = [
-      organo["Frutal"] || 0,
-      organo["Floral"] || 0,
-      organo["Especiado"] || 0,
-      organo["Tostado"] || 0,
-      organo["Herbáceo"] || 0
+      organo.Frutal || 0,
+      organo.Floral || 0,
+      organo.Especiado || 0,
+      organo.Tostado || 0,
+      organo.Herbáceo || 0
+    ];
+  } else if (tipo === 'sensorial') {
+    labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
+    data = [
+      organo.Persistencia || 0,
+      organo.Complejidad || 0,
+      organo.Astringencia || 0,
+      organo["Alcohol percibido"] || 0,
+      organo.Armonía || 0
     ];
   }
 
@@ -178,12 +174,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
     const fichaData = await fichaResponse.json();
 
+    document.getElementById("pageTitle").innerText = fichaData.nombre;
     document.getElementById("vinoTitulo").innerText = fichaData.nombre;
     document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
-    document.getElementById("vinoTipo").innerText = fichaData.tipo || "-";
-    document.getElementById("vinoUva").innerText = fichaData.variedad || "-";
-    document.getElementById("vinoOrigen").innerText = fichaData.origen || "-";
-    document.getElementById("bodegaNombre").innerText = fichaData.bodega.nombre || "-";
+    document.getElementById("vinoTipo").innerText = fichaData.tipo;
+    document.getElementById("vinoUva").innerText = fichaData.variedad;
+    document.getElementById("vinoOrigen").innerText = fichaData.origen;
+    document.getElementById("bodegaNombre").innerText = fichaData.bodega.nombre;
 
     const redesHtml = [];
     if (fichaData.bodega.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
@@ -229,3 +226,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 </script>
 </body>
 </html>
+
