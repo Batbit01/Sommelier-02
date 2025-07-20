@@ -1,9 +1,13 @@
+from pathlib import Path
+
+# Crear el HTML actualizado con los nombres de campos corregidos
+html_code = """
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SommelierLab - Ficha del Vino</title>
+  <title id="page-title">Ficha del Vino</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -49,9 +53,6 @@
       text-decoration: none;
       color: #800000;
     }
-    #radar-container {
-      margin-top: 3rem;
-    }
     .switch-buttons button {
       margin-right: 1rem;
       padding: 0.5rem 1rem;
@@ -60,12 +61,13 @@
       border-radius: 0.5rem;
       cursor: pointer;
     }
+    #radar-container {
+      margin-top: 3rem;
+    }
   </style>
 </head>
 <body>
-
-  <h1 id="vinoTitulo">Ficha del Vino</h1>
-
+  <h1 id="vino-title">Ficha del Vino</h1>
   <div class="vino-ficha">
     <img id="vinoImagen" src="" alt="Imagen del vino" />
     <div class="vino-dato"><strong>Tipo:</strong> <span id="vinoTipo">-</span></div>
@@ -74,10 +76,8 @@
     <div class="vino-dato"><strong>Bodega:</strong> <span id="bodegaNombre">-</span></div>
     <div class="vino-dato redes" id="bodega-redes"></div>
   </div>
-
   <div id="respuesta">Cargando descripción del vino...</div>
   <button id="hablar">Hablar con el sommelier</button>
-
   <div id="radar-container">
     <h3>Perfil organoléptico</h3>
     <div class="switch-buttons">
@@ -87,29 +87,25 @@
     </div>
     <canvas id="radarChart" width="400" height="400"></canvas>
   </div>
-
 <script>
 let radarChart;
 let organo = {};
 
 function renderRadar(tipo) {
-  if (!organo || Object.keys(organo).length === 0) {
-    console.warn("❗ Datos organolépticos no cargados.");
-    return;
-  }
+  if (!organo || Object.keys(organo).length === 0) return;
 
   const ctx = document.getElementById('radarChart').getContext('2d');
   let labels = [], data = [];
 
   if (tipo === 'gustativo') {
     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
-    data = labels.map(label => organo[label] || 0);
+    data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
   } else if (tipo === 'aromatico') {
-    labels = ["Frutal", "Floral", "Especiado", "Tostado", "Herbáceo"];
-    data = labels.map(label => organo[label] || 0);
+    labels = ["Fruta"];
+    data = [organo.fruta];
   } else if (tipo === 'sensorial') {
     labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
-    data = labels.map(label => organo[label] || 0);
+    data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
   }
 
   if (radarChart) radarChart.destroy();
@@ -133,9 +129,7 @@ function renderRadar(tipo) {
         r: {
           min: 0,
           max: 10,
-          ticks: {
-            stepSize: 2
-          }
+          ticks: { stepSize: 2 }
         }
       }
     }
@@ -145,11 +139,7 @@ function renderRadar(tipo) {
 document.addEventListener("DOMContentLoaded", async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const vinoId = urlParams.get("vino_id");
-
-  if (!vinoId) {
-    document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
-    return;
-  }
+  if (!vinoId) return;
 
   const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
   const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
@@ -159,7 +149,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
     const fichaData = await fichaResponse.json();
 
-    document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
+    document.title = fichaData.nombre;
+    document.getElementById("vino-title").innerText = fichaData.nombre;
+
     document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
     document.getElementById("vinoTipo").innerText = fichaData.tipo;
     document.getElementById("vinoUva").innerText = fichaData.variedad;
@@ -174,7 +166,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
   } catch (error) {
     console.error("❌ Error cargando ficha del vino:", error);
-    document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
   }
 
   try {
@@ -210,3 +201,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 </script>
 </body>
 </html>
+"""
+
+# Guardar archivo HTML
+output_path = "/mnt/data/sommelierlab_ficha_radar_actualizado.html"
+Path(output_path).write_text(html_code.strip(), encoding='utf-8')
+output_path
