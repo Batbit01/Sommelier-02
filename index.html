@@ -1,13 +1,13 @@
 from pathlib import Path
 
-# Crear el HTML actualizado con los nombres de campos corregidos
+# Código HTML corregido (arreglar radar aromático y eliminar texto extra)
 html_code = """
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title id="page-title">Ficha del Vino</title>
+  <title id="vinoTitle">Ficha del Vino</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -67,7 +67,7 @@ html_code = """
   </style>
 </head>
 <body>
-  <h1 id="vino-title">Ficha del Vino</h1>
+  <h1 id="vinoTitulo">Ficha del Vino</h1>
   <div class="vino-ficha">
     <img id="vinoImagen" src="" alt="Imagen del vino" />
     <div class="vino-dato"><strong>Tipo:</strong> <span id="vinoTipo">-</span></div>
@@ -87,28 +87,51 @@ html_code = """
     </div>
     <canvas id="radarChart" width="400" height="400"></canvas>
   </div>
+
 <script>
 let radarChart;
 let organo = {};
 
 function renderRadar(tipo) {
-  if (!organo || Object.keys(organo).length === 0) return;
+  if (!organo || Object.keys(organo).length === 0) {
+    console.warn("Datos organolépticos no cargados todavía.");
+    return;
+  }
 
   const ctx = document.getElementById('radarChart').getContext('2d');
-  let labels = [], data = [];
+  let labels, data;
+
+  if (radarChart) radarChart.destroy();
 
   if (tipo === 'gustativo') {
     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
-    data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
+    data = [
+      parseInt(organo["cuerpo"] || 0),
+      parseInt(organo["acidez"] || 0),
+      parseInt(organo["dulzor"] || 0),
+      parseInt(organo["taninos"] || 0),
+      parseInt(organo["frescura"] || 0),
+      parseInt(organo["mineralidad"] || 0)
+    ];
   } else if (tipo === 'aromatico') {
-    labels = ["Fruta"];
-    data = [organo.fruta];
+    labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"];
+    data = [
+      parseInt(organo["fruta"] || 0),
+      parseInt(organo["floral"] || 0),
+      parseInt(organo["especiado"] || 0),
+      parseInt(organo["tostado"] || 0),
+      parseInt(organo["herbaceo"] || 0)
+    ];
   } else if (tipo === 'sensorial') {
     labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
-    data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
+    data = [
+      parseInt(organo["persistencia"] || 0),
+      parseInt(organo["complejidad"] || 0),
+      parseInt(organo["astringencia"] || 0),
+      parseInt(organo["alcohol_percibido"] || 0),
+      parseInt(organo["armonia"] || 0)
+    ];
   }
-
-  if (radarChart) radarChart.destroy();
 
   radarChart = new Chart(ctx, {
     type: 'radar',
@@ -139,20 +162,21 @@ function renderRadar(tipo) {
 document.addEventListener("DOMContentLoaded", async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const vinoId = urlParams.get("vino_id");
-  if (!vinoId) return;
-
   const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
   const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
   const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
+
+  if (!vinoId) {
+    document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
+    return;
+  }
 
   try {
     const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
     const fichaData = await fichaResponse.json();
 
-    document.title = fichaData.nombre;
-    document.getElementById("vino-title").innerText = fichaData.nombre;
-
     document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
+    document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
     document.getElementById("vinoTipo").innerText = fichaData.tipo;
     document.getElementById("vinoUva").innerText = fichaData.variedad;
     document.getElementById("vinoOrigen").innerText = fichaData.origen;
@@ -166,6 +190,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
   } catch (error) {
     console.error("❌ Error cargando ficha del vino:", error);
+    document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
   }
 
   try {
@@ -203,7 +228,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 </html>
 """
 
-# Guardar archivo HTML
-output_path = "/mnt/data/sommelierlab_ficha_radar_actualizado.html"
+output_path = "/mnt/data/sommelierlab_ficha_radar_corregido.html"
 Path(output_path).write_text(html_code.strip(), encoding='utf-8')
 output_path
