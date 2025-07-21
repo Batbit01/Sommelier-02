@@ -257,23 +257,58 @@ document.addEventListener("DOMContentLoaded", async () => {
       color: #800000;
     }
   </style>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const estrellas = document.querySelectorAll(".estrella");
+    const mensaje = document.getElementById("mensaje-valoracion");
+    const urlParams = new URLSearchParams(window.location.search);
+    const vinoId = urlParams.get("vino_id");
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const estrellas = document.querySelectorAll(".estrella");
-      const mensaje = document.getElementById("mensaje-valoracion");
+    estrellas.forEach(estrella => {
+      estrella.addEventListener("click", async () => {
+        const valor = parseInt(estrella.getAttribute("data-value"));
 
-      estrellas.forEach(estrella => {
-        estrella.addEventListener("click", () => {
-          const valor = parseInt(estrella.getAttribute("data-value"));
-          estrellas.forEach(e => {
-            e.classList.toggle("seleccionada", parseInt(e.getAttribute("data-value")) <= valor);
-          });
-          mensaje.textContent = `¡Gracias por valorar este vino con ${valor} estrella${valor > 1 ? 's' : ''}!`;
+        // Cambia el color visual
+        estrellas.forEach(e => {
+          e.classList.toggle("seleccionada", parseInt(e.getAttribute("data-value")) <= valor);
         });
+
+        // Mensaje en pantalla
+        mensaje.textContent = `¡Gracias por valorar este vino con ${valor} estrella${valor > 1 ? 's' : ''}!`;
+
+        // Enviar al webhook de n8n
+        try {
+          const response = await fetch("https://n8n-production-cb18.up.railway.app/webhook/comentar-vino", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              vino_id: vinoId,
+              puntuacion: valor,
+              user_id: localStorage.getItem("user_id") || generarUserId()
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error("No se pudo registrar la valoración.");
+          }
+        } catch (error) {
+          console.error("Error al enviar la valoración:", error);
+          mensaje.textContent = "❌ Hubo un error al registrar tu valoración.";
+        }
       });
     });
-  </script>
+
+    // Generar y guardar un ID de usuario simple
+    function generarUserId() {
+      const uid = "user_" + Math.random().toString(36).substring(2, 10);
+      localStorage.setItem("user_id", uid);
+      return uid;
+    }
+  });
+</script>
+
 
 </body>
 </html>
