@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="vinoTitle">Ficha del Vino</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #fefefe;
+      color: #222;
+      max-width: 600px;
+      margin: auto;
+    }
+    .vino-ficha img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      border-radius: 1rem;
+    }
+    .vino-dato {
+      margin-bottom: 1rem;
+    }
+    .vino-dato strong {
+      display: inline-block;
+      width: 100px;
+    }
+    #respuesta {
+      margin-top: 2rem;
+      font-style: italic;
+      background: #f1f1f1;
+      padding: 1rem;
+      border-radius: 0.5rem;
+    }
+    #hablar {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: #800000;
+      color: white;
+      border: none;
+      border-radius: 1rem;
+      cursor: pointer;
+    }
+    .redes a {
+      margin-right: 1rem;
+      text-decoration: none;
+      color: #800000;
+    }
+    .switch-buttons button {
+      margin-right: 1rem;
+      padding: 0.5rem 1rem;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    #radar-container {
+      margin-top: 3rem;
+    }
+    #score-container {
+      margin-top: 3rem;
+    }
+    #score-bar {
+      width: 100%;
+      height: 20px;
+      background-color: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #score-fill {
+      height: 100%;
+      background-color: #800000;
+      text-align: center;
+      line-height: 20px;
+      color: white;
+      font-size: 0.9rem;
+    }
+
+    #valoracion-container {
+      margin-top: 3rem;
+    }
+
+    #valoracion-container h3 {
+      margin-bottom: 0.5rem;
+    }
+
+    .estrellas {
+      font-size: 2rem;
+      color: #ccc;
+      cursor: pointer;
+    }
+
+    .estrellas .estrella.checked {
+      color: #ffb400;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="vinoTitulo">Ficha del Vino</h1>
+  <div class="vino-ficha">
+    <img id="vinoImagen" src="" alt="Imagen del vino" />
+    <div class="vino-dato"><strong>Tipo:</strong> <span id="vinoTipo">-</span></div>
+    <div class="vino-dato"><strong>Origen:</strong> <span id="vinoOrigen">-</span></div>
+    <div class="vino-dato"><strong>Variedad:</strong> <span id="vinoUva">-</span></div>
+    <div class="vino-dato"><strong>Bodega:</strong> <span id="bodegaNombre">-</span></div>
+    <div class="vino-dato redes" id="bodega-redes"></div>
+  </div>
+  <div id="respuesta">Cargando descripción del vino...</div>
+  <button id="hablar">Hablar con el sommelier</button>
+
+  <div id="radar-container">
+    <h3>Perfil organoléptico</h3>
+    <div class="switch-buttons">
+      <button onclick="renderRadar('gustativo')">Gustativo</button>
+      <button onclick="renderRadar('aromatico')">Aromático</button>
+      <button onclick="renderRadar('sensorial')">Sensorial</button>
+    </div>
+    <canvas id="radarChart" width="400" height="400"></canvas>
+  </div>
+
+  <div id="score-container">
+    <h3>Puntuación Total</h3>
+    <div id="score-bar"><div id="score-fill" style="width: 0%">0</div></div>
+  </div>
+
+  <div id="valoracion-container">
+    <h3>Valora este vino</h3>
+    <div class="estrellas" id="estrellas">
+      <span class="estrella" data-valor="1">&#9733;</span>
+      <span class="estrella" data-valor="2">&#9733;</span>
+      <span class="estrella" data-valor="3">&#9733;</span>
+      <span class="estrella" data-valor="4">&#9733;</span>
+      <span class="estrella" data-valor="5">&#9733;</span>
+    </div>
+    <p id="valoracion-mensaje" style="margin-top: 0.5rem;"></p>
+  </div>
+
+<script>
+let radarChart;
+let organo = {};
+
+function renderRadar(tipo) {
+  // no modificado
+}
+
+function calcularPuntuacionTotal() {
+  // no modificado
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // funciones ya existentes...
+
+  // valoración
+  const estrellas = document.querySelectorAll('.estrella');
+  const mensaje = document.getElementById('valoracion-mensaje');
+
+  estrellas.forEach(estrella => {
+    estrella.addEventListener('click', () => {
+      const valor = estrella.dataset.valor;
+      estrellas.forEach(e => e.classList.remove('checked'));
+      for (let i = 0; i < valor; i++) estrellas[i].classList.add('checked');
+      mensaje.innerText = `Has valorado este vino con ${valor} estrella${valor > 1 ? 's' : ''}. ¡Gracias!`;
+      // aquí podrías hacer un fetch POST a un webhook si quieres guardar la valoración
+    });
+  });
+});
+</script>
+</body>
+</html>
