@@ -1,0 +1,285 @@
+from pathlib import Path
+
+# Código HTML actualizado con el bloque de puntuación total
+html_code = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="vinoTitle">Ficha del Vino</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #fefefe;
+      color: #222;
+      max-width: 600px;
+      margin: auto;
+    }
+    .vino-ficha img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      border-radius: 1rem;
+    }
+    .vino-dato {
+      margin-bottom: 1rem;
+    }
+    .vino-dato strong {
+      display: inline-block;
+      width: 100px;
+    }
+    #respuesta {
+      margin-top: 2rem;
+      font-style: italic;
+      background: #f1f1f1;
+      padding: 1rem;
+      border-radius: 0.5rem;
+    }
+    #hablar {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: #800000;
+      color: white;
+      border: none;
+      border-radius: 1rem;
+      cursor: pointer;
+    }
+    .redes a {
+      margin-right: 1rem;
+      text-decoration: none;
+      color: #800000;
+    }
+    .switch-buttons button {
+      margin-right: 1rem;
+      padding: 0.5rem 1rem;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    #radar-container {
+      margin-top: 3rem;
+    }
+    #score-container {
+      margin-top: 3rem;
+    }
+    #score-bar {
+      width: 100%;
+      height: 20px;
+      background-color: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #score-fill {
+      height: 100%;
+      background-color: #800000;
+      text-align: center;
+      line-height: 20px;
+      color: white;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="vinoTitulo">Ficha del Vino</h1>
+  <div class="vino-ficha">
+    <img id="vinoImagen" src="" alt="Imagen del vino" />
+    <div class="vino-dato"><strong>Tipo:</strong> <span id="vinoTipo">-</span></div>
+    <div class="vino-dato"><strong>Origen:</strong> <span id="vinoOrigen">-</span></div>
+    <div class="vino-dato"><strong>Variedad:</strong> <span id="vinoUva">-</span></div>
+    <div class="vino-dato"><strong>Bodega:</strong> <span id="bodegaNombre">-</span></div>
+    <div class="vino-dato redes" id="bodega-redes"></div>
+  </div>
+  <div id="respuesta">Cargando descripción del vino...</div>
+  <button id="hablar">Hablar con el sommelier</button>
+
+  <div id="radar-container">
+    <h3>Perfil organoléptico</h3>
+    <div class="switch-buttons">
+      <button onclick="renderRadar('gustativo')">Gustativo</button>
+      <button onclick="renderRadar('aromatico')">Aromático</button>
+      <button onclick="renderRadar('sensorial')">Sensorial</button>
+    </div>
+    <canvas id="radarChart" width="400" height="400"></canvas>
+  </div>
+
+  <div id="score-container">
+    <h3>Puntuación Total</h3>
+    <div id="score-bar"><div id="score-fill" style="width: 0%">0</div></div>
+  </div>
+
+<script>
+let radarChart;
+let organo = {};
+
+function renderRadar(tipo) {
+  if (!organo || Object.keys(organo).length === 0) return;
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  if (radarChart) radarChart.destroy();
+
+  let labels = [], data = [];
+
+  if (tipo === 'gustativo') {
+    labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
+    data = [organo["cuerpo"], organo["acidez"], organo["dulzor"], organo["taninos"], organo["frescura"], organo["mineralidad"]];
+  } else if (tipo === 'aromatico') {
+    labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"];
+    data = [organo["fruta"], organo["floral"], organo["especiado"], organo["tostado"], organo["herbaceo"]];
+  } else if (tipo === 'sensorial') {
+    labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
+    data = [organo["persistencia"], organo["complejidad"], organo["astringencia"], organo["alcohol_percibido"], organo["armonia"]];
+  }
+
+  radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels,
+      datasets: [{
+        label: `Perfil ${tipo}`,
+        data: data.map(x => parseInt(x) || 0),
+        fill: true,
+        backgroundColor: "rgba(128,0,0,0.2)",
+        borderColor: "rgba(128,0,0,1)",
+        pointBackgroundColor: "rgba(128,0,0,1)"
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          min: 0,
+          max: 10,
+          ticks: { stepSize: 2 }
+        }
+      }
+    }
+  });
+}
+
+function calcularPuntuacionTotal() {
+  let total = 0;
+  for (const key in organo) {
+    total += parseInt(organo[key]) || 0;
+  }
+  const maxScore = Object.keys(organo).length * 10;
+  const porcentaje = Math.round((total / maxScore) * 100);
+  const fill = document.getElementById("score-fill");
+  fill.style.width = porcentaje + "%";
+  fill.innerText = porcentaje + " / 100";
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const vinoId = urlParams.get("vino_id");
+  const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
+  const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
+  const webhookBase = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
+
+  if (!vinoId) {
+    document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
+    return;
+  }
+
+  try {
+    const fichaData = await (await fetch(`${apiBase}/${vinoId}`)).json();
+    document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
+    document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
+    document.getElementById("vinoTipo").innerText = fichaData.tipo;
+    document.getElementById("vinoUva").innerText = fichaData.variedad;
+    document.getElementById("vinoOrigen").innerText = fichaData.origen;
+    document.getElementById("bodegaNombre").innerText = fichaData.bodega.nombre;
+
+    const redesHtml = [];
+    if (fichaData.bodega.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
+    if (fichaData.bodega.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
+    if (fichaData.bodega.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
+    if (fichaData.bodega.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
+    document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+  } catch (error) {
+    console.error("❌ Error cargando ficha del vino:", error);
+    document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
+  }
+
+  try {
+    const narrativaData = await (await fetch(`${webhookBase}?vino_id=${vinoId}`)).json();
+    document.getElementById("respuesta").innerText = narrativaData.narrativa || "Narrativa no disponible.";
+  } catch (error) {
+    console.error("❌ Error cargando narrativa:", error);
+  }
+
+  try {
+    organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
+    renderRadar("gustativo");
+    calcularPuntuacionTotal();
+  } catch (error) {
+    console.error("❌ Error cargando gráfico organoléptico:", error);
+  }
+
+  document.getElementById("hablar").addEventListener("click", async () => {
+    try {
+      await fetch(`${webhookBase}?vino_id=${vinoId}&accion=retell`);
+      RetellWebSDK.init({
+        agentId: "agent_dd24626bd6f65f2453277829bb",
+        callType: "web",
+        context: { vino_id: vinoId },
+        start: true
+      });
+    } catch (e) {
+      console.error("❌ Error iniciando Retell:", e);
+    }
+  });
+});
+</script>
+
+  <div id="valoracion-container" style="margin-top: 3rem;">
+    <h3>Valora este vino</h3>
+    <div id="estrellas">
+      <span class="estrella" data-value="1">★</span>
+      <span class="estrella" data-value="2">★</span>
+      <span class="estrella" data-value="3">★</span>
+      <span class="estrella" data-value="4">★</span>
+      <span class="estrella" data-value="5">★</span>
+    </div>
+    <p id="mensaje-valoracion" style="margin-top:1rem; color: green;"></p>
+  </div>
+
+  <style>
+    #estrellas .estrella {
+      font-size: 2rem;
+      color: #ccc;
+      cursor: pointer;
+    }
+    #estrellas .estrella.seleccionada {
+      color: #800000;
+    }
+  </style>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const estrellas = document.querySelectorAll(".estrella");
+      const mensaje = document.getElementById("mensaje-valoracion");
+
+      estrellas.forEach(estrella => {
+        estrella.addEventListener("click", () => {
+          const valor = parseInt(estrella.getAttribute("data-value"));
+          estrellas.forEach(e => {
+            e.classList.toggle("seleccionada", parseInt(e.getAttribute("data-value")) <= valor);
+          });
+          mensaje.textContent = `¡Gracias por valorar este vino con ${valor} estrella${valor > 1 ? 's' : ''}!`;
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>
+"""
+
+# Guardar archivo
+output_path = "/mnt/data/sommelierlab_ficha_con_puntuacion.html"
+Path(output_path).write_text(html_code.strip(), encoding='utf-8')
+output_path
