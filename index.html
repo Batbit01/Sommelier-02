@@ -1,6 +1,6 @@
 from pathlib import Path
 
-# Código HTML corregido (arreglar radar aromático y eliminar texto extra)
+# Código HTML actualizado con el bloque de puntuación total
 html_code = """
 <!DOCTYPE html>
 <html lang="es">
@@ -64,6 +64,24 @@ html_code = """
     #radar-container {
       margin-top: 3rem;
     }
+    #score-container {
+      margin-top: 3rem;
+    }
+    #score-bar {
+      width: 100%;
+      height: 20px;
+      background-color: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #score-fill {
+      height: 100%;
+      background-color: #800000;
+      text-align: center;
+      line-height: 20px;
+      color: white;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -78,6 +96,7 @@ html_code = """
   </div>
   <div id="respuesta">Cargando descripción del vino...</div>
   <button id="hablar">Hablar con el sommelier</button>
+
   <div id="radar-container">
     <h3>Perfil organoléptico</h3>
     <div class="switch-buttons">
@@ -88,49 +107,31 @@ html_code = """
     <canvas id="radarChart" width="400" height="400"></canvas>
   </div>
 
+  <div id="score-container">
+    <h3>Puntuación Total</h3>
+    <div id="score-bar"><div id="score-fill" style="width: 0%">0</div></div>
+  </div>
+
 <script>
 let radarChart;
 let organo = {};
 
 function renderRadar(tipo) {
-  if (!organo || Object.keys(organo).length === 0) {
-    console.warn("Datos organolépticos no cargados todavía.");
-    return;
-  }
-
+  if (!organo || Object.keys(organo).length === 0) return;
   const ctx = document.getElementById('radarChart').getContext('2d');
-  let labels, data;
-
   if (radarChart) radarChart.destroy();
+
+  let labels = [], data = [];
 
   if (tipo === 'gustativo') {
     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
-    data = [
-      parseInt(organo["cuerpo"] || 0),
-      parseInt(organo["acidez"] || 0),
-      parseInt(organo["dulzor"] || 0),
-      parseInt(organo["taninos"] || 0),
-      parseInt(organo["frescura"] || 0),
-      parseInt(organo["mineralidad"] || 0)
-    ];
+    data = [organo["cuerpo"], organo["acidez"], organo["dulzor"], organo["taninos"], organo["frescura"], organo["mineralidad"]];
   } else if (tipo === 'aromatico') {
     labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"];
-    data = [
-      parseInt(organo["fruta"] || 0),
-      parseInt(organo["floral"] || 0),
-      parseInt(organo["especiado"] || 0),
-      parseInt(organo["tostado"] || 0),
-      parseInt(organo["herbaceo"] || 0)
-    ];
+    data = [organo["fruta"], organo["floral"], organo["especiado"], organo["tostado"], organo["herbaceo"]];
   } else if (tipo === 'sensorial') {
     labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
-    data = [
-      parseInt(organo["persistencia"] || 0),
-      parseInt(organo["complejidad"] || 0),
-      parseInt(organo["astringencia"] || 0),
-      parseInt(organo["alcohol_percibido"] || 0),
-      parseInt(organo["armonia"] || 0)
-    ];
+    data = [organo["persistencia"], organo["complejidad"], organo["astringencia"], organo["alcohol_percibido"], organo["armonia"]];
   }
 
   radarChart = new Chart(ctx, {
@@ -139,7 +140,7 @@ function renderRadar(tipo) {
       labels,
       datasets: [{
         label: `Perfil ${tipo}`,
-        data,
+        data: data.map(x => parseInt(x) || 0),
         fill: true,
         backgroundColor: "rgba(128,0,0,0.2)",
         borderColor: "rgba(128,0,0,1)",
@@ -159,6 +160,18 @@ function renderRadar(tipo) {
   });
 }
 
+function calcularPuntuacionTotal() {
+  let total = 0;
+  for (const key in organo) {
+    total += parseInt(organo[key]) || 0;
+  }
+  const maxScore = Object.keys(organo).length * 10;
+  const porcentaje = Math.round((total / maxScore) * 100);
+  const fill = document.getElementById("score-fill");
+  fill.style.width = porcentaje + "%";
+  fill.innerText = porcentaje + " / 100";
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const vinoId = urlParams.get("vino_id");
@@ -172,9 +185,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   try {
-    const fichaResponse = await fetch(`${apiBase}/${vinoId}`);
-    const fichaData = await fichaResponse.json();
-
+    const fichaData = await (await fetch(`${apiBase}/${vinoId}`)).json();
     document.getElementById("vinoImagen").src = (fichaData.imagen && Array.isArray(fichaData.imagen) && fichaData.imagen[0]?.url) ? fichaData.imagen[0].url : "";
     document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
     document.getElementById("vinoTipo").innerText = fichaData.tipo;
@@ -194,17 +205,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   try {
-    const narrativaRes = await fetch(`${webhookBase}?vino_id=${vinoId}`);
-    const narrativaData = await narrativaRes.json();
+    const narrativaData = await (await fetch(`${webhookBase}?vino_id=${vinoId}`)).json();
     document.getElementById("respuesta").innerText = narrativaData.narrativa || "Narrativa no disponible.";
   } catch (error) {
     console.error("❌ Error cargando narrativa:", error);
   }
 
   try {
-    const organoRes = await fetch(`${organoBase}/${vinoId}`);
-    organo = await organoRes.json();
+    organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
     renderRadar("gustativo");
+    calcularPuntuacionTotal();
   } catch (error) {
     console.error("❌ Error cargando gráfico organoléptico:", error);
   }
@@ -228,6 +238,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 </html>
 """
 
-output_path = "/mnt/data/sommelierlab_ficha_radar_corregido.html"
+# Guardar archivo
+output_path = "/mnt/data/sommelierlab_ficha_con_puntuacion.html"
 Path(output_path).write_text(html_code.strip(), encoding='utf-8')
 output_path
