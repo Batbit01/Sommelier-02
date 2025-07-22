@@ -203,9 +203,12 @@ function renderEstrellas(nota) {
       contenedor.innerHTML += "★";
     } else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) {
       contenedor.innerHTML += "⯪"; // Media estrella (alternativa visual)
-    } else {
-      contenedor.innerHTML += "☆";}
+} else {
+  contenedor.innerHTML += "☆";
+  }
+  }
 }
+
 
     document.addEventListener("DOMContentLoaded", async () => {
       const urlParams = new URLSearchParams(window.location.search);
