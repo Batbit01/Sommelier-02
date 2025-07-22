@@ -267,7 +267,33 @@ function renderEstrellas(nota) {
           puntuacionSeleccionada = parseInt(e.dataset.value);
           document.querySelectorAll(".estrella").forEach(star => {
             star.classList.toggle("seleccionada", parseInt(star.dataset.value) <= puntuacionSeleccionada);
-          });
+          // Cargar comentarios al cargar la ficha
+try {
+  const res = await fetch(`${webhookComentariosVisibles}?vino_id=${vinoId}`);
+  const comentarios = await res.json();
+  const lista = document.getElementById("lista-comentarios");
+  lista.innerHTML = "";
+
+  if (comentarios.length === 0) {
+    lista.innerHTML = "<p>Aún no hay comentarios publicados.</p>";
+  } else {
+    comentarios.forEach(c => {
+      const div = document.createElement("div");
+      div.style.marginBottom = "1.5rem";
+      div.style.padding = "0.5rem";
+      div.style.borderBottom = "1px solid #ccc";
+      div.innerHTML = `
+        <strong>🗺️ ${c.localizacion || "Usuario anónimo"} · ${new Date(c.fecha).toLocaleDateString()}</strong>
+        <p style="margin:0.5rem 0;">"${c.comentario}"</p>
+        <div style="color: #800000;">${"★".repeat(c.valoracion)}${"☆".repeat(5 - c.valoracion)}</div>
+      `;
+      lista.appendChild(div);
+    });
+  }
+} catch (error) {
+  console.error("Error cargando comentarios aprobados:", error);
+}
+});
         });
       });
 
