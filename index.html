@@ -77,6 +77,12 @@
     }
     #estrellas .estrella.seleccionada {
       color: #800000;
+      #estrellas-nota {
+  color: #800000;
+  font-size: 1.8rem;
+  vertical-align: middle;
+}
+
     }
   </style>
 </head>
@@ -180,6 +186,39 @@
       fill.style.width = porcentaje + "%";
       fill.innerText = porcentaje + " / 100";
     }
+function renderEstrellas(nota) {
+  const contenedor = document.getElementById("estrellas-nota");
+  contenedor.innerHTML = "";
+  const estrellas = Math.floor(nota);
+  const media = nota - estrellas;
+
+  for (let i = 1; i <= 5; i++) {
+    if (i <= estrellas) {
+      contenedor.innerHTML += "★";
+    } else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) {
+      contenedor.innerHTML += "⯪"; // Media estrella (alternativa visual)
+    } else {
+      contenedor.innerHTML += "☆";
+      
+    }function renderEstrellas(nota) {
+  const contenedor = document.getElementById("estrellas-nota");
+  contenedor.innerHTML = "";
+  const estrellas = Math.floor(nota);
+  const media = nota - estrellas;
+
+  for (let i = 1; i <= 5; i++) {
+    if (i <= estrellas) {
+      contenedor.innerHTML += "★";
+    } else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) {
+      contenedor.innerHTML += "⯪"; // Media estrella (alternativa visual)
+    } else {
+      contenedor.innerHTML += "☆";
+    }
+  }
+}
+
+  }
+}
 
     document.addEventListener("DOMContentLoaded", async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -216,6 +255,20 @@
         organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
         renderRadar("gustativo");
         calcularPuntuacionTotal();
+        try {
+  const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`);
+  const data = await resp.json();
+  
+  if (data.total_valoraciones > 0) {
+    document.getElementById("rating-summary").style.display = "block";
+    document.getElementById("media-nota").innerText = data.nota_media.toFixed(1);
+    renderEstrellas(data.nota_media);
+    document.getElementById("total-valoraciones").innerText = `(${data.total_valoraciones} valoraciones)`;
+  }
+} catch (error) {
+  console.error("Error al cargar resumen de valoraciones:", error);
+}
+
       } catch (error) {
         console.error("Error cargando gráfico organoléptico:", error);
       }
