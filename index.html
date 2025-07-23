@@ -282,7 +282,40 @@ function renderEstrellas(nota) {
         document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
       } catch (error) {
         document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
-      }
+      } try {
+  const respComentarios = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}`);
+  const comentarios = await respComentarios.json();
+  const lista = document.getElementById("lista-comentarios");
+  lista.innerHTML = "";
+
+  if (!comentarios.length) {
+    lista.innerHTML = "<p>No hay comentarios aún. ¡Sé el primero en opinar!</p>";
+  } else {
+    comentarios.forEach(c => {
+      const div = document.createElement("div");
+      div.style.marginBottom = "1rem";
+      div.style.padding = "0.75rem";
+      div.style.border = "1px solid #ddd";
+      div.style.borderRadius = "0.5rem";
+      div.style.backgroundColor = "#fafafa";
+      div.innerHTML = `
+        <strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · 
+        <span style="color: #666;">${formatearFecha(c.fecha)}</span><br/>
+        <em>“${c.comentario}”</em>
+      `;
+      lista.appendChild(div);
+    });
+  }
+
+  function formatearFecha(fechaStr) {
+    const fecha = new Date(fechaStr);
+    return fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
+  }
+
+} catch (error) {
+  console.error("Error al cargar comentarios:", error);
+}
+
 
       try {
         organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
