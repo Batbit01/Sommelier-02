@@ -323,10 +323,7 @@ function renderEstrellas(nota) {
           mensaje.style.color = "red";
           return;
         }
-        try {
-          await fetch(webhookComentario, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
+       
 document.getElementById("enviar-valoracion").addEventListener("click", async () => {
   const comentario = document.getElementById("comentario").value || "";
   const mensaje = document.getElementById("mensaje-valoracion");
