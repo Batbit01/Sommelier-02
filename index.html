@@ -325,15 +325,19 @@ function renderEstrellas(nota) {
         }
         try {
           await fetch(webhookComentario, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              vino_id: vinoId,
-              puntuacion: puntuacionSeleccionada,
-              comentario: comentario,
-              user_id: localStorage.getItem("user_id") || generarUserId()
-            })
-          });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    vino_id: vinoId,
+    puntuacion: puntuacionSeleccionada,
+    comentario: comentario,
+    user_id: localStorage.getItem("user_id") || generarUserId(),
+    ciudad: window._datosUsuario?.ciudad || "Desconocida",
+    pais: window._datosUsuario?.pais || "Desconocido",
+    idioma: window._datosUsuario?.idioma || "es"
+  })
+});
+
           mensaje.innerText = "¡Gracias por tu valoración!";
           mensaje.style.color = "green";
         } catch (err) {
