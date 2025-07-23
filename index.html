@@ -328,6 +328,7 @@ function renderEstrellas(nota) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             const datosGeo = window._datosUsuario || {};
+              const datosGeo = window._datosUsuario || {};
 
 body: JSON.stringify({
   vino_id: vinoId,
@@ -338,6 +339,10 @@ body: JSON.stringify({
   pais: datosGeo.pais || "Desconocido",
   idioma: datosGeo.idioma || "es"
 })
+
+             
+
+              })
 
           });
           mensaje.innerText = "¡Gracias por tu valoración!";
