@@ -327,24 +327,42 @@ function renderEstrellas(nota) {
           await fetch(webhookComentario, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    vino_id: vinoId,
-    puntuacion: puntuacionSeleccionada,
-    comentario: comentario,
-    user_id: localStorage.getItem("user_id") || generarUserId(),
-    ciudad: window._datosUsuario?.ciudad || "Desconocida",
-    pais: window._datosUsuario?.pais || "Desconocido",
-    idioma: window._datosUsuario?.idioma || "es"
-  })
+document.getElementById("enviar-valoracion").addEventListener("click", async () => {
+  const comentario = document.getElementById("comentario").value || "";
+  const mensaje = document.getElementById("mensaje-valoracion");
+  const datosGeo = window._datosUsuario || {};
+
+  if (!puntuacionSeleccionada) {
+    mensaje.innerText = "Por favor selecciona una valoración.";
+    mensaje.style.color = "red";
+    return;
+  }
+
+  try {
+      const datosGeo = window._datosUsuario || {};
+    await fetch(webhookComentario, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vino_id: vinoId,
+        puntuacion: puntuacionSeleccionada,
+        comentario: comentario,
+        user_id: localStorage.getItem("user_id") || generarUserId(),
+        ciudad: datosGeo.ciudad || "Desconocida",
+        pais: datosGeo.pais || "Desconocido",
+        idioma: datosGeo.idioma || "es"
+      })
+    });
+
+    mensaje.innerText = "¡Gracias por tu valoración!";
+    mensaje.style.color = "green";
+  } catch (err) {
+    mensaje.innerText = "Error al enviar tu valoración.";
+    mensaje.style.color = "red";
+    console.error("Error al enviar valoración:", err);
+  }
 });
 
-          mensaje.innerText = "¡Gracias por tu valoración!";
-          mensaje.style.color = "green";
-        } catch (err) {
-          mensaje.innerText = "Error al enviar tu valoración.";
-          mensaje.style.color = "red";
-        }
-      });
 
       function generarUserId() {
         const uid = "user_" + Math.random().toString(36).substring(2, 10);
