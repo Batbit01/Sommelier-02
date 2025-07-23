@@ -327,12 +327,18 @@ function renderEstrellas(nota) {
           await fetch(webhookComentario, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              vino_id: vinoId,
-              puntuacion: puntuacionSeleccionada,
-              comentario: comentario,
-              user_id: localStorage.getItem("user_id") || generarUserId()
-            })
+            const datosGeo = window._datosUsuario || {};
+
+body: JSON.stringify({
+  vino_id: vinoId,
+  puntuacion: puntuacionSeleccionada,
+  comentario: comentario,
+  user_id: localStorage.getItem("user_id") || generarUserId(),
+  ciudad: datosGeo.ciudad || "Desconocida",
+  pais: datosGeo.pais || "Desconocido",
+  idioma: datosGeo.idioma || "es"
+})
+
           });
           mensaje.innerText = "¡Gracias por tu valoración!";
           mensaje.style.color = "green";
