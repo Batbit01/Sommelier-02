@@ -361,36 +361,44 @@ function renderEstrellas(nota) {
 </div>
 
 <script>
-// 👉 Script combinado: detección de idioma + ciudad por IP
-window.addEventListener('DOMContentLoaded', () => {
-  const idioma = navigator.language || navigator.userLanguage;
-  console.log("🌐 Idioma del navegador:", idioma);
+  // Script combinado: detección + mostrar en pantalla
+  window.addEventListener("DOMContentLoaded", () => {
+    const idioma = navigator.language || navigator.userLanguage;
 
-  fetch('https://ipapi.co/json/')
-    .then(response => response.json())
-    .then(data => {
-      const ciudad = data.city;
-      const pais = data.country_name;
-      const ip = data.ip;
+    fetch("https://ipapi.co/json/")
+      .then(response => response.json())
+      .then(data => {
+        const ciudad = data.city;
+        const pais = data.country_name;
+        const ip = data.ip;
 
-      console.log("📍 Ciudad detectada:", ciudad);
-      console.log("🌍 País detectado:", pais);
-      console.log("🖥️ IP pública:", ip);
+        // Guardar en variable global
+        window._datosUsuario = { ciudad, pais, idioma };
 
-      // Guardar en variables globales para enviar luego a n8n si hace falta
-      window._datosUsuario = { idioma, ciudad, pais, ip };
-    })
-    .catch(error => {
-      console.warn("No se pudo obtener geolocalización:", error);
-    });
-});
+        // Mostrar en pantalla
+        document.getElementById("debug-ciudad").innerText = ciudad || "No detectado";
+        document.getElementById("debug-pais").innerText = pais || "No detectado";
+        document.getElementById("debug-idioma").innerText = idioma || "No detectado";
+
+        console.log("🌍 Ciudad:", ciudad);
+        console.log("🗺️ País:", pais);
+        console.log("🗣️ Idioma:", idioma);
+        console.log("🌐 IP pública:", ip);
+      })
+      .catch(error => {
+        console.warn("No se pudo obtener geolocalización:", error);
+      });
+  });
 </script>
+
 <div id="datos-usuario-debug" style="padding: 1rem; background-color: #f2f2f2; border-bottom: 2px solid #ccc; font-family: sans-serif;">
   <strong>🌍 Datos geolocalizados:</strong><br>
   Ciudad: <span id="debug-ciudad">...</span> |
   País: <span id="debug-pais">...</span> |
   Idioma: <span id="debug-idioma">...</span>
 </div>
+
+
 
 <script>
   // Esperar a que se cargue todo
