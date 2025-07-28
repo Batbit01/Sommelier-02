@@ -280,8 +280,16 @@ function renderEstrellas(nota) {
         if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
         if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
         document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+      
+       // Llamada al webhook CEREBRO para obtener narrativa del vino 
+        const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
+        const dataCerebro = await respCerebro.json();
+        document.getElementById("respuesta").innerText =
+        dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+        
       } catch (error) {
         document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
+        console.error("❌ Error general en la carga:", error);
       }
 
       try {
