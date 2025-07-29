@@ -23,7 +23,8 @@
             margin-bottom: 1.5rem;
         }
         .switch-buttons button {
-            background-color: #9d5353; /* Color base (granate claro ) */
+            /* 3. Color de botones desactivados con menor intensidad */
+            background-color: #a97c7c; 
             color: white;
             border: 2px solid #800000;
             padding: 0.6rem 1.2rem;
@@ -33,12 +34,11 @@
             font-weight: bold;
         }
         .switch-buttons button:hover {
-            background-color: #800000; /* Color oscuro al pasar el ratón */
+            background-color: #800000;
         }
-        /* Estilo para el botón activo */
         .switch-buttons button.active {
-            background-color: #800000; /* Color oscuro y sólido */
-            box-shadow: 0 0 10px rgba(128,0,0,0.5);
+            background-color: #800000;
+            box-shadow: 0 0 10px rgba(128,0,0,0.5 );
         }
         /* --- FIN DE ESTILOS MEJORADOS --- */
 
@@ -68,12 +68,12 @@
     <div id="radar-container">
         <h3>Perfil organoléptico</h3>
         <div class="switch-buttons">
-            <!-- 1. Orden de botones corregido -->
             <button id="btn-aromatico" onclick="renderRadar('aromatico')">Aromático</button>
             <button id="btn-gustativo" onclick="renderRadar('gustativo')">Gustativo</button>
             <button id="btn-sensorial" onclick="renderRadar('sensorial')">Sensorial</button>
         </div>
-        <div style="width: 100%; max-width: 450px; margin: auto;">
+        <!-- 2. Contenedor con tamaño fijo para evitar el salto -->
+        <div style="width: 100%; max-width: 400px; height: 400px; margin: auto;">
              <canvas id="radarChart"></canvas>
         </div>
     </div>
@@ -124,19 +124,18 @@
                 if (radarChart) radarChart.destroy();
                 
                 let labels = [], data = [];
-                // 2. Características restauradas y padding para consistencia
+                // 1. Formas de radar corregidas (pentágonos y hexágono)
                 if (tipo === 'gustativo') {
                     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
                     data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
                 } else if (tipo === 'aromatico') {
-                    labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo", ""]; // 6to eje vacío
-                    data = [organo.fruta, organo.floral, organo.especiado, organo.tostado, organo.herbaceo, null];
+                    labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"];
+                    data = [organo.fruta, organo.floral, organo.especiado, organo.tostado, organo.herbaceo];
                 } else if (tipo === 'sensorial') {
-                    labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol", "Armonía", ""]; // 6to eje vacío
-                    data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia, null];
+                    labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol", "Armonía"];
+                    data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
                 }
 
-                // 3. Lógica para marcar el botón activo
                 document.querySelectorAll('.switch-buttons button').forEach(btn => {
                     btn.classList.remove('active');
                 });
@@ -156,7 +155,7 @@
                         }] 
                     }, 
                     options: {
-                        aspectRatio: 1,
+                        maintainAspectRatio: false, // Permite que el gráfico llene el div contenedor
                         plugins: {
                             legend: { display: false }
                         },
@@ -166,7 +165,7 @@
                                 max: 10, 
                                 ticks: { stepSize: 2 },
                                 pointLabels: {
-                                    font: { size: 16 } // Letras más grandes
+                                    font: { size: 16 }
                                 }
                             } 
                         } 
@@ -218,7 +217,7 @@
             async function cargarPerfilOrganoleptico() {
                 try {
                     organo = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${vinoId}` )).json();
-                    renderRadar("aromatico"); // Carga el perfil aromático por defecto
+                    renderRadar("aromatico");
                     calcularPuntuacionTotal();
                 } catch (error) { console.error("❌ Error cargando el perfil organoléptico:", error); }
             }
@@ -343,4 +342,4 @@
         });
     </script>
 </body>
-</html>
+</html>```
