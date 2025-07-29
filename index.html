@@ -400,14 +400,22 @@
   </div>
 </div>
 
+<!-- INICIA EL BLOQUE A REEMPLAZAR AQUÍ -->
+
+<!-- 1. HTML corregido (sin comillas extra) -->
+<div id="comentarios-final-container" style="margin-top: 3rem;">
+  <h3 style="cursor:pointer; color:#800000;" onclick="toggleComentarios()">▼ Comentarios de otros usuarios</h3>
+  <div id="lista-comentarios-final" style="max-height: 0; overflow: hidden; transition: max-height 0.5s ease;">
+    <p>Cargando comentarios...</p>
+  </div>
+</div>
+
+<!-- 2. Script de comentarios (sin cambios, ya estaba bien) -->
 <script>
-  // Apunta al nuevo ID del contenedor de la lista
   const listaComentariosEl = document.getElementById("lista-comentarios-final");
 
   function toggleComentarios() {
-    // La lógica de abrir/cerrar no cambia, solo el elemento que manipula
     if (listaComentariosEl.style.maxHeight === "0px" || !listaComentariosEl.style.maxHeight) {
-      // Se usa scrollHeight para darle el alto exacto que necesita
       listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
     } else {
       listaComentariosEl.style.maxHeight = "0px";
@@ -428,23 +436,20 @@
       const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` );
       const comentarios = await resp.json();
       
-      // Limpiamos el mensaje de "Cargando..."
       listaComentariosEl.innerHTML = "";
 
       if (comentarios.length === 0) {
         listaComentariosEl.innerHTML = "<p>No hay comentarios aún. ¡Sé el primero en opinar!</p>";
       } else {
-        // Cambiamos slice(0, 2) por slice(0, 10) para mostrar hasta 10 comentarios
         comentarios.slice(0, 10).forEach(c => {
           const div = document.createElement("div");
-          div.classList.add("comentario"); // Usamos la clase que ya tienes definida en el <style>
+          div.classList.add("comentario");
+          // 3. HTML del comentario limpiado (sin saltos de línea extra)
           div.innerHTML = `
             <strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · 
             <span style="color: #666;">${formatearFecha(c.fecha)}</span>  
 
-            <em>“${c.comentario}”</em>  
-  
-
+            <em>“${c.comentario}”</em>
           `;
           listaComentariosEl.appendChild(div);
         });
@@ -455,9 +460,24 @@
     }
   }
 
-  // Llamamos a la función cuando el DOM esté listo
   window.addEventListener("DOMContentLoaded", cargarComentarios);
 </script>
+
+<!-- 4. CSS corregido (apuntando al ID correcto) -->
+<style>
+  #lista-comentarios-final .comentario {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 0.5rem;
+    background-color: #fafafa;
+  }
+</style>
+
+</body>
+</html>
+
+<!-- TERMINA EL BLOQUE A REEMPLAZAR AQUÍ -->
 
 <style>
   #lista-comentarios .comentario {
