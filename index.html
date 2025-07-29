@@ -341,16 +341,8 @@
       });
     });
 </script>
-
     });
-  </script>
-<div id="comentarios-aprobados" style="margin-top: 3rem;">
-<h3>Comentarios de otros usuarios</h3>
-<div id="lista-comentarios">
-<p>Cargando comentarios...</p>
-</div>
-</div>
-
+ 
 <script>
   // Script combinado: detección + mostrar en pantalla
   window.addEventListener("DOMContentLoaded", () => {
@@ -401,20 +393,24 @@
   });
 </script>
 
-<div id="comentarios-aprobados" style="margin-top: 3rem;">
+<div id=""comentarios-final-container" " style="margin-top: 3rem;">
   <h3 style="cursor:pointer; color:#800000;" onclick="toggleComentarios()">▼ Comentarios de otros usuarios</h3>
-  <div id="lista-comentarios" style="max-height: 0; overflow: hidden; transition: max-height 0.5s ease;">
+  <div id="lista-comentarios-final" style="max-height: 0; overflow: hidden; transition: max-height 0.5s ease;">
     <p>Cargando comentarios...</p>
   </div>
 </div>
 
 <script>
+  // Apunta al nuevo ID del contenedor de la lista
+  const listaComentariosEl = document.getElementById("lista-comentarios-final");
+
   function toggleComentarios() {
-    const lista = document.getElementById("lista-comentarios");
-    if (lista.style.maxHeight === "0px" || !lista.style.maxHeight) {
-      lista.style.maxHeight = lista.scrollHeight + "px";
+    // La lógica de abrir/cerrar no cambia, solo el elemento que manipula
+    if (listaComentariosEl.style.maxHeight === "0px" || !listaComentariosEl.style.maxHeight) {
+      // Se usa scrollHeight para darle el alto exacto que necesita
+      listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
     } else {
-      lista.style.maxHeight = "0px";
+      listaComentariosEl.style.maxHeight = "0px";
     }
   }
 
@@ -427,31 +423,39 @@
     const urlParams = new URLSearchParams(window.location.search);
     const vinoId = urlParams.get("vino_id");
     if (!vinoId) return;
+
     try {
-      const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}`);
+      const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` );
       const comentarios = await resp.json();
-      const lista = document.getElementById("lista-comentarios");
-      lista.innerHTML = "";
+      
+      // Limpiamos el mensaje de "Cargando..."
+      listaComentariosEl.innerHTML = "";
 
       if (comentarios.length === 0) {
-        lista.innerHTML = "<p>No hay comentarios aún. ¡Sé el primero en opinar!</p>";
+        listaComentariosEl.innerHTML = "<p>No hay comentarios aún. ¡Sé el primero en opinar!</p>";
       } else {
-        comentarios.slice(0, 2).forEach(c => {
+        // Cambiamos slice(0, 2) por slice(0, 10) para mostrar hasta 10 comentarios
+        comentarios.slice(0, 10).forEach(c => {
           const div = document.createElement("div");
-          div.classList.add("comentario");
+          div.classList.add("comentario"); // Usamos la clase que ya tienes definida en el <style>
           div.innerHTML = `
             <strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · 
-            <span style="color: #666;">${formatearFecha(c.fecha)}</span><br/>
-            <em>“${c.comentario}”</em><br/><br/>
+            <span style="color: #666;">${formatearFecha(c.fecha)}</span>  
+
+            <em>“${c.comentario}”</em>  
+  
+
           `;
-          lista.appendChild(div);
+          listaComentariosEl.appendChild(div);
         });
       }
     } catch (error) {
       console.error("Error al cargar comentarios:", error);
+      listaComentariosEl.innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
     }
   }
 
+  // Llamamos a la función cuando el DOM esté listo
   window.addEventListener("DOMContentLoaded", cargarComentarios);
 </script>
 
