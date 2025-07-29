@@ -259,31 +259,41 @@ function renderEstrellas(nota) {
       const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
       const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
       const webhookComentario = "https://n8n-production-cb18.up.railway.app/webhook/comentar-vino";
+      const webhookCerebro = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
+
 
       if (!vinoId) {
         document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
         return;
       }
 
-      try {
-        const fichaData = await (await fetch(`${apiBase}/${vinoId}`)).json();
-        document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
-        document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
-        document.getElementById("vinoTipo").innerText = fichaData.tipo;
-        document.getElementById("vinoUva").innerText = fichaData.variedad;
-        document.getElementById("vinoOrigen").innerText = fichaData.origen;
-        document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
+     try {
+  const fichaData = await (await fetch(`${apiBase}/${vinoId}`)).json();
+  document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
+  document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
+  document.getElementById("vinoTipo").innerText = fichaData.tipo;
+  document.getElementById("vinoUva").innerText = fichaData.variedad;
+  document.getElementById("vinoOrigen").innerText = fichaData.origen;
+  document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
 
-        const redesHtml = [];
-        if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
-        if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
-        if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
-        if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
-        document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
-      } catch (error) {
-        document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
-      }
+  const redesHtml = [];
+  if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
+  if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
+  if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
+  if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
+  document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
 
+  // 🧠 Aquí viene la llamada al flujo CEREBRO
+  const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
+  const dataCerebro = await respCerebro.json();
+  document.getElementById("respuesta").innerText =
+    dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+
+} catch (error) {
+  document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
+}
+
+         
       try {
         organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
         renderRadar("gustativo");
