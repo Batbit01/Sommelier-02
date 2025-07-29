@@ -1,5 +1,4 @@
-
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8"/>
@@ -25,7 +24,7 @@
     </style>
 </head>
 <body>
-    <!-- ESTRUCTURA HTML (SIN CAMBIOS ) -->
+    <!-- ESTRUCTURA HTML -->
     <h1 id="vinoTitulo">Ficha del Vino</h1>
     <div class="vino-ficha">
         <img alt="Imagen del vino" id="vinoImagen" src=""/>
@@ -45,7 +44,7 @@
     <div id="radar-container">
         <h3>Perfil organoléptico</h3>
         <div class="switch-buttons">
-            <button onclick="renderRadar('gustativo')">Gustativo</button>
+            <button onclick="renderRadar('gustativo' )">Gustativo</button>
             <button onclick="renderRadar('aromatico')">Aromático</button>
             <button onclick="renderRadar('sensorial')">Sensorial</button>
         </div>
@@ -175,7 +174,7 @@
                 } catch (error) { console.error("Error al cargar resumen de valoraciones:", error); }
             }
 
-            // --- LÓGICA DE COMENTARIOS ---
+            // --- LÓGICA DE COMENTARIOS (CON LA CORRECCIÓN) ---
             const listaComentariosEl = document.getElementById("lista-comentarios");
             window.toggleComentarios = function() {
                 if (listaComentariosEl.style.maxHeight === "0px" || !listaComentariosEl.style.maxHeight) {
@@ -188,11 +187,15 @@
                 return new Date(fechaStr).toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
             }
             async function cargarComentarios() {
+                const listaComentariosEl = document.getElementById("lista-comentarios");
                 try {
-                    const comentarios = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` )).json();
-                    console.log("Respuesta de la API de comentarios:", comentarios);
-                    const listaComentariosEl = document.getElementById("lista-comentarios");
-                    listaComentariosEl.innerHTML = "";
+                    const data = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` )).json();
+                    
+                    // Lógica para manejar si la API devuelve un objeto {comentarios: []} o un array []
+                    const comentarios = Array.isArray(data.comentarios) ? data.comentarios : Array.isArray(data) ? data : [];
+
+                    listaComentariosEl.innerHTML = ""; // Limpiar "Cargando..."
+
                     if (comentarios.length === 0) {
                         listaComentariosEl.innerHTML = '<p style="padding: 1rem 0;">No hay comentarios aún. ¡Sé el primero en opinar!</p>';
                     } else {
@@ -204,12 +207,13 @@
                             listaComentariosEl.appendChild(div);
                         });
                     }
-                    // ===== LA CORRECCIÓN ESTÁ AQUÍ =====
+                    
+                    // Recalcular la altura del desplegable si está abierto
                     if (listaComentariosEl.style.maxHeight !== "0px" && listaComentariosEl.style.maxHeight !== "") {
                         listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
                     }
                 } catch (error) { 
-                    console.error("Error al cargar comentarios:", error);
+                    console.error("Error al cargar o procesar comentarios:", error);
                     listaComentariosEl.innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
                 }
             }
@@ -236,7 +240,6 @@
                 .finally(() => {
                     // 2. Una vez TERMINADA la geolocalización, configurar los listeners y cargar el resto
                     
-                    // Listener para las estrellas
                     document.querySelectorAll(".estrella").forEach(e => {
                         e.addEventListener("click", () => {
                             puntuacionSeleccionada = parseInt(e.dataset.value);
@@ -246,7 +249,6 @@
                         });
                     });
 
-                    // Listener para el botón de enviar valoración
                     document.getElementById("enviar-valoracion").addEventListener("click", async () => {
                         const comentario = document.getElementById("comentario").value || "";
                         const mensaje = document.getElementById("mensaje-valoracion");
@@ -287,4 +289,4 @@
         });
     </script>
 </body>
-</html>
+</html>```
