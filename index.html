@@ -181,20 +181,7 @@
       fill.style.width = porcentaje + "%";
       fill.innerText = porcentaje + " / 100";
     }
-function renderEstrellas(nota) {
-  const contenedor = document.getElementById("estrellas-nota");
-  contenedor.innerHTML = "";
-  const estrellas = Math.floor(nota);
-  const media = nota - estrellas;
-
-  for (let i = 1; i <= 5; i++) {
-    if (i <= estrellas) {
-      contenedor.innerHTML += "★";
-    } else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) {
-      contenedor.innerHTML += "⯪"; // Media estrella (alternativa visual)
-    } else {
-      contenedor.innerHTML += "☆";
-      
+    
     }function renderEstrellas(nota) {
   const contenedor = document.getElementById("estrellas-nota");
   contenedor.innerHTML = "";
