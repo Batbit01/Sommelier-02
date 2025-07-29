@@ -14,7 +14,6 @@
         #hablar { display: inline-block; margin-top: 2rem; padding: 0.75rem 1.5rem; background: #800000; color: white; border: none; border-radius: 1rem; cursor: pointer; }
         .redes a { margin-right: 1rem; text-decoration: none; color: #800000; }
         
-        /* --- ESTILOS MEJORADOS PARA EL RADAR --- */
         #radar-container { margin-top: 3rem; text-align: center; }
         .switch-buttons {
             display: flex;
@@ -23,7 +22,6 @@
             margin-bottom: 1.5rem;
         }
         .switch-buttons button {
-            /* 3. Color de botones desactivados con menor intensidad */
             background-color: #a97c7c; 
             color: white;
             border: 2px solid #800000;
@@ -40,7 +38,6 @@
             background-color: #800000;
             box-shadow: 0 0 10px rgba(128,0,0,0.5 );
         }
-        /* --- FIN DE ESTILOS MEJORADOS --- */
 
         #score-container, #valoracion-container { margin-top: 3rem; }
         #score-bar { width: 100%; height: 20px; background-color: #ddd; border-radius: 10px; overflow: hidden; }
@@ -72,8 +69,7 @@
             <button id="btn-gustativo" onclick="renderRadar('gustativo')">Gustativo</button>
             <button id="btn-sensorial" onclick="renderRadar('sensorial')">Sensorial</button>
         </div>
-        <!-- 2. Contenedor con tamaño fijo para evitar el salto -->
-        <div style="width: 100%; max-width: 400px; height: 400px; margin: auto;">
+        <div style="width: 100%; max-width: 500px; height: 500px; margin: auto;">
              <canvas id="radarChart"></canvas>
         </div>
     </div>
@@ -124,7 +120,6 @@
                 if (radarChart) radarChart.destroy();
                 
                 let labels = [], data = [];
-                // 1. Formas de radar corregidas (pentágonos y hexágono)
                 if (tipo === 'gustativo') {
                     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
                     data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
@@ -155,7 +150,11 @@
                         }] 
                     }, 
                     options: {
-                        maintainAspectRatio: false, // Permite que el gráfico llene el div contenedor
+                        maintainAspectRatio: false,
+                        // 1. Padding para centrar los radares y hacerlos más grandes
+                        layout: {
+                            padding: 40
+                        },
                         plugins: {
                             legend: { display: false }
                         },
@@ -165,7 +164,8 @@
                                 max: 10, 
                                 ticks: { stepSize: 2 },
                                 pointLabels: {
-                                    font: { size: 16 }
+                                    // 2. Letras un poco más pequeñas
+                                    font: { size: 14 }
                                 }
                             } 
                         } 
@@ -342,4 +342,4 @@
         });
     </script>
 </body>
-</html>```
+</html>
