@@ -219,10 +219,13 @@ function renderEstrellas(nota) {
   const urlParams = new URLSearchParams(window.location.search);
   const vinoId = urlParams.get("vino_id");
 
-  if (!vinoId) {
+    if (!vinoId) {
     document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
     return;
   }
+
+  // 👉 Lanzamos el flujo cerebro
+  await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
 
       try {
         const respComentarios = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}`);
