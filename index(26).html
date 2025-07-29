@@ -282,7 +282,7 @@ function renderEstrellas(nota) {
   if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
   document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
 
-  // 🧠 Llamada al webhook CEREBRO
+  // 🧠 Llamada al webhook CEREBRO para obtener narrativa del vino
   const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
   const dataCerebro = await respCerebro.json();
   document.getElementById("respuesta").innerText =
@@ -290,10 +290,11 @@ function renderEstrellas(nota) {
 
 } catch (error) {
   document.getElementById("respuesta").innerText =
-    "No se pudo cargar la ficha del vino.";
-  console.error("❌ Error cargando ficha o narrativa:", error);
+    "No se pudo cargar la ficha del vino ni la narrativa.";
+  console.error("❌ Error general en la carga:", error);
 }
-  
+
+        
       try {
         organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
         renderRadar("gustativo");
