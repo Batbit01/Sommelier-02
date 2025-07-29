@@ -259,6 +259,7 @@ function renderEstrellas(nota) {
       const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
       const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
       const webhookComentario = "https://n8n-production-cb18.up.railway.app/webhook/comentar-vino";
+      const webhookCerebro = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
 
       if (!vinoId) {
         document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
