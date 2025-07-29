@@ -372,100 +372,30 @@
         console.warn("No se pudo obtener geolocalización:", error);
       });
   });
-</script>
+<!-- =============================================================== -->
+<!-- ===== COMIENZA A PEGAR EL NUEVO CÓDIGO AQUÍ =================== -->
+<!-- =============================================================== -->
 
-<div id="datos-usuario-debug" style="padding: 1rem; background-color: #f2f2f2; border-bottom: 2px solid #ccc; font-family: sans-serif;">
-  <strong>🌍 Datos geolocalizados:</strong><br>
+<!-- SECCIÓN DE DATOS DE USUARIO (GEOLOCALIZACIÓN) -->
+<div id="datos-usuario-debug" style="margin-top: 2rem; padding: 1rem; background-color: #f2f2f2; border-radius: 0.5rem; font-family: sans-serif;">
+  <strong>🌍 Datos detectados:</strong>  
+
   Ciudad: <span id="debug-ciudad">...</span> |
   País: <span id="debug-pais">...</span> |
   Idioma: <span id="debug-idioma">...</span>
 </div>
 
-
-
-<script>
-  // Esperar a que se cargue todo
-  window.addEventListener("DOMContentLoaded", () => {
-    const datos = window._datosUsuario || {};
-    document.getElementById("debug-ciudad").innerText = datos.ciudad || "No detectado";
-    document.getElementById("debug-pais").innerText = datos.pais || "No detectado";
-    document.getElementById("debug-idioma").innerText = datos.idioma || "No detectado";
-  });
-</script>
-
-<div id=""comentarios-final-container" " style="margin-top: 3rem;">
+<!-- SECCIÓN DE COMENTARIOS (ACORDEÓN) -->
+<div id="comentarios-container" style="margin-top: 3rem;">
   <h3 style="cursor:pointer; color:#800000;" onclick="toggleComentarios()">▼ Comentarios de otros usuarios</h3>
-  <div id="lista-comentarios-final" style="max-height: 0; overflow: hidden; transition: max-height 0.5s ease;">
-    <p>Cargando comentarios...</p>
+  <div id="lista-comentarios" style="max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out;">
+    <p style="padding: 1rem 0;">Cargando comentarios...</p>
   </div>
 </div>
 
-<!-- INICIA EL BLOQUE A REEMPLAZAR AQUÍ -->
-
-<!-- 1. HTML corregido (sin comillas extra) -->
-<div id="comentarios-final-container" style="margin-top: 3rem;">
-  <h3 style="cursor:pointer; color:#800000;" onclick="toggleComentarios()">▼ Comentarios de otros usuarios</h3>
-  <div id="lista-comentarios-final" style="max-height: 0; overflow: hidden; transition: max-height 0.5s ease;">
-    <p>Cargando comentarios...</p>
-  </div>
-</div>
-
-<!-- 2. Script de comentarios (sin cambios, ya estaba bien) -->
-<script>
-  const listaComentariosEl = document.getElementById("lista-comentarios-final");
-
-  function toggleComentarios() {
-    if (listaComentariosEl.style.maxHeight === "0px" || !listaComentariosEl.style.maxHeight) {
-      listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
-    } else {
-      listaComentariosEl.style.maxHeight = "0px";
-    }
-  }
-
-  function formatearFecha(fechaStr) {
-    const fecha = new Date(fechaStr);
-    return fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
-  }
-
-  async function cargarComentarios() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const vinoId = urlParams.get("vino_id");
-    if (!vinoId) return;
-
-    try {
-      const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` );
-      const comentarios = await resp.json();
-      
-      listaComentariosEl.innerHTML = "";
-
-      if (comentarios.length === 0) {
-        listaComentariosEl.innerHTML = "<p>No hay comentarios aún. ¡Sé el primero en opinar!</p>";
-      } else {
-        comentarios.slice(0, 10).forEach(c => {
-          const div = document.createElement("div");
-          div.classList.add("comentario");
-          // 3. HTML del comentario limpiado (sin saltos de línea extra)
-          div.innerHTML = `
-            <strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · 
-            <span style="color: #666;">${formatearFecha(c.fecha)}</span>  
-
-            <em>“${c.comentario}”</em>
-          `;
-          listaComentariosEl.appendChild(div);
-        });
-      }
-    } catch (error) {
-      console.error("Error al cargar comentarios:", error);
-      listaComentariosEl.innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
-    }
-  }
-
-  window.addEventListener("DOMContentLoaded", cargarComentarios);
-</script>
-
-<!-- 4. CSS corregido (apuntando al ID correcto) -->
+<!-- ESTILOS PARA LOS COMENTARIOS INDIVIDUALES -->
 <style>
-  #lista-comentarios-final .comentario {
+  #lista-comentarios .comentario {
     margin-bottom: 1rem;
     padding: 0.75rem;
     border: 1px solid #ddd;
@@ -474,10 +404,92 @@
   }
 </style>
 
+<!-- SCRIPT UNIFICADO PARA GEOLOCALIZACIÓN Y COMENTARIOS -->
+<script>
+  // --- Ejecutar todo cuando el DOM esté listo ---
+  window.addEventListener("DOMContentLoaded", () => {
+    
+    // 1. LÓGICA DE GEOLOCALIZACIÓN
+    function obtenerGeoDatos() {
+      fetch("https://ipapi.co/json/" )
+        .then(response => response.json())
+        .then(data => {
+          const idioma = navigator.language || navigator.userLanguage;
+          const ciudad = data.city || "No detectada";
+          const pais = data.country_name || "No detectado";
+          
+          // Guardar en variable global para el script de valoración
+          window._datosUsuario = { ciudad, pais, idioma };
+
+          // Mostrar en el panel de debug
+          document.getElementById("debug-ciudad").innerText = ciudad;
+          document.getElementById("debug-pais").innerText = pais;
+          document.getElementById("debug-idioma").innerText = idioma;
+        })
+        .catch(error => {
+          console.warn("No se pudo obtener geolocalización:", error);
+        });
+    }
+
+    // 2. LÓGICA DE COMENTARIOS
+    const listaComentariosEl = document.getElementById("lista-comentarios");
+
+    window.toggleComentarios = function() {
+      if (listaComentariosEl.style.maxHeight === "0px" || !listaComentariosEl.style.maxHeight) {
+        listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
+      } else {
+        listaComentariosEl.style.maxHeight = "0px";
+      }
+    }
+
+    function formatearFecha(fechaStr) {
+      const fecha = new Date(fechaStr);
+      return fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
+    }
+
+    async function cargarComentarios() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const vinoId = urlParams.get("vino_id");
+      if (!vinoId) {
+          listaComentariosEl.innerHTML = "<p>ID de vino no encontrado.</p>";
+          return;
+      };
+
+      try {
+        const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` );
+        const comentarios = await resp.json();
+        
+        listaComentariosEl.innerHTML = ""; // Limpiar "Cargando..."
+
+        if (comentarios.length === 0) {
+          listaComentariosEl.innerHTML = '<p style="padding: 1rem 0;">No hay comentarios aún. ¡Sé el primero en opinar!</p>';
+        } else {
+          comentarios.slice(0, 10).forEach(c => {
+            const div = document.createElement("div");
+            div.className = "comentario";
+            div.innerHTML = `
+              <strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · 
+              <span style="color: #666;">${formatearFecha(c.fecha)}</span>  
+
+              <em>“${c.comentario}”</em>
+            `;
+            listaComentariosEl.appendChild(div);
+          });
+        }
+      } catch (error) {
+        console.error("Error al cargar comentarios:", error);
+        listaComentariosEl.innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
+      }
+    }
+
+    // --- Llamar a las funciones ---
+    obtenerGeoDatos();
+    cargarComentarios();
+  });
+</script>
+
 </body>
 </html>
-
-<!-- TERMINA EL BLOQUE A REEMPLAZAR AQUÍ -->
 
 <style>
   #lista-comentarios .comentario {
