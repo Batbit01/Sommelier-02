@@ -131,10 +131,14 @@
 <p id="mensaje-valoracion" style="margin-top:1rem; color: green;"></p>
 </div>
 <script>
+    // --- VARIABLES GLOBALES Y CONFIGURACIÓN ---
     let radarChart;
     let organo = {};
     let puntuacionSeleccionada = 0;
+    const urlParams = new URLSearchParams(window.location.search);
+    const vinoId = urlParams.get("vino_id");
 
+    // --- FUNCIONES DE RENDERIZADO (sin cambios) ---
     function renderRadar(tipo) {
       if (!organo || Object.keys(organo).length === 0) return;
       const ctx = document.getElementById('radarChart').getContext('2d');
@@ -165,9 +169,7 @@
         },
         options: {
           responsive: true,
-          scales: {
-            r: { min: 0, max: 10, ticks: { stepSize: 2 } }
-          }
+          scales: { r: { min: 0, max: 10, ticks: { stepSize: 2 } } }
         }
       });
     }
@@ -176,147 +178,126 @@
       let total = 0;
       for (const key in organo) total += parseInt(organo[key]) || 0;
       const maxScore = Object.keys(organo).length * 10;
-      const porcentaje = Math.round((total / maxScore) * 100);
+      const porcentaje = maxScore > 0 ? Math.round((total / maxScore) * 100) : 0;
       const fill = document.getElementById("score-fill");
       fill.style.width = porcentaje + "%";
       fill.innerText = porcentaje + " / 100";
     }
-function renderEstrellas(nota) {
-  const contenedor = document.getElementById("estrellas-nota");
-  contenedor.innerHTML = "";
-  const estrellas = Math.floor(nota);
-  const media = nota - estrellas;
 
-  for (let i = 1; i <= 5; i++) {
-    if (i <= estrellas) {
-      contenedor.innerHTML += "★";
-    } else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) {
-      contenedor.innerHTML += "⯪"; // Media estrella (alternativa visual)
-    } else {
-      contenedor.innerHTML += "☆";
-      
-    }function renderEstrellas(nota) {
-  const contenedor = document.getElementById("estrellas-nota");
-  contenedor.innerHTML = "";
-  const estrellas = Math.floor(nota);
-  const media = nota - estrellas;
-
-  for (let i = 1; i <= 5; i++) {
-    if (i <= estrellas) {
-      contenedor.innerHTML += "★";
-    } else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) {
-      contenedor.innerHTML += "⯪"; // Media estrella (alternativa visual)
-    } else {
-      contenedor.innerHTML += "☆";
+    function renderEstrellas(nota) {
+        const contenedor = document.getElementById("estrellas-nota");
+        contenedor.innerHTML = "";
+        const estrellas = Math.floor(nota);
+        const media = nota - estrellas;
+        for (let i = 1; i <= 5; i++) {
+            if (i <= estrellas) {
+                contenedor.innerHTML += "★";
+            } else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) {
+                contenedor.innerHTML += "⯪";
+            } else {
+                contenedor.innerHTML += "☆";
+            }
+        }
     }
-  }
-}
 
-  }
-}
+    // --- NUEVAS FUNCIONES DE CARGA DE DATOS ---
 
-    document.addEventListener("DOMContentLoaded", async () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const vinoId = urlParams.get("vino_id");
-
-  if (!vinoId) {
-    document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
-    return;
-  }
-
-      try {
-        const respComentarios = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}`);
-        const comentarios = await respComentarios.json();
-        const lista = document.getElementById("lista-comentarios");
-        lista.innerHTML = "";
-
-        if (comentarios.length === 0) {
-          lista.innerHTML = "<p>No hay comentarios aún. ¡Sé el primero en opinar!</p>";
-        } else {
-          comentarios.forEach(c => {
-            const div = document.createElement("div");
-            div.style.marginBottom = "1rem";
-            div.style.padding = "0.75rem";
-            div.style.border = "1px solid #ddd";
-            div.style.borderRadius = "0.5rem";
-            div.style.backgroundColor = "#fafafa";
-            div.innerHTML = `
-              <strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · <span style="color: #666;">${formatearFecha(c.fecha)}</span><br/>
-              <em>“${c.comentario}”</em>
-            `;
-            lista.appendChild(div);
-          });
-        }
-
-        function formatearFecha(fechaStr) {
-          const fecha = new Date(fechaStr);
-          return fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
-        }
-      } catch (error) {
-        console.error("Error al cargar comentarios:", error);
-      }
-
+    /**
+     * Carga los datos principales del vino (nombre, bodega, tipo, etc.)
+     * Esta es la información más rápida y esencial.
+     */
+    async function cargarFichaVino() {
       const apiBase = "https://sommelierlab-api-production.up.railway.app/api/vino";
+      try {
+        const fichaData = await (await fetch(`${apiBase}/${vinoId}` )).json();
+        document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
+        document.title = fichaData.nombre || "Ficha del Vino"; // Actualiza el título de la página
+        document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
+        document.getElementById("vinoTipo").innerText = fichaData.tipo;
+        document.getElementById("vinoUva").innerText = fichaData.variedad;
+        document.getElementById("vinoOrigen").innerText = fichaData.origen;
+        document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
+
+        const redesHtml = [];
+        if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
+        if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
+        if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
+        if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
+        document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+      } catch (error) {
+        console.error("❌ Error cargando la ficha del vino:", error);
+        document.getElementById("vinoTitulo").innerText = "Error al cargar el vino";
+      }
+    }
+
+    /**
+     * Carga el perfil organoléptico para el radar y la puntuación.
+     */
+    async function cargarPerfilOrganoleptico() {
       const organoBase = "https://sommelierlab-api-production.up.railway.app/api/organoleptica";
-      const webhookComentario = "https://n8n-production-cb18.up.railway.app/webhook/comentar-vino";
+      try {
+        organo = await (await fetch(`${organoBase}/${vinoId}` )).json();
+        renderRadar("gustativo"); // Renderiza el primer gráfico por defecto
+        calcularPuntuacionTotal();
+      } catch (error) {
+        console.error("❌ Error cargando el perfil organoléptico:", error);
+        document.getElementById("radar-container").innerHTML = "<p>No se pudo cargar el perfil organoléptico.</p>";
+      }
+    }
+
+    /**
+     * Carga la narrativa del vino desde el webhook CEREBRO.
+     * Se ejecuta de forma independiente y no bloquea otras cargas.
+     */
+    async function cargarNarrativaVino() {
       const webhookCerebro = "https://n8n-production-cb18.up.railway.app/webhook/consultar-vino";
+      try {
+        const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}` );
+        const dataCerebro = await respCerebro.json();
+        document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+        // Aquí podrías también manejar el MP3 si lo devuelves en el JSON
+      } catch (error) {
+        console.error("❌ Error cargando la narrativa del vino:", error);
+        document.getElementById("respuesta").innerText = "No se pudo cargar la descripción del vino.";
+      }
+    }
+    
+    /**
+     * Carga el resumen de valoraciones (nota media y total).
+     */
+    async function cargarResumenValoraciones() {
+        const webhookValoraciones = `https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`;
+        try {
+            const resp = await fetch(webhookValoraciones );
+            const data = await resp.json();
+            if (data.total_valoraciones > 0) {
+                document.getElementById("rating-summary").style.display = "block";
+                document.getElementById("media-nota").innerText = data.nota_media.toFixed(1);
+                renderEstrellas(data.nota_media);
+                document.getElementById("total-valoraciones").innerText = `(${data.total_valoraciones} valoraciones)`;
+            }
+        } catch (error) {
+            console.error("Error al cargar resumen de valoraciones:", error);
+        }
+    }
 
 
+    // --- EVENTO PRINCIPAL DE CARGA ---
+    document.addEventListener("DOMContentLoaded", () => {
       if (!vinoId) {
         document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
         return;
       }
-        try {
-  const fichaData = await (await fetch(`${apiBase}/${vinoId}`)).json();
-  document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
-  document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
-  document.getElementById("vinoTipo").innerText = fichaData.tipo;
-  document.getElementById("vinoUva").innerText = fichaData.variedad;
-  document.getElementById("vinoOrigen").innerText = fichaData.origen;
-  document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
 
-  const redesHtml = [];
-  if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
-  if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
-  if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
-  if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
-  document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+      // Inicia todas las cargas de datos en paralelo.
+      // Ninguna espera a la otra.
+      cargarFichaVino();
+      cargarPerfilOrganoleptico();
+      cargarNarrativaVino();
+      cargarResumenValoraciones();
+      // La carga de comentarios ya se hace en su propio script, lo cual está bien.
 
-  // 🧠 Llamada al webhook CEREBRO para obtener narrativa del vino
-  const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
-  const dataCerebro = await respCerebro.json();
-  document.getElementById("respuesta").innerText =
-    dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
-
-} catch (error) {
-  document.getElementById("respuesta").innerText =
-    "No se pudo cargar la ficha del vino ni la narrativa.";
-  console.error("❌ Error general en la carga:", error);
-}
-
-        
-      try {
-        organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
-        renderRadar("gustativo");
-        calcularPuntuacionTotal();
-        try {
-  const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`);
-  const data = await resp.json();
-  
-  if (data.total_valoraciones > 0) {
-    document.getElementById("rating-summary").style.display = "block";
-    document.getElementById("media-nota").innerText = data.nota_media.toFixed(1);
-    renderEstrellas(data.nota_media);
-    document.getElementById("total-valoraciones").innerText = `(${data.total_valoraciones} valoraciones)`;
-  }
-} catch (error) {
-  console.error("Error al cargar resumen de valoraciones:", error);
-}
-
-      } catch (error) {
-        console.error("Error cargando gráfico organoléptico:", error);
-      }
-
+      // --- LÓGICA DE INTERACCIÓN DEL USUARIO (Valoraciones) ---
       document.querySelectorAll(".estrella").forEach(e => {
         e.addEventListener("click", () => {
           puntuacionSeleccionada = parseInt(e.dataset.value);
@@ -329,26 +310,28 @@ function renderEstrellas(nota) {
       document.getElementById("enviar-valoracion").addEventListener("click", async () => {
         const comentario = document.getElementById("comentario").value || "";
         const mensaje = document.getElementById("mensaje-valoracion");
-        if (!puntuacionSeleccionada) {
-          mensaje.innerText = "Por favor selecciona una valoración.";
+        const webhookComentario = "https://n8n-production-cb18.up.railway.app/webhook/comentar-vino";
+
+        if (!puntuacionSeleccionada ) {
+          mensaje.innerText = "Por favor, selecciona una puntuación (de 1 a 5 estrellas).";
           mensaje.style.color = "red";
           return;
         }
+        
         try {
           await fetch(webhookComentario, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    vino_id: vinoId,
-    puntuacion: puntuacionSeleccionada,
-    comentario: comentario,
-    user_id: localStorage.getItem("user_id") || generarUserId(),
-    ciudad: window._datosUsuario?.ciudad || "Desconocida",
-    pais: window._datosUsuario?.pais || "Desconocido",
-    idioma: window._datosUsuario?.idioma || "es"
-  })
-});
-
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              vino_id: vinoId,
+              puntuacion: puntuacionSeleccionada,
+              comentario: comentario,
+              user_id: localStorage.getItem("user_id") || "user_" + Math.random().toString(36).substring(2, 10),
+              ciudad: window._datosUsuario?.ciudad || "Desconocida",
+              pais: window._datosUsuario?.pais || "Desconocido",
+              idioma: window._datosUsuario?.idioma || "es"
+            })
+          });
           mensaje.innerText = "¡Gracias por tu valoración!";
           mensaje.style.color = "green";
         } catch (err) {
@@ -356,12 +339,9 @@ function renderEstrellas(nota) {
           mensaje.style.color = "red";
         }
       });
+    });
+</script>
 
-      function generarUserId() {
-        const uid = "user_" + Math.random().toString(36).substring(2, 10);
-        localStorage.setItem("user_id", uid);
-        return uid;
-      }
     });
   </script>
 <div id="comentarios-aprobados" style="margin-top: 3rem;">
