@@ -190,6 +190,8 @@
             async function cargarComentarios() {
                 try {
                     const comentarios = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` )).json();
+                    console.log("Respuesta de la API de comentarios:", comentarios);
+                    const listaComentariosEl = document.getElementById("lista-comentarios");
                     listaComentariosEl.innerHTML = "";
                     if (comentarios.length === 0) {
                         listaComentariosEl.innerHTML = '<p style="padding: 1rem 0;">No hay comentarios aún. ¡Sé el primero en opinar!</p>';
