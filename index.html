@@ -283,12 +283,7 @@ function renderEstrellas(nota) {
         if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
         document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
       
-       // Llamada al webhook CEREBRO para obtener narrativa del vino 
-        const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
-        const dataCerebro = await respCerebro.json();
-        document.getElementById("respuesta").innerText =
-        dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
-        
+
       } catch (error) {
         document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
         console.error("❌ Error general en la carga:", error);
@@ -298,6 +293,22 @@ function renderEstrellas(nota) {
         organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
         renderRadar("gustativo");
         calcularPuntuacionTotal();
+          
+      // 🔁 Ejecutar el flujo cerebro en paralelo para no bloquear la ficha
+     (async () => {
+     try {
+    const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
+    const dataCerebro = await respCerebro.json();
+    document.getElementById("respuesta").innerText =
+      dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+  } catch (error) {
+    console.error("❌ Error al lanzar el flujo cerebro:", error);
+    document.getElementById("respuesta").innerText =
+      "No se pudo generar la narrativa del vino.";
+  }
+})();
+
+          
         try {
   const resp = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`);
   const data = await resp.json();
