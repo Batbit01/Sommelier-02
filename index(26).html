@@ -266,8 +266,7 @@ function renderEstrellas(nota) {
         document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
         return;
       }
-
-     try {
+        try {
   const fichaData = await (await fetch(`${apiBase}/${vinoId}`)).json();
   document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
   document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
@@ -283,17 +282,18 @@ function renderEstrellas(nota) {
   if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
   document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
 
-  // 🧠 Aquí viene la llamada al flujo CEREBRO
+  // 🧠 Llamada al webhook CEREBRO
   const respCerebro = await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
   const dataCerebro = await respCerebro.json();
   document.getElementById("respuesta").innerText =
     dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
 
 } catch (error) {
-  document.getElementById("respuesta").innerText = "No se pudo cargar la ficha del vino.";
+  document.getElementById("respuesta").innerText =
+    "No se pudo cargar la ficha del vino.";
+  console.error("❌ Error cargando ficha o narrativa:", error);
 }
-
-         
+  
       try {
         organo = await (await fetch(`${organoBase}/${vinoId}`)).json();
         renderRadar("gustativo");
