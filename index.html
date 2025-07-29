@@ -108,8 +108,29 @@
                     labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
                     data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
                 }
-                radarChart = new Chart(ctx, { type: 'radar', data: { labels, datasets: [{ label: `Perfil ${tipo}`, data: data.map(x => parseInt(x) || 0), fill: true, backgroundColor: "rgba(128,0,0,0.2)", borderColor: "rgba(128,0,0,1)", pointBackgroundColor: "rgba(128,0,0,1)" }] }, options: { responsive: true, scales: { r: { min: 0, max: 10, ticks: { stepSize: 2 } } } } });
-            }
+                radarChart = new Chart(ctx, { type: 'radar', data: { labels, datasets: [{ label: `Perfil ${tipo}`, data: data.map(x => parseInt(x) || 0), fill: true, backgroundColor: "rgba(128,0,0,0.2)", borderColor: "rgba(128,0,0,1)", pointBackgroundColor: "rgba(128,0,0,1)" }] },options: {
+  responsive: true,
+  scales: {
+    r: {
+      min: 0,
+      max: 10,
+      ticks: {
+        stepSize: 2,
+        color: '#666',
+        font: { size: 12 }
+      },
+      pointLabels: {
+        font: { size: 14 },
+        color: '#444'
+      },
+      grid: { color: '#ddd' },
+      angleLines: { color: '#ccc' }
+    }
+  },
+  plugins: {
+    legend: { display: false }
+  }
+}
 
             function calcularPuntuacionTotal() {
                 let total = 0;
