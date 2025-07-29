@@ -226,6 +226,9 @@ function renderEstrellas(nota) {
 
   // 👉 Lanzamos el flujo cerebro
   await fetch(`${webhookCerebro}?vino_id=${vinoId}`);
+        } catch (error) {
+  console.error("Error al lanzar el flujo cerebro:", error);
+}
 
       try {
         const respComentarios = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}`);
