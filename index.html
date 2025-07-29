@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+ <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8"/>
@@ -201,7 +202,14 @@
                             listaComentariosEl.appendChild(div);
                         });
                     }
-                } catch (error) { console.error("Error al cargar comentarios:", error); }
+                    // ===== LA CORRECCIÓN ESTÁ AQUÍ =====
+                    if (listaComentariosEl.style.maxHeight !== "0px" && listaComentariosEl.style.maxHeight !== "") {
+                        listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
+                    }
+                } catch (error) { 
+                    console.error("Error al cargar comentarios:", error);
+                    listaComentariosEl.innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
+                }
             }
 
             // --- LÓGICA DE INICIALIZACIÓN Y EVENTOS ---
