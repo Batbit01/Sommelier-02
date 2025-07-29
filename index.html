@@ -108,7 +108,16 @@
                     labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol percibido", "Armonía"];
                     data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
                 }
-                radarChart = new Chart(ctx, { type: 'radar', data: { labels, datasets: [{ label: `Perfil ${tipo}`, data: data.map(x => parseInt(x) || 0), fill: true, backgroundColor: "rgba(128,0,0,0.2)", borderColor: "rgba(128,0,0,1)", pointBackgroundColor: "rgba(128,0,0,1)" }] },options: {
+                radarChart = new Chart(ctx, { type: 'radar', data: { labels, datasets: [{
+  label: `Perfil ${tipo}`,
+  data: data.map(x => parseInt(x) || 0),
+  fill: true,
+  backgroundColor: "rgba(128,0,0,0.2)",
+  borderColor: "rgba(128,0,0,1)",
+  pointBackgroundColor: "rgba(128,0,0,1)"
+}],
+options: {
+
   responsive: true,
   scales: {
     r: {
