@@ -33,14 +33,15 @@
         <div class="vino-dato"><strong>Variedad:</strong> <span id="vinoUva">-</span></div>
         <div class="vino-dato"><strong>Bodega:</strong> <span id="bodegaNombre">-</span></div>
         <div class="vino-dato redes" id="bodega-redes"></div>
-    </div>
-    <div id="respuesta">Cargando descripción del vino...</div>
+       </div>
+       <div id="respuesta">Cargando descripción del vino...</div>
     <button id="hablar">Hablar con el sommelier</button>
-    <div id="rating-summary" style="margin-top:2rem; display:none;">
-        <span id="media-nota" style="font-size:2rem; font-weight:bold; margin-right:0.5rem;">-</span>
-        <span id="estrellas-nota"></span>
-        <span id="total-valoraciones" style="margin-left:0.5rem; font-size:1rem; color:#555;"></span>
+       <div style="display: flex; align-items: center; gap: 0.5rem;">
+       <span id="media-nota" style="font-size:2rem; font-weight:bold;"></span>
+       <span id="estrellas-nota" style="font-size:1.5rem; color: #990000;"></span>
+       <span id="total-valoraciones" style="font-size:1rem; color:#555;"></span>
     </div>
+
     <div id="radar-container">
         <h3>Perfil organoléptico</h3>
         <div class="switch-buttons">
@@ -291,5 +292,36 @@
                 });
         });
     </script>
+    <script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const vinoId = urlParams.get("vino_id");
+
+  if (!vinoId) return;
+
+  try {
+    const response = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`);
+    const data = await response.json();
+
+    const notaMedia = data.nota_media || 0;
+    const total = data.total_valoraciones || 0;
+
+    // Mostrar nota media numérica
+    document.getElementById("media-nota").innerText = notaMedia.toFixed(1);
+
+    // Mostrar estrellas
+    const estrellasLlenas = '★'.repeat(Math.round(notaMedia));
+    const estrellasVacias = '☆'.repeat(5 - Math.round(notaMedia));
+    document.getElementById("estrellas-nota").innerText = estrellasLlenas + estrellasVacias;
+
+    // Mostrar total de valoraciones
+    document.getElementById("total-valoraciones").innerText = `(${total} valoración${total === 1 ? '' : 'es'})`;
+
+  } catch (error) {
+    console.error("Error al obtener valoraciones:", error);
+  }
+});
+</script>
+
 </body>
 </html>```
