@@ -3,10 +3,17 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Radar Sensorial SVG PRO</title>
+    <title id="vinoTitle">Ficha del Vino</title>
     <style>
         body { font-family: sans-serif; background: #fefefe; color: #222; max-width: 600px; margin: 0 auto; padding: 2rem; }
-        #radar-svg-container { display: flex; flex-direction: column; align-items: center; margin-top: 2rem; }
+        .vino-ficha img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 1rem; }
+        .vino-dato { margin-bottom: 1rem; }
+        .vino-dato strong { display: inline-block; width: 100px; }
+        #respuesta { margin-top: 2rem; font-style: italic; background: #f1f1f1; padding: 1rem; border-radius: 0.5rem; }
+        #hablar { display: inline-block; margin-top: 2rem; padding: 0.75rem 1.5rem; background: #800000; color: white; border: none; border-radius: 1rem; cursor: pointer; }
+        .redes a { margin-right: 1rem; text-decoration: none; color: #800000; }
+
+        #radar-svg-container { display: flex; flex-direction: column; align-items: center; margin-top: 2.5rem; }
         .switch-buttons {
             display: flex;
             justify-content: center;
@@ -41,10 +48,28 @@
             alignment-baseline: middle;
             pointer-events: none;
         }
+        #score-container, #valoracion-container { margin-top: 3rem; }
+        #score-bar { width: 100%; height: 20px; background-color: #ddd; border-radius: 10px; overflow: hidden; }
+        #score-fill { height: 100%; background-color: #800000; text-align: center; line-height: 20px; color: white; font-size: 0.9rem; }
+        #estrellas .estrella { font-size: 2rem; color: #ccc; cursor: pointer; }
+        #estrellas .estrella.seleccionada { color: #800000; }
+        #estrellas-nota { color: #800000; font-size: 1.8rem; vertical-align: middle; }
+        #lista-comentarios .comentario { margin-bottom: 1rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 0.5rem; background-color: #fafafa; text-align: left; }
     </style>
 </head>
 <body>
-    <h1>Radar Sensorial SVG PRO</h1>
+    <h1 id="vinoTitulo">Ficha del Vino</h1>
+    <div class="vino-ficha">
+        <img alt="Imagen del vino" id="vinoImagen" src=""/>
+        <div class="vino-dato"><strong>Tipo:</strong> <span id="vinoTipo">-</span></div>
+        <div class="vino-dato"><strong>Origen:</strong> <span id="vinoOrigen">-</span></div>
+        <div class="vino-dato"><strong>Variedad:</strong> <span id="vinoUva">-</span></div>
+        <div class="vino-dato"><strong>Bodega:</strong> <span id="bodegaNombre">-</span></div>
+        <div class="vino-dato redes" id="bodega-redes"></div>
+    </div>
+    <div id="respuesta">Cargando descripción del vino...</div>
+    <button id="hablar">Hablar con el sommelier</button>
+
     <div id="radar-svg-container">
         <div class="switch-buttons">
             <button id="btn-aromatico" onclick="setRadarType('aromatico')">Aromático</button>
@@ -54,7 +79,7 @@
         <svg id="radarSVG" width="360" height="360"></svg>
     </div>
 <script>
-// --- Mapeo de labels para cada perfil ---
+// ---------- Radar SVG conectado a API ----------
 const perfilesConfig = {
     gustativo: {
         labels: ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"],
@@ -70,7 +95,7 @@ const perfilesConfig = {
     }
 };
 let radarType = "aromatico";
-let organo = {}; // aquí guardamos la respuesta de la API
+let organo = {}; // perfil organoléptico desde la API
 
 function setRadarType(tipo) {
     radarType = tipo;
@@ -89,14 +114,9 @@ function polarToCartesian(cx, cy, r, angleRad) {
 function renderRadarSVG() {
     const svg = document.getElementById("radarSVG");
     svg.innerHTML = "";
-
     const config = perfilesConfig[radarType];
     const N = config.labels.length;
-    const R = 135;
-    const cx = 180, cy = 180;
-    const min = 0, max = 10;
-
-    // Saca los valores reales del objeto organo:
+    const R = 135, cx = 180, cy = 180, min = 0, max = 10;
     let values = config.fields.map(f => parseInt(organo[f]) || 0);
 
     // 1. Malla
@@ -109,7 +129,7 @@ function renderRadarSVG() {
         }
         svg.innerHTML += `<polygon points="${mesh.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#d7bebe" stroke-width="1"/>`;
     }
-    // 2. Líneas y labels
+    // 2. Líneas y etiquetas
     for (let i = 0; i < N; i++) {
         let angle = -Math.PI / 2 + (2 * Math.PI * i) / N;
         let [x2, y2] = polarToCartesian(cx, cy, R, angle);
@@ -126,8 +146,7 @@ function renderRadarSVG() {
         poly.push(polarToCartesian(cx, cy, r, angle));
     }
     svg.innerHTML += `<polygon points="${poly.map(p=>p.join(',')).join(' ')}" fill="rgba(128,0,0,0.17)" stroke="#800000" stroke-width="3"/>`;
-
-    // 4. Puntos destacados
+    // 4. Puntos
     for (let i = 0; i < N; i++) {
         let v = values[i];
         let r = (v-min)/(max-min)*R;
@@ -137,27 +156,60 @@ function renderRadarSVG() {
     }
 }
 
-// --- Cargar datos desde tu API ---
+// ---------- Carga desde API de ficha, narrativa, puntuación, comentarios ----------
+const urlParams = new URLSearchParams(window.location.search);
+const vinoId = urlParams.get("vino_id");
+
+// Ficha del vino (imagen, nombre, etc.)
+async function cargarFichaVino() {
+    try {
+        const fichaData = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/vino/${vinoId}` )).json();
+        document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
+        document.title = document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
+        document.getElementById("vinoTipo").innerText = fichaData.tipo;
+        document.getElementById("vinoUva").innerText = fichaData.variedad;
+        document.getElementById("vinoOrigen").innerText = fichaData.origen;
+        document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
+        const redesHtml = [];
+        if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
+        if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
+        if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
+        if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
+        document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+    } catch (error) { console.error("❌ Error cargando la ficha del vino:", error); }
+}
+
+// Narrativa del vino
+async function cargarNarrativaVino() {
+    try {
+        const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-vino?vino_id=${vinoId}` )).json();
+        document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+    } catch (error) { console.error("❌ Error cargando la narrativa del vino:", error); }
+}
+
+// Perfil organoléptico
 async function cargarPerfilOrganoleptico() {
-    // Saca el vino_id de la URL (?vino_id=V001)
-    const urlParams = new URLSearchParams(window.location.search);
-    const vinoId = urlParams.get("vino_id");
-    if (!vinoId) {
-        alert("No se ha especificado el vino");
-        return;
-    }
     try {
         const response = await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${vinoId}`);
         organo = await response.json();
-        // inicia con tipo aromático activo
         setRadarType(radarType);
     } catch (err) {
         alert("No se pudo cargar el perfil organoléptico");
     }
 }
 
-// --- Inicializa todo al cargar la página ---
-document.addEventListener("DOMContentLoaded", cargarPerfilOrganoleptico);
+// Puntuación, valoraciones y comentarios (puedes conectar tu API igual que antes)
+
+// --- Inicializa todo ---
+document.addEventListener("DOMContentLoaded", () => {
+    if (!vinoId) {
+        document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
+        return;
+    }
+    cargarFichaVino();
+    cargarNarrativaVino();
+    cargarPerfilOrganoleptico();
+});
 </script>
     <div id="score-container">
         <h3>Puntuación Total</h3>
@@ -187,13 +239,10 @@ document.addEventListener("DOMContentLoaded", cargarPerfilOrganoleptico);
     </div>
 
     <script>
-    // --- Lógica de puntuación, comentarios, valoración (igual que antes) ---
-
+    // --------------------- BLOQUE DE VALORACIONES Y COMENTARIOS ---------------------
     let puntuacionSeleccionada = 0;
-    // Puedes integrar aquí el fetch de puntuación/media/valoraciones igual que en tu anterior code.
-    // Por ahora, esto es el bloque interactivo mínimo:
-
     document.addEventListener("DOMContentLoaded", () => {
+        // Estrellas
         document.querySelectorAll(".estrella").forEach(e => {
             e.addEventListener("click", () => {
                 puntuacionSeleccionada = parseInt(e.dataset.value);
@@ -203,6 +252,7 @@ document.addEventListener("DOMContentLoaded", cargarPerfilOrganoleptico);
             });
         });
 
+        // Enviar valoración
         document.getElementById("enviar-valoracion").addEventListener("click", async () => {
             const comentario = document.getElementById("comentario").value || "";
             const mensaje = document.getElementById("mensaje-valoracion");
@@ -236,7 +286,7 @@ document.addEventListener("DOMContentLoaded", cargarPerfilOrganoleptico);
         });
     });
 
-    // Toggle para comentarios (igual que antes)
+    // Comentarios: animar/desplegar
     function toggleComentarios() {
         const listaComentariosEl = document.getElementById("lista-comentarios");
         if (listaComentariosEl.style.maxHeight === "0px" || !listaComentariosEl.style.maxHeight) {
@@ -248,4 +298,3 @@ document.addEventListener("DOMContentLoaded", cargarPerfilOrganoleptico);
     </script>
 </body>
 </html>
-
