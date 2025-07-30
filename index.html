@@ -70,9 +70,7 @@
             <button id="btn-sensorial" onclick="renderRadar('sensorial')">Sensorial</button>
         </div>
         
-        <!-- 1. Contenedor con position: relative -->
         <div id="radar-wrapper" style="position: relative; width: 100%; max-width: 500px; height: 500px; margin: auto;">
-             <!-- 2. Dos canvas superpuestos con position: absolute -->
              <canvas id="radarPentagono" style="position: absolute; top: 0; left: 0;"></canvas>
              <canvas id="radarHexagono" style="position: absolute; top: 0; left: 0;"></canvas>
         </div>
@@ -126,12 +124,11 @@
                 
                 let labels = [], data = [];
                 
-                // Ocultamos ambos canvas para empezar
                 canvasPentagono.style.display = 'none';
                 canvasHexagono.style.display = 'none';
 
                 if (tipo === 'gustativo') {
-                    canvasHexagono.style.display = 'block'; // Mostramos el canvas del hexágono
+                    canvasHexagono.style.display = 'block';
                     if (radarHexagonoChart) radarHexagonoChart.destroy();
                     
                     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
@@ -139,8 +136,8 @@
                     
                     radarHexagonoChart = new Chart(canvasHexagono.getContext('2d'), createRadarConfig(labels, data));
 
-                } else { // Aromático y Sensorial usan el mismo canvas de pentágono
-                    canvasPentagono.style.display = 'block'; // Mostramos el canvas del pentágono
+                } else {
+                    canvasPentagono.style.display = 'block';
                     if (radarPentagonoChart) radarPentagonoChart.destroy();
 
                     if (tipo === 'aromatico') {
@@ -158,7 +155,6 @@
                 document.getElementById(`btn-${tipo}`).classList.add('active');
             }
 
-            // Función auxiliar para no repetir la configuración del gráfico
             function createRadarConfig(labels, data) {
                 return { 
                     type: 'radar', 
@@ -246,80 +242,4 @@
 
             async function cargarResumenValoraciones() {
                 try {
-                    const data = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}` )).json();
-                    if (data.total_valoraciones > 0) {
-                        document.getElementById("rating-summary").style.display = "flex";
-                        document.getElementById("media-nota").innerText = data.nota_media.toFixed(1);
-                        renderEstrellas(data.nota_media);
-                        document.getElementById("total-valoraciones").innerText = `(${data.total_valoraciones} valoraciones)`;
-                    }
-                } catch (error) { console.error("Error al cargar resumen de valoraciones:", error); }
-            }
-
-            // --- LÓGICA DE COMENTARIOS ---
-            const listaComentariosEl = document.getElementById("lista-comentarios");
-            window.toggleComentarios = function() {
-                if (listaComentariosEl.style.maxHeight === "0px" || !listaComentariosEl.style.maxHeight) {
-                    listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
-                } else {
-                    listaComentariosEl.style.maxHeight = "0px";
-                }
-            }
-            function formatearFecha(fechaStr) {
-                return new Date(fechaStr).toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
-            }
-            async function cargarComentarios() {
-                try {
-                    const data = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}` )).json();
-                    const comentarios = Array.isArray(data.comentarios) ? data.comentarios : Array.isArray(data) ? data : [];
-                    listaComentariosEl.innerHTML = "";
-                    if (comentarios.length === 0) {
-                        listaComentariosEl.innerHTML = '<p style="padding: 1rem 0;">No hay comentarios aún. ¡Sé el primero en opinar!</p>';
-                    } else {
-                        comentarios.slice(0, 10).forEach(c => {
-                            const div = document.createElement("div");
-                            div.className = "comentario";
-                            div.innerHTML = `<strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · <span style="color: #666;">${formatearFecha(c.fecha)}</span>  
-<em>“${c.comentario}”</em>`;
-                            listaComentariosEl.appendChild(div);
-                        });
-                    }
-                    if (listaComentariosEl.style.maxHeight !== "0px" && listaComentariosEl.style.maxHeight !== "") {
-                        listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
-                    }
-                } catch (error) { 
-                    console.error("Error al cargar o procesar comentarios:", error);
-                    listaComentariosEl.innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
-                }
-            }
-
-            // --- LÓGICA DE INICIALIZACIÓN Y EVENTOS ---
-            if (!vinoId) {
-                document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
-                return;
-            }
-
-            fetch("https://ipapi.co/json/" )
-                .then(response => response.json())
-                .then(data => {
-                    window._datosUsuario = { ciudad: data.city, pais: data.country_name, idioma: navigator.language };
-                })
-                .catch(error => {
-                    console.warn("No se pudo obtener geolocalización:", error);
-                    window._datosUsuario = {};
-                })
-                .finally(() => {
-                    document.querySelectorAll(".estrella").forEach(e => {
-                        e.addEventListener("click", () => {
-                            puntuacionSeleccionada = parseInt(e.dataset.value);
-                            document.querySelectorAll(".estrella").forEach(star => {
-                                star.classList.toggle("seleccionada", parseInt(star.dataset.value) <= puntuacionSeleccionada);
-                            });
-                        });
-                    });
-
-                    document.getElementById("enviar-valoracion").addEventListener("click", async () => {
-                        const comentario = document.getElementById("comentario").value || "";
-                        const mensaje = document.getElementById("mensaje-valoracion");
-                        if (!puntuacionSeleccionada) {
-                            mensaje.innerText =
+                    const data = await (await fetch(`https://n8n-production-cb18
