@@ -62,7 +62,10 @@
     <div id="respuesta">Cargando descripción del vino...</div>
     <button id="hablar">Hablar con el sommelier</button>
     
-        <div id="radar-container">
+    <!-- =============================================================== -->
+    <!-- ===== INICIO DEL BLOQUE DEL RADAR MODIFICADO ==================== -->
+    <!-- =============================================================== -->
+    <div id="radar-container">
         <h3>Perfil organoléptico</h3>
         <div class="switch-buttons">
             <button id="btn-aromatico" onclick="renderRadar('aromatico')">Aromático</button>
@@ -77,7 +80,9 @@
              <canvas id="radarSensorial" style="position: absolute; top: 0; left: 0; display: none;"></canvas>
         </div>
     </div>
-
+    <!-- =============================================================== -->
+    <!-- ===== FIN DEL BLOQUE DEL RADAR MODIFICADO ======================= -->
+    <!-- =============================================================== -->
 
     <div id="score-container">
         <h3>Puntuación Total</h3>
@@ -112,96 +117,12 @@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             // --- VARIABLES GLOBALES Y CONFIGURACIÓN ---
-            let radarChart;
             let organo = {};
             let puntuacionSeleccionada = 0;
             const urlParams = new URLSearchParams(window.location.search);
             const vinoId = urlParams.get("vino_id");
 
-            // --- FUNCIÓN DE RENDERIZADO DEL RADAR (VERSIÓN FINAL) ---
-            window.renderRadar = function(tipo) {
-                if (!organo || Object.keys(organo).length === 0) return;
-                const ctx = document.getElementById('radarChart').getContext('2d');
-                if (radarChart) radarChart.destroy();
-                
-                // 1. El lienzo de referencia SIEMPRE es un hexágono
-                const labelsBase = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
-                let data = [];
-                
-                if (tipo === 'gustativo') {
-                    data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
-                } else if (tipo === 'aromatico') {
-                    // 2. Rellenamos con null los datos que no existen para que no se dibuje la línea
-                    const aromaticoData = [organo.fruta, organo.floral, organo.especiado, organo.tostado, organo.herbaceo];
-                    data = [...aromaticoData, null]; // Usa los 5 datos y deja el 6º vacío
-                } else if (tipo === 'sensorial') {
-                    const sensorialData = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
-                    data = [...sensorialData, null]; // Usa los 5 datos y deja el 6º vacío
-                }
-
-                document.querySelectorAll('.switch-buttons button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                document.getElementById(`btn-${tipo}`).classList.add('active');
-
-                radarChart = new Chart(ctx, { 
-                    type: 'radar', 
-                    data: { 
-                        labels: labelsBase, // Siempre usamos las 6 etiquetas de base
-                        datasets: [{ 
-                            label: `Perfil ${tipo}`,
-                            data: data.map(x => (x === null ? null : parseInt(x) || 0)), 
-                            fill: true, 
-                            backgroundColor: "rgba(128,0,0,0.2)", 
-                            borderColor: "rgba(128,0,0,1)", 
-                            pointBackgroundColor: "rgba(128,0,0,1)",
-                            spanGaps: false // Importante: no une los puntos si hay un null
-                        }] 
-                    }, 
-                    options: {
-                        // 3. Gráfico grande y con relación de aspecto cuadrada
-                        aspectRatio: 1, 
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: { display: false }
-                        },
-                        scales: { 
-                            r: { 
-                                min: 0, 
-                                max: 10, 
-                                ticks: { stepSize: 2 },
-                                pointLabels: {
-                                    font: { size: 14 }
-                                }
-                            } 
-                        } 
-                    } 
-                });
-            }
-
-            function calcularPuntuacionTotal() {
-                let total = 0;
-                for (const key in organo) total += parseInt(organo[key]) || 0;
-                const maxScore = Object.keys(organo).length * 10;
-                const porcentaje = maxScore > 0 ? Math.round((total / maxScore) * 100) : 0;
-                const fill = document.getElementById("score-fill");
-                fill.style.width = porcentaje + "%";
-                fill.innerText = porcentaje + " / 100";
-            }
-
-            function renderEstrellas(nota) {
-                const contenedor = document.getElementById("estrellas-nota");
-                contenedor.innerHTML = "";
-                const estrellas = Math.floor(nota);
-                const media = nota - estrellas;
-                for (let i = 1; i <= 5; i++) {
-                    if (i <= estrellas) contenedor.innerHTML += "★";
-                    else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) contenedor.innerHTML += "⯪";
-                    else contenedor.innerHTML += "☆";
-                }
-            }
-
-                     // --- LÓGICA DEL RADAR (VERSIÓN FINAL CON 3 LIENZOS) ---
+            // --- LÓGICA DEL RADAR (VERSIÓN FINAL CON 3 LIENZOS) ---
             
             // Función para crear la configuración base de un gráfico
             function createRadarConfig(labels) {
@@ -262,11 +183,68 @@
                 document.getElementById(`btn-${tipo}`).classList.add('active');
             }
 
+            function calcularPuntuacionTotal() {
+                let total = 0;
+                for (const key in organo) total += parseInt(organo[key]) || 0;
+                const maxScore = Object.keys(organo).length * 10;
+                const porcentaje = maxScore > 0 ? Math.round((total / maxScore) * 100) : 0;
+                const fill = document.getElementById("score-fill");
+                fill.style.width = porcentaje + "%";
+                fill.innerText = porcentaje + " / 100";
+            }
+
+            function renderEstrellas(nota) {
+                const contenedor = document.getElementById("estrellas-nota");
+                contenedor.innerHTML = "";
+                const estrellas = Math.floor(nota);
+                const media = nota - estrellas;
+                for (let i = 1; i <= 5; i++) {
+                    if (i <= estrellas) contenedor.innerHTML += "★";
+                    else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) contenedor.innerHTML += "⯪";
+                    else contenedor.innerHTML += "☆";
+                }
+            }
+
+            // --- FUNCIONES DE CARGA DE DATOS (APIs) ---
+            async function cargarFichaVino() {
+                try {
+                    const fichaData = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/vino/${vinoId}` )).json();
+                    document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
+                    document.title = document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
+                    document.getElementById("vinoTipo").innerText = fichaData.tipo;
+                    document.getElementById("vinoUva").innerText = fichaData.variedad;
+                    document.getElementById("vinoOrigen").innerText = fichaData.origen;
+                    document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
+                    const redesHtml = [];
+                    if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
+                    if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
+                    if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
+                    if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
+                    document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+                } catch (error) { console.error("❌ Error cargando la ficha del vino:", error); }
+            }
+
+            async function cargarPerfilOrganoleptico() {
+                try {
+                    organo = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${vinoId}` )).json();
+                    
+                    // Rellenar datos del gráfico Aromático
+                    chartAromatico.data.datasets[0].data = [organo.fruta, organo.floral, organo.especiado, organo.tostado, organo.herbaceo];
+                    chartAromatico.update();
+
+                    // Rellenar datos del gráfico Gustativo
+                    chartGustativo.data.datasets[0].data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
+                    chartGustativo.update();
+
+                    // Rellenar datos del gráfico Sensorial
+                    chartSensorial.data.datasets[0].data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
+                    chartSensorial.update();
+                    
+                    // Mostrar el primer radar por defecto
+                    renderRadar("aromatico");
                     
                     calcularPuntuacionTotal();
                 } catch (error) { console.error("❌ Error cargando el perfil organoléptico:", error); }
-            }
-
             }
 
             async function cargarNarrativaVino() {
@@ -380,6 +358,7 @@
                         }
                     });
 
+                    // --- INICIO DE LA CARGA DE DATOS DE LA PÁGINA ---
                     cargarFichaVino();
                     cargarPerfilOrganoleptico();
                     cargarNarrativaVino();
