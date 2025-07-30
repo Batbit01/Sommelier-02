@@ -165,23 +165,82 @@
             const chartSensorial = new Chart(ctxSensorial, createRadarConfig(["Persistencia", "Complejidad", "Astringencia", "Alcohol", "Armonía"]));
 
 
-            // La función renderRadar ahora SOLO cambia la visibilidad
-            window.renderRadar = function(tipo) {
-                document.getElementById('radarAromatico').style.display = 'none';
-                document.getElementById('radarGustativo').style.display = 'none';
-                document.getElementById('radarSensorial').style.display = 'none';
+   window.renderRadar = function(tipo) {
+    if (!organo || Object.keys(organo).length === 0) return;
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    if (radarChart) radarChart.destroy();
 
-                if (tipo === 'aromatico') {
-                    document.getElementById('radarAromatico').style.display = 'block';
-                } else if (tipo === 'gustativo') {
-                    document.getElementById('radarGustativo').style.display = 'block';
-                } else if (tipo === 'sensorial') {
-                    document.getElementById('radarSensorial').style.display = 'block';
+    let labels = [], data = [], sides = 5;
+    let minTicks = 0, maxTicks = 10;
+
+    if (tipo === 'gustativo') {
+        labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
+        data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
+        sides = 6;
+    } else if (tipo === 'aromatico') {
+        labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"];
+        data = [organo.fruta, organo.floral, organo.especiado, organo.tostado, organo.herbaceo];
+        sides = 5;
+    } else if (tipo === 'sensorial') {
+        labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol", "Armonía"];
+        data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
+        sides = 5;
+    }
+
+    // Actualiza el botón activo
+    document.querySelectorAll('.switch-buttons button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`btn-${tipo}`).classList.add('active');
+
+    // ⚡️ EL SECRETO: Definir un ángulo inicial que centre TODOS los polígonos
+    // Para pentágono (5) y exágono (6), este ajuste fuerza la coincidencia de núcleo
+    const firstAngle = -Math.PI / 2; // Empieza siempre arriba
+
+    radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `Perfil ${tipo}`,
+                data: data.map(x => parseInt(x) || 0),
+                fill: true,
+                backgroundColor: "rgba(128,0,0,0.2)",
+                borderColor: "rgba(128,0,0,1)",
+                pointBackgroundColor: "rgba(128,0,0,1)"
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            layout: { padding: 30 },
+            plugins: { legend: { display: false } },
+            elements: {
+                line: { borderWidth: 3 }
+            },
+            scales: {
+                r: {
+                    min: minTicks,
+                    max: maxTicks,
+                    ticks: { stepSize: 2 },
+                    pointLabels: {
+                        font: { size: 16, weight: "bold" },
+                        centerPointLabels: true // para Chart.js v4+
+                    },
+                    angleLines: {
+                        display: true,
+                        color: "#ccc",
+                        lineWidth: 1,
+                        // 👇 Este es el truco que iguala el centro:
+                        borderDash: [4, 4],
+                    },
+                    grid: {
+                        circular: true // Mantén círculo, mejor para simetría
+                    },
+                    // 👇 EL SECRETO: ajustar el ángulo de inicio
+                    startAngle: firstAngle,
                 }
-
-                document.querySelectorAll('.switch-buttons button').forEach(btn => btn.classList.remove('active'));
-                document.getElementById(`btn-${tipo}`).classList.add('active');
             }
+        }
+    });
+}
 
             function calcularPuntuacionTotal() {
                 let total = 0;
