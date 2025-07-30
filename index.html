@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -70,9 +69,12 @@
             <button id="btn-gustativo" onclick="renderRadar('gustativo')">Gustativo</button>
             <button id="btn-sensorial" onclick="renderRadar('sensorial')">Sensorial</button>
         </div>
-        <!-- Contenedor con tamaño fijo para forzar el centrado -->
-        <div style="width: 100%; max-width: 500px; height: 500px; margin: auto;">
-             <canvas id="radarChart"></canvas>
+        
+        <!-- 1. Contenedor con position: relative -->
+        <div id="radar-wrapper" style="position: relative; width: 100%; max-width: 500px; height: 500px; margin: auto;">
+             <!-- 2. Dos canvas superpuestos con position: absolute -->
+             <canvas id="radarPentagono" style="position: absolute; top: 0; left: 0;"></canvas>
+             <canvas id="radarHexagono" style="position: absolute; top: 0; left: 0;"></canvas>
         </div>
     </div>
 
@@ -109,47 +111,60 @@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             // --- VARIABLES GLOBALES Y CONFIGURACIÓN ---
-            let radarChart;
+            let radarPentagonoChart, radarHexagonoChart;
             let organo = {};
             let puntuacionSeleccionada = 0;
             const urlParams = new URLSearchParams(window.location.search);
             const vinoId = urlParams.get("vino_id");
 
-            // --- FUNCIÓN DE RENDERIZADO DEL RADAR (VERSIÓN FINAL-FINAL) ---
+            // --- FUNCIÓN DE RENDERIZADO DEL RADAR (VERSIÓN SUPERPUESTA) ---
             window.renderRadar = function(tipo) {
                 if (!organo || Object.keys(organo).length === 0) return;
-                const ctx = document.getElementById('radarChart').getContext('2d');
-                if (radarChart) {
-                    radarChart.destroy(); // Destruye el gráfico anterior para crearlo de nuevo
-                }
+
+                const canvasPentagono = document.getElementById('radarPentagono');
+                const canvasHexagono = document.getElementById('radarHexagono');
                 
                 let labels = [], data = [];
                 
-                // 1. Se definen las etiquetas y datos correctos para cada tipo
+                // Ocultamos ambos canvas para empezar
+                canvasPentagono.style.display = 'none';
+                canvasHexagono.style.display = 'none';
+
                 if (tipo === 'gustativo') {
+                    canvasHexagono.style.display = 'block'; // Mostramos el canvas del hexágono
+                    if (radarHexagonoChart) radarHexagonoChart.destroy();
+                    
                     labels = ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"];
                     data = [organo.cuerpo, organo.acidez, organo.dulzor, organo.taninos, organo.frescura, organo.mineralidad];
-                } else if (tipo === 'aromatico') {
-                    labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"];
-                    data = [organo.fruta, organo.floral, organo.especiado, organo.tostado, organo.herbaceo];
-                } else if (tipo === 'sensorial') {
-                    labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol", "Armonía"];
-                    data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
+                    
+                    radarHexagonoChart = new Chart(canvasHexagono.getContext('2d'), createRadarConfig(labels, data));
+
+                } else { // Aromático y Sensorial usan el mismo canvas de pentágono
+                    canvasPentagono.style.display = 'block'; // Mostramos el canvas del pentágono
+                    if (radarPentagonoChart) radarPentagonoChart.destroy();
+
+                    if (tipo === 'aromatico') {
+                        labels = ["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"];
+                        data = [organo.fruta, organo.floral, organo.especiado, organo.tostado, organo.herbaceo];
+                    } else if (tipo === 'sensorial') {
+                        labels = ["Persistencia", "Complejidad", "Astringencia", "Alcohol", "Armonía"];
+                        data = [organo.persistencia, organo.complejidad, organo.astringencia, organo.alcohol_percibido, organo.armonia];
+                    }
+                    
+                    radarPentagonoChart = new Chart(canvasPentagono.getContext('2d'), createRadarConfig(labels, data));
                 }
 
-                // Se actualiza el botón activo
-                document.querySelectorAll('.switch-buttons button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
+                document.querySelectorAll('.switch-buttons button').forEach(btn => btn.classList.remove('active'));
                 document.getElementById(`btn-${tipo}`).classList.add('active');
+            }
 
-                // Se crea una nueva instancia del gráfico con la configuración correcta
-                radarChart = new Chart(ctx, { 
+            // Función auxiliar para no repetir la configuración del gráfico
+            function createRadarConfig(labels, data) {
+                return { 
                     type: 'radar', 
                     data: { 
-                        labels: labels, // Usa las etiquetas correctas (5 o 6)
+                        labels: labels,
                         datasets: [{ 
-                            label: `Perfil ${tipo}`,
                             data: data.map(x => parseInt(x) || 0), 
                             fill: true, 
                             backgroundColor: "rgba(128,0,0,0.2)", 
@@ -159,25 +174,18 @@
                     }, 
                     options: {
                         maintainAspectRatio: false,
-                        // 2. El padding fuerza el centrado consistente
-                        layout: {
-                            padding: 20 
-                        },
-                        plugins: {
-                            legend: { display: false }
-                        },
+                        layout: { padding: 20 },
+                        plugins: { legend: { display: false } },
                         scales: { 
                             r: { 
                                 min: 0, 
                                 max: 10, 
                                 ticks: { stepSize: 2 },
-                                pointLabels: {
-                                    font: { size: 14 }
-                                }
+                                pointLabels: { font: { size: 14 } }
                             } 
                         } 
                     } 
-                });
+                };
             }
 
             function calcularPuntuacionTotal() {
@@ -314,39 +322,4 @@
                         const comentario = document.getElementById("comentario").value || "";
                         const mensaje = document.getElementById("mensaje-valoracion");
                         if (!puntuacionSeleccionada) {
-                            mensaje.innerText = "Por favor, selecciona una puntuación (de 1 a 5 estrellas).";
-                            mensaje.style.color = "red";
-                            return;
-                        }
-                        try {
-                            await fetch("https://n8n-production-cb18.up.railway.app/webhook/comentar-vino", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                    vino_id: vinoId,
-                                    puntuacion: puntuacionSeleccionada,
-                                    comentario: comentario,
-                                    user_id: localStorage.getItem("user_id" ) || "user_" + Math.random().toString(36).substring(2, 10),
-                                    ciudad: window._datosUsuario?.ciudad || "Desconocida",
-                                    pais: window._datosUsuario?.pais || "Desconocido",
-                                    idioma: window._datosUsuario?.idioma || "es"
-                                })
-                            });
-                            mensaje.innerText = "¡Gracias por tu valoración!";
-                            mensaje.style.color = "green";
-                        } catch (err) {
-                            mensaje.innerText = "Error al enviar tu valoración.";
-                            mensaje.style.color = "red";
-                        }
-                    });
-
-                    cargarFichaVino();
-                    cargarPerfilOrganoleptico();
-                    cargarNarrativaVino();
-                    cargarResumenValoraciones();
-                    cargarComentarios();
-                });
-        });
-    </script>
-</body>
-</html>
+                            mensaje.innerText =
