@@ -62,18 +62,22 @@
     <div id="respuesta">Cargando descripción del vino...</div>
     <button id="hablar">Hablar con el sommelier</button>
     
-    <div id="radar-container">
+        <div id="radar-container">
         <h3>Perfil organoléptico</h3>
         <div class="switch-buttons">
             <button id="btn-aromatico" onclick="renderRadar('aromatico')">Aromático</button>
             <button id="btn-gustativo" onclick="renderRadar('gustativo')">Gustativo</button>
             <button id="btn-sensorial" onclick="renderRadar('sensorial')">Sensorial</button>
         </div>
-        <!-- Contenedor para el canvas, sin tamaño fijo para que sea responsive -->
-        <div style="width: 100%; margin: auto;">
-             <canvas id="radarChart"></canvas>
+        
+        <!-- Contenedor relativo para anclar los TRES canvas superpuestos -->
+        <div id="radar-wrapper" style="position: relative; width: 100%; max-width: 500px; height: 500px; margin: auto;">
+             <canvas id="radarAromatico" style="position: absolute; top: 0; left: 0; display: none;"></canvas>
+             <canvas id="radarGustativo" style="position: absolute; top: 0; left: 0; display: none;"></canvas>
+             <canvas id="radarSensorial" style="position: absolute; top: 0; left: 0; display: none;"></canvas>
         </div>
     </div>
+
 
     <div id="score-container">
         <h3>Puntuación Total</h3>
@@ -197,31 +201,72 @@
                 }
             }
 
-            // --- FUNCIONES DE CARGA DE DATOS (APIs) ---
-            async function cargarFichaVino() {
-                try {
-                    const fichaData = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/vino/${vinoId}` )).json();
-                    document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
-                    document.title = document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
-                    document.getElementById("vinoTipo").innerText = fichaData.tipo;
-                    document.getElementById("vinoUva").innerText = fichaData.variedad;
-                    document.getElementById("vinoOrigen").innerText = fichaData.origen;
-                    document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
-                    const redesHtml = [];
-                    if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
-                    if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
-                    if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
-                    if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
-                    document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
-                } catch (error) { console.error("❌ Error cargando la ficha del vino:", error); }
+                     // --- LÓGICA DEL RADAR (VERSIÓN FINAL CON 3 LIENZOS) ---
+            
+            // Función para crear la configuración base de un gráfico
+            function createRadarConfig(labels) {
+                return { 
+                    type: 'radar', 
+                    data: { 
+                        labels: labels,
+                        datasets: [{ 
+                            data: [], // Los datos se añadirán después
+                            fill: true, 
+                            backgroundColor: "rgba(128,0,0,0.2)", 
+                            borderColor: "rgba(128,0,0,1)", 
+                            pointBackgroundColor: "rgba(128,0,0,1)"
+                        }] 
+                    }, 
+                    options: {
+                        maintainAspectRatio: false,
+                        layout: { padding: 20 },
+                        plugins: { legend: { display: false } },
+                        scales: { 
+                            r: { 
+                                min: 0, 
+                                max: 10, 
+                                ticks: { stepSize: 2 },
+                                pointLabels: { font: { size: 14 } }
+                            } 
+                        } 
+                    } 
+                };
             }
 
-            async function cargarPerfilOrganoleptico() {
-                try {
-                    organo = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${vinoId}` )).json();
-                    renderRadar("aromatico");
+            // Se inicializan los 3 gráficos una sola vez, pero sin datos
+            const ctxAromatico = document.getElementById('radarAromatico').getContext('2d');
+            const chartAromatico = new Chart(ctxAromatico, createRadarConfig(["Fruta", "Floral", "Especiado", "Tostado", "Herbáceo"]));
+
+            const ctxGustativo = document.getElementById('radarGustativo').getContext('2d');
+            const chartGustativo = new Chart(ctxGustativo, createRadarConfig(["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"]));
+
+            const ctxSensorial = document.getElementById('radarSensorial').getContext('2d');
+            const chartSensorial = new Chart(ctxSensorial, createRadarConfig(["Persistencia", "Complejidad", "Astringencia", "Alcohol", "Armonía"]));
+
+
+            // La función renderRadar ahora SOLO cambia la visibilidad
+            window.renderRadar = function(tipo) {
+                document.getElementById('radarAromatico').style.display = 'none';
+                document.getElementById('radarGustativo').style.display = 'none';
+                document.getElementById('radarSensorial').style.display = 'none';
+
+                if (tipo === 'aromatico') {
+                    document.getElementById('radarAromatico').style.display = 'block';
+                } else if (tipo === 'gustativo') {
+                    document.getElementById('radarGustativo').style.display = 'block';
+                } else if (tipo === 'sensorial') {
+                    document.getElementById('radarSensorial').style.display = 'block';
+                }
+
+                document.querySelectorAll('.switch-buttons button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`btn-${tipo}`).classList.add('active');
+            }
+
+                    
                     calcularPuntuacionTotal();
                 } catch (error) { console.error("❌ Error cargando el perfil organoléptico:", error); }
+            }
+
             }
 
             async function cargarNarrativaVino() {
