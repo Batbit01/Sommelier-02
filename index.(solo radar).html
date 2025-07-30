@@ -5,7 +5,7 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title id="vinoTitle">Ficha del Vino</title>
     <style>
-        body { font-family: sans-serif; background: #fefefe; color: #222; max-width: 600px; margin: 0 auto; padding: 2rem; }
+        body { font-family: sans-serif; padding: 2rem; background-color: #fefefe; color: #222; max-width: 600px; margin: auto; }
         .vino-ficha img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 1rem; }
         .vino-dato { margin-bottom: 1rem; }
         .vino-dato strong { display: inline-block; width: 100px; }
@@ -13,27 +13,29 @@
         #hablar { display: inline-block; margin-top: 2rem; padding: 0.75rem 1.5rem; background: #800000; color: white; border: none; border-radius: 1rem; cursor: pointer; }
         .redes a { margin-right: 1rem; text-decoration: none; color: #800000; }
 
-        #radar-svg-container { display: flex; flex-direction: column; align-items: center; margin-top: 2.5rem; }
+        #radar-svg-container { display: flex; flex-direction: column; align-items: center; margin-top: 3rem; }
         .switch-buttons {
             display: flex;
             justify-content: center;
-            gap: 0.7rem;
-            margin-bottom: 1.2rem;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
         }
         .switch-buttons button {
-            background-color: #a97c7c;
+            background-color: #a97c7c; 
             color: white;
             border: 2px solid #800000;
-            padding: 0.55rem 1.15rem;
-            border-radius: 18px;
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
             cursor: pointer;
             transition: all 0.3s;
             font-weight: bold;
-            font-size: 1.05rem;
+        }
+        .switch-buttons button:hover {
+            background-color: #800000;
         }
         .switch-buttons button.active {
             background-color: #800000;
-            box-shadow: 0 0 8px rgba(128,0,0,0.25);
+            box-shadow: 0 0 10px rgba(128,0,0,0.5 );
         }
         #radarSVG {
             background: #f8f4f2;
@@ -58,6 +60,7 @@
     </style>
 </head>
 <body>
+    <!-- ESTRUCTURA HTML -->
     <h1 id="vinoTitulo">Ficha del Vino</h1>
     <div class="vino-ficha">
         <img alt="Imagen del vino" id="vinoImagen" src=""/>
@@ -71,6 +74,7 @@
     <button id="hablar">Hablar con el sommelier</button>
 
     <div id="radar-svg-container">
+        <h3>Perfil organoléptico</h3>
         <div class="switch-buttons">
             <button id="btn-aromatico" onclick="setRadarType('aromatico')">Aromático</button>
             <button id="btn-gustativo" onclick="setRadarType('gustativo')">Gustativo</button>
@@ -79,7 +83,7 @@
         <svg id="radarSVG" width="360" height="360"></svg>
     </div>
 <script>
-// ---------- Radar SVG conectado a API ----------
+// ---------- Radar SVG conectado a la API ----------
 const perfilesConfig = {
     gustativo: {
         labels: ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"],
@@ -156,7 +160,7 @@ function renderRadarSVG() {
     }
 }
 
-// ---------- Carga desde API de ficha, narrativa, puntuación, comentarios ----------
+// ---------- Carga desde API de ficha, narrativa, valoraciones y comentarios ----------
 const urlParams = new URLSearchParams(window.location.search);
 const vinoId = urlParams.get("vino_id");
 
@@ -198,9 +202,62 @@ async function cargarPerfilOrganoleptico() {
     }
 }
 
-// Puntuación, valoraciones y comentarios (puedes conectar tu API igual que antes)
+// --------- Cargar puntuación/valoraciones y comentarios EN VIVO -----------
+async function cargarValoraciones() {
+    try {
+        const res = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`);
+        const data = await res.json();
+        document.getElementById("media-nota").innerText = data.nota_media !== undefined ? data.nota_media.toFixed(1) : "-";
+        // Estrellas visuales
+        const contenedor = document.getElementById("estrellas-nota");
+        contenedor.innerHTML = "";
+        const nota = data.nota_media || 0;
+        const estrellas = Math.floor(nota);
+        const media = nota - estrellas;
+        for (let i = 1; i <= 5; i++) {
+            if (i <= estrellas) contenedor.innerHTML += "★";
+            else if (i === estrellas + 1 && media >= 0.25 && media < 0.75) contenedor.innerHTML += "⯪";
+            else contenedor.innerHTML += "☆";
+        }
+        document.getElementById("total-valoraciones").innerText = data.total_valoraciones ? `(${data.total_valoraciones} valoraciones)` : "";
+        // Barra de puntuación visual
+        const fill = document.getElementById("score-fill");
+        const porcentaje = data.nota_media ? Math.round((data.nota_media / 5) * 100) : 0;
+        fill.style.width = porcentaje + "%";
+        fill.innerText = data.nota_media ? `${data.nota_media.toFixed(1)} / 5` : "0 / 5";
+    } catch (error) {
+        console.error("Error al cargar valoraciones:", error);
+    }
+}
 
-// --- Inicializa todo ---
+async function cargarComentarios() {
+    try {
+        const res = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}`);
+        const data = await res.json();
+        const listaComentariosEl = document.getElementById("lista-comentarios");
+        const comentarios = Array.isArray(data.comentarios) ? data.comentarios : Array.isArray(data) ? data : [];
+        listaComentariosEl.innerHTML = "";
+        if (comentarios.length === 0) {
+            listaComentariosEl.innerHTML = '<p style="padding: 1rem 0;">No hay comentarios aún. ¡Sé el primero en opinar!</p>';
+        } else {
+            comentarios.slice(0, 10).forEach(c => {
+                const div = document.createElement("div");
+                div.className = "comentario";
+                div.innerHTML = `<strong style="color:#800000;">${c.ciudad || "Usuario anónimo"}</strong> · <span style="color: #666;">${(c.fecha || "").slice(0,10)}</span>  
+<em>“${c.comentario}”</em>`;
+                listaComentariosEl.appendChild(div);
+            });
+        }
+        if (listaComentariosEl.style.maxHeight !== "0px" && listaComentariosEl.style.maxHeight !== "") {
+            listaComentariosEl.style.maxHeight = listaComentariosEl.scrollHeight + "px";
+        }
+    } catch (error) {
+        console.error("Error al cargar comentarios:", error);
+        document.getElementById("lista-comentarios").innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
+    }
+}
+
+// --------- Inicializa todo al cargar ---------
 document.addEventListener("DOMContentLoaded", () => {
     if (!vinoId) {
         document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
@@ -209,6 +266,8 @@ document.addEventListener("DOMContentLoaded", () => {
     cargarFichaVino();
     cargarNarrativaVino();
     cargarPerfilOrganoleptico();
+    cargarValoraciones();
+    cargarComentarios();
 });
 </script>
     <div id="score-container">
@@ -279,6 +338,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 mensaje.innerText = "¡Gracias por tu valoración!";
                 mensaje.style.color = "green";
+                puntuacionSeleccionada = 0;
+                document.querySelectorAll(".estrella").forEach(star => star.classList.remove("seleccionada"));
+                document.getElementById("comentario").value = "";
+                // Recargar valoraciones y comentarios tras nueva valoración
+                cargarValoraciones();
+                cargarComentarios();
             } catch (err) {
                 mensaje.innerText = "Error al enviar tu valoración.";
                 mensaje.style.color = "red";
