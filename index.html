@@ -167,6 +167,14 @@
     </button>
     <div id="menu-compartir"></div>
   </div>
+  <!-- MÓDULO AUDIO PRESENTACIÓN -->
+  <div id="audio-sommelier" style="margin-top:2rem;">
+  <button id="btn-play-audio" style="border:none;background:transparent;cursor:pointer;font-size:2rem;">
+    <span id="icon-audio" title="Escuchar presentación">🔊</span>
+  </button>
+  <audio id="sommelier-audio" src="" preload="none"></audio>
+</div>
+
   <!-- MÓDULO SOMMELIER VIRTUAL -->
   <div id="modulo-sommelier">
     <button id="hablar" disabled style="opacity:0.6;pointer-events:none;">
@@ -317,17 +325,49 @@ document.addEventListener("DOMContentLoaded", function() {
       } catch (error) { console.error("❌ Error cargando la ficha del vino:", error); }
   }
    
-  async function cargarNarrativaVino() {
+async function cargarNarrativaVino() {
   try {
-      const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-vino?vino_id=${vinoId}` )).json();
+    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-vino?vino_id=${vinoId}`)).json();
 
-      console.log("Respuesta cerebro:", dataCerebro);
+    document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
 
-      document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+    const audioUrl = dataCerebro.audio_url;
 
-  } catch (error) { console.error("❌ Error cargando la narrativa del vino:", error); }
+    if(audioUrl && audioUrl.startsWith('http')) {
+      const audioElem = document.getElementById('sommelier-audio');
+      const playBtn = document.getElementById('btn-play-audio');
+      const iconAudio = document.getElementById('icon-audio');
+      if (audioElem && playBtn && iconAudio) {
+        audioElem.src = audioUrl;
+        playBtn.disabled = false;
+        playBtn.style.opacity = 1;
+
+        playBtn.addEventListener('click', () => {
+          if(audioElem.paused) {
+            audioElem.play();
+            iconAudio.textContent = "⏸️";
+          } else {
+            audioElem.pause();
+            iconAudio.textContent = "🔊";
+          }
+        });
+        audioElem.addEventListener('ended', () => {
+          iconAudio.textContent = "🔊";
+        });
+      }
+    } else {
+      // Oculta o deshabilita el botón si no hay audio
+      const playBtn = document.getElementById('btn-play-audio');
+      if (playBtn) {
+        playBtn.disabled = true;
+        playBtn.style.opacity = 0.3;
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error cargando la narrativa del vino:", error);
+  }
 }
-
+}
 
   async function cargarPerfilOrganoleptico() {
       try {
