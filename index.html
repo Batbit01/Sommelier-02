@@ -319,7 +319,7 @@ document.addEventListener("DOMContentLoaded", function() {
    
   async function cargarNarrativaVino() {
   try {
-      const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-vino?vino_id=${vinoId}` )).json();
+      const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-vino-XXXXX?vino_id=${vinoId}&secret=midulcesommelier` )).json();
 
       console.log("Respuesta cerebro:", dataCerebro);
 
