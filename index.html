@@ -390,6 +390,9 @@ document.addEventListener("DOMContentLoaded", function() {
 async function cargarNarrativaVino() {
   try {
       const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier`)).json();
+    console.log("Respuesta dataCerebro", dataCerebro);
+alert("Respuesta dataCerebro: " + JSON.stringify(dataCerebro));
+
 
       document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
 
