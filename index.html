@@ -148,7 +148,69 @@
       border-radius:1.1rem; font-size:1.07rem; display:flex; align-items:center; gap:0.7rem;
     }
   </style>
+  <!-- Plyr.io CSS -->
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<style>
+  /* Personalización Plyr (colores SommelierLab) */
+  .plyr--audio .plyr__controls {
+    background: #f1f1f1;
+    border-radius: 2rem;
+    box-shadow: 0 2px 12px #80000012;
+  }
+  .plyr__control.plyr__control--overlaid, .plyr__control {
+    background: #800000;
+    color: #fff;
+  }
+  .plyr__control[aria-pressed="true"], .plyr__control:hover {
+    background: #a97c7c;
+    color: #fff;
+  }
+  .plyr__progress--played, .plyr__volume--display {
+    color: #800000;
+    background: #a97c7c;
+  }
+  .plyr__progress input[type=range]::-webkit-slider-thumb {
+    background: #800000;
+  }
+  .plyr__menu__container, .plyr__menu__container label {
+    color: #800000;
+  }
+</style>
+
 </head>
+  <!-- Plyr.io JS -->
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script>
+async function cargarAudioNarrativa() {
+  // Usa la misma llamada que tu función cargarNarrativaVino
+  const vinoId = (new URLSearchParams(window.location.search)).get("vino_id");
+  if (!vinoId) return;
+
+  try {
+    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier`)).json();
+    const audioUrl = dataCerebro.audio_url;
+    if (audioUrl && audioUrl.startsWith("http")) {
+      const player = document.getElementById('player');
+      player.innerHTML = `<source src="${audioUrl}" type="audio/mp3">`;
+      // Inicializa Plyr SOLO después de poner el source
+      new Plyr('#player', {
+        speed: { 
+          selected: 1,
+          options: [0.75, 1, 1.25, 1.5, 2]
+        }
+      });
+      document.getElementById('bloque-audio-narrativa').style.display = 'block';
+    } else {
+      document.getElementById('bloque-audio-narrativa').style.display = 'none';
+    }
+  } catch (error) {
+    document.getElementById('bloque-audio-narrativa').style.display = 'none';
+    console.error("❌ Error cargando audio narrativa:", error);
+  }
+}
+cargarAudioNarrativa();
+</script>
+
 <body>
   <h1 id="vinoTitulo">Ficha del Vino</h1>
   <div class="vino-ficha">
@@ -180,6 +242,12 @@
   </div>
 
   <div id="respuesta">Cargando descripción del vino...</div>
+  <div id="bloque-audio-narrativa" style="margin:2.5rem 0; display:none;">
+  <h3 style="margin-bottom:0.7rem; color: #800000;">Narrativa del sommelier</h3>
+  <audio id="player" controls>
+    Tu navegador no soporta audio HTML5.
+  </audio>
+</div>
 
   <div id="radar-svg-container">
     <h3 style="margin-bottom:1.7rem;">Perfil organoléptico</h3>
