@@ -259,6 +259,14 @@
     </div>
   </div>
 <script>
+<!-- BLOQUE ÚNICO DE SCRIPT QR2 SOMMELIERLAB -->
+<script>
+// ------ GEOLOCALIZACIÓN E IDIOMA ------
+window._datosUsuario = {
+  ciudad: "Desconocida",
+  pais: "Desconocido",
+  idioma: "es"
+};
 (async function() {
   try {
     const res = await fetch('https://ipapi.co/json/');
@@ -276,6 +284,63 @@
     };
   }
 })();
+
+// ------ VARIABLES GLOBALES ------
+let vinoId = null;
+const urlParams = new URLSearchParams(window.location.search);
+vinoId = urlParams.get("vino_id");
+
+// ------ FUNCIÓN: Cargar narrativa en texto ------
+async function cargarNarrativaVino() {
+  try {
+    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier`)).json();
+    document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+  } catch (error) {
+    document.getElementById("respuesta").innerText = "No se pudo generar la narrativa del vino.";
+    console.error("❌ Error cargando la narrativa del vino:", error); 
+  }
+}
+
+// ------ FUNCIÓN: Cargar reproductor de audio de narrativa ------
+async function cargarAudioNarrativa() {
+  try {
+    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier`)).json();
+    const audioUrl = dataCerebro.audio_url;
+    const playerDiv = document.getElementById("player");
+    if (audioUrl && audioUrl.startsWith("http")) {
+      playerDiv.innerHTML = `<source src="${audioUrl}" type="audio/mp3">Tu navegador no soporta audio HTML5.`;
+      document.getElementById("bloque-audio-narrativa").style.display = "block";
+      if (window.Plyr) new Plyr("#player", { speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] } });
+    } else {
+      document.getElementById("bloque-audio-narrativa").style.display = "none";
+    }
+  } catch (e) {
+    document.getElementById("bloque-audio-narrativa").style.display = "none";
+    console.error("❌ Error cargando audio narrativa:", e);
+  }
+}
+
+// ------ FUNCIONES VACÍAS A COMPLETAR (puedes pegar tus versiones aquí) ------
+async function cargarFichaVino() { /* ... */ }
+async function cargarPerfilOrganoleptico() { /* ... */ }
+async function cargarValoraciones() { /* ... */ }
+async function cargarComentarios() { /* ... */ }
+
+// ------ INICIALIZACIÓN AL CARGAR LA PÁGINA ------
+document.addEventListener("DOMContentLoaded", function() {
+  if (!vinoId) {
+    document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
+  } else {
+    cargarFichaVino();
+    cargarNarrativaVino();
+    cargarAudioNarrativa();
+    cargarPerfilOrganoleptico();
+    cargarValoraciones();
+    cargarComentarios();
+  }
+});
+</script>
+
 
 document.addEventListener("DOMContentLoaded", function() {
   // ...tu código JS original...
