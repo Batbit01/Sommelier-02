@@ -232,6 +232,7 @@ async function cargarNarrativaVino() {
     <div class="vino-dato"><strong>Bodega:</strong> <span id="bodegaNombre">-</span></div>
     <div class="vino-dato redes" id="bodega-redes"></div>
   </div>
+  
   <!-- MÓDULO COMPARTIR -->
   <div id="modulo-compartir">
     <button id="btn-compartir" aria-label="Compartir ficha" title="Compartir ficha">
@@ -240,6 +241,7 @@ async function cargarNarrativaVino() {
     </button>
     <div id="menu-compartir"></div>
   </div>
+  
   <!-- MÓDULO SOMMELIER VIRTUAL -->
   <div id="modulo-sommelier">
     <button id="hablar" disabled style="opacity:0.6;pointer-events:none;">
@@ -251,7 +253,8 @@ async function cargarNarrativaVino() {
       Para vivir la experiencia del Sommelier Virtual, escanea el QR en la botella.
     </div>
   </div>
-
+ 
+  <!-- MÓDULO CARGANDO NARRATIVA -->
   <div id="respuesta">Cargando descripción del vino...</div>
   <div id="bloque-audio-narrativa" style="margin:2.5rem 0; display:none;">
   <h3 style="margin-bottom:0.7rem; color: #800000;">Narrativa del sommelier</h3>
@@ -259,7 +262,8 @@ async function cargarNarrativaVino() {
     Tu navegador no soporta audio HTML5.
   </audio>
 </div>
-
+  
+<!-- MÓDULO RADAR -->
   <div id="radar-svg-container">
     <h3 style="margin-bottom:1.7rem;">Perfil organoléptico</h3>
     <div class="switch-buttons">
@@ -297,6 +301,7 @@ async function cargarNarrativaVino() {
     </div>
   </div>
 <script>
+  
 (async function() {
   try {
     const res = await fetch('https://ipapi.co/json/');
@@ -315,9 +320,6 @@ async function cargarNarrativaVino() {
   }
 })();
 
-document.addEventListener("DOMContentLoaded", function() {
-  // ...tu código JS original...
-});
 </script>
 
 <script>
