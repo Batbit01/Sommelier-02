@@ -285,7 +285,7 @@ cargarAudioNarrativa();
       <p style="padding: 1rem 0;">Cargando comentarios...</p>
     </div>
   </div>
-  // Detectar geolocalización e idioma del usuario
+<script>
 (async function() {
   try {
     const res = await fetch('https://ipapi.co/json/');
@@ -303,6 +303,11 @@ cargarAudioNarrativa();
     };
   }
 })();
+
+document.addEventListener("DOMContentLoaded", function() {
+  // ...tu código JS original...
+});
+</script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
