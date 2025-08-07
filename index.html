@@ -285,6 +285,25 @@ cargarAudioNarrativa();
       <p style="padding: 1rem 0;">Cargando comentarios...</p>
     </div>
   </div>
+  // Detectar geolocalización e idioma del usuario
+(async function() {
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const data = await res.json();
+    window._datosUsuario = {
+      ciudad: data.city || 'Desconocido',
+      pais: data.country_name || 'Desconocido',
+      idioma: navigator.language ? navigator.language.slice(0,2) : (data.languages ? data.languages.split(',')[0] : 'es')
+    };
+  } catch (e) {
+    window._datosUsuario = {
+      ciudad: 'Desconocida',
+      pais: 'Desconocido',
+      idioma: navigator.language ? navigator.language.slice(0,2) : 'es'
+    };
+  }
+})();
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
 
