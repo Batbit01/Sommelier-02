@@ -181,34 +181,45 @@
   <!-- Plyr.io JS -->
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
-async function cargarAudioNarrativa() {
-  // Usa la misma llamada que tu función cargarNarrativaVino
-  const vinoId = (new URLSearchParams(window.location.search)).get("vino_id");
-  if (!vinoId) return;
-
+// REEMPLAZA TU FUNCIÓN ANTIGUA CON ESTA
+async function cargarNarrativaVino() {
   try {
-    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier`)).json();
+    // 1. Hacemos UNA SOLA LLAMADA para obtener todos los datos
+    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier` )).json();
+
+    console.log("Respuesta ÚNICA del cerebro:", dataCerebro);
+
+    // 2. Actualizamos el texto de la narrativa
+    document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+
+    // 3. MANEJAMOS EL REPRODUCTOR DE AUDIO AQUÍ MISMO
     const audioUrl = dataCerebro.audio_url;
-    if (audioUrl && audioUrl.startsWith("http")) {
-      const player = document.getElementById('player');
-      player.innerHTML = `<source src="${audioUrl}" type="audio/mp3">`;
-      // Inicializa Plyr SOLO después de poner el source
+    const bloqueAudio = document.getElementById('bloque-audio-narrativa');
+    const playerElement = document.getElementById('player');
+
+    if (audioUrl && audioUrl.startsWith("http" )) {
+      // Si hay URL, configuramos el reproductor
+      playerElement.innerHTML = `<source src="${audioUrl}" type="audio/mp3">`;
       new Plyr('#player', {
         speed: { 
           selected: 1,
           options: [0.75, 1, 1.25, 1.5, 2]
         }
       });
-      document.getElementById('bloque-audio-narrativa').style.display = 'block';
+      bloqueAudio.style.display = 'block'; // Mostramos el bloque
     } else {
-      document.getElementById('bloque-audio-narrativa').style.display = 'none';
+      // Si no hay URL, nos aseguramos de que el bloque esté oculto
+      bloqueAudio.style.display = 'none';
     }
-  } catch (error) {
+
+  } catch (error) { 
+    console.error("❌ Error cargando la narrativa y/o audio del vino:", error);
+    // Si hay cualquier error, ocultamos ambos elementos
+    document.getElementById("respuesta").innerText = "No se pudo cargar la información del vino.";
     document.getElementById('bloque-audio-narrativa').style.display = 'none';
-    console.error("❌ Error cargando audio narrativa:", error);
   }
 }
-document.addEventListener("DOMContentLoaded", cargarAudioNarrativa);
+
 </script>
 
 <body>
