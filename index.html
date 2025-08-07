@@ -419,19 +419,7 @@ document.addEventListener("DOMContentLoaded", function() {
           document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
       } catch (error) { console.error("❌ Error cargando la ficha del vino:", error); }
   }
-   
-  async function cargarNarrativaVino() {
-  try {
-      const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier`)).json();
-
-      console.log("Respuesta cerebro:", dataCerebro);
-
-      document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
-
-  } catch (error) { console.error("❌ Error cargando la narrativa del vino:", error); }
-}
-
-
+  
   async function cargarPerfilOrganoleptico() {
       try {
           const response = await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${vinoId}`);
