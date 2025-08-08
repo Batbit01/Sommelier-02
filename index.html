@@ -233,35 +233,42 @@ async function cargarNarrativaVino() {
     respuestaEl.innerText = data.narrativa || "No se pudo generar la narrativa del vino.";
 
     // Audio
-    const audioUrl = (data.audio_url || "").trim();
-    if (audioUrl) {
-      // Evitar dobles instancias de Plyr
-      if (playerEl._plyr) {
-        try { playerEl._plyr.destroy(); } catch(e) {}
-        playerEl._plyr = null;
-      }
 
-      // Cargar la fuente de audio de forma segura
-      playerEl.src = audioUrl;
-      playerEl.type = "audio/mpeg";
-      playerEl.load();
+const audioUrl = (data.audio_url || "").trim();
 
-      // Iniciar Plyr
-      const inst = new Plyr("#player", {
-        speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] }
-      });
-      playerEl._plyr = inst;
+// Validación básica: url http(s) y que acabe en .mp3 (no estrictamente necesario, pero ayuda a detectar basura)
+const esMP3 = /^https?:\/\/.+\.mp3(\?.*)?$/i.test(audioUrl);
 
-      bloqueAudio.style.display = "block";
-    } else {
-      bloqueAudio.style.display = "none";
-    }
-  } catch (err) {
-    console.error("❌ Error cargando narrativa/audio:", err);
-    respuestaEl.innerText = "No se pudo cargar la información del vino.";
-    bloqueAudio.style.display = "none";
+if (esMP3) {
+  // Si había una instancia anterior de Plyr, destrúyela para evitar doble wrapper
+  if (playerEl._plyr) {
+    try { playerEl._plyr.destroy(); } catch (_) {}
+    playerEl._plyr = null;
   }
+
+  // Inyecta la fuente correctamente con <source type="audio/mpeg">
+  // (usar innerHTML es la forma más segura con Plyr para rehacer la UI)
+  playerEl.innerHTML = `<source src="${audioUrl}" type="audio/mpeg">`;
+  playerEl.removeAttribute('src');       // por si quedó de algo anterior
+  playerEl.load();
+
+  // Reinicializa Plyr
+  const inst = new Plyr('#player', {
+    speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] }
+  });
+  playerEl._plyr = inst;
+
+  // Muestra el bloque de audio
+  bloqueAudio.style.display = 'block';
+
+  // Log útil
+  console.log('[Narrativa][AUDIO OK]', audioUrl);
+} else {
+  // No hay URL válida -> oculta bloque
+  bloqueAudio.style.display = 'none';
+  console.warn('[Narrativa] audio_url vacío o no es .mp3:', audioUrl);
 }
+
 </script>
 
 
