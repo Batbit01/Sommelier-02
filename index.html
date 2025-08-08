@@ -182,74 +182,67 @@
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   
 <script>
-// =======================
+// =======================  
 // ID DEL VINO GLOBAL
 // =======================
 const urlParams = new URLSearchParams(window.location.search);
 const vinoId = urlParams.get("vino_id") || "";
+<script>
 
-
+  
 // =======================
 // FUNCIÓN CARGAR NARRATIVA
 // =======================
 
+<script>
 async function cargarNarrativaVino() {
   const respuestaEl = document.getElementById("respuesta");
   const bloqueAudio = document.getElementById("bloque-audio-narrativa");
   const playerEl    = document.getElementById("player");
 
-  // (1) Verificar vinoId antes de pedir nada
-  console.log("[Narrativa][VINO_ID]", vinoId);
+  // 1) Verificar que tenemos vino_id
   if (!vinoId) {
-    console.warn("No hay vino_id en la URL. Aborto petición de narrativa/audio.");
-    bloqueAudio.style.display = "none";
     respuestaEl.innerText = "No se especificó ningún vino.";
+    bloqueAudio.style.display = "none";
     return;
   }
 
   try {
-    // (2) URL anticaché + log
+    // 2) Construir URL del WEBHOOK (no /api/organoleptica) + anticaché
     const reqUrl =
-      `https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw` +
+      "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
       `?vino_id=${encodeURIComponent(vinoId)}&secret=midulcesommelier&_ts=${Date.now()}`;
-    console.log("[Narrativa][URL]", reqUrl);
 
     const res = await fetch(reqUrl, { cache: "no-store" });
 
-    // (3) Parseo robusto + fallback por si llega { fields: {...} }
+    // 3) Parseo robusto
     const raw = await res.text();
-    console.log("[Narrativa][RAW]", raw);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
     const data = raw ? JSON.parse(raw) : {};
+
+    // Fallback si alguna vez llega envuelto en "fields"
     if (!data.audio_url && data.fields) {
       data.audio_url = data.fields["Audio URL"] || "";
       data.narrativa = data.narrativa || data.fields["narrativa"] || "";
       data.vino_id   = data.vino_id   || data.fields["ID Vino"]  || "";
     }
-    console.log("[Narrativa][OBJ]", data);
 
-    // Texto
+    // 4) Pintar narrativa
     respuestaEl.innerText = data.narrativa || "No se pudo generar la narrativa del vino.";
 
-    // Audio
+    // 5) Montar el player
     const audioUrl = (data.audio_url || "").trim();
     if (audioUrl) {
-      // Evitar dobles instancias de Plyr
-      if (playerEl._plyr) {
-        try { playerEl._plyr.destroy(); } catch(e) {}
-        playerEl._plyr = null;
-      }
+      // Limpia instancia previa de Plyr si la hubiera
+      if (playerEl._plyr) { try { playerEl._plyr.destroy(); } catch(_) {} playerEl._plyr = null; }
 
-      // Cargar la fuente de audio de forma segura
+      // Carga segura de la fuente
       playerEl.src = audioUrl;
       playerEl.type = "audio/mpeg";
       playerEl.load();
 
-      // Iniciar Plyr
-      const inst = new Plyr("#player", {
-        speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] }
-      });
+      // Re-inicializa Plyr
+      const inst = new Plyr("#player", { speed:{ selected:1, options:[0.75,1,1.25,1.5,2] } });
       playerEl._plyr = inst;
 
       bloqueAudio.style.display = "block";
@@ -257,7 +250,7 @@ async function cargarNarrativaVino() {
       bloqueAudio.style.display = "none";
     }
   } catch (err) {
-    console.error("❌ Error cargando narrativa/audio:", err);
+    console.error("❌ Narrativa/Audio:", err);
     respuestaEl.innerText = "No se pudo cargar la información del vino.";
     bloqueAudio.style.display = "none";
   }
@@ -532,10 +525,11 @@ document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("respuesta").innerText = "No se especificó ningún vino.";
   } else {
       cargarFichaVino();
-      cargarNarrativaVino();
-      cargarPerfilOrganoleptico();
+      cargarNarrativaVino();   // <- esta es la que usa el WEBHOOK confirmado
+      cargarPerfilOrganoleptico(); // (sigue usando /api/organoleptica para el radar; es independiente)
       cargarValoraciones();
       cargarComentarios();
+
   }
 
   // Valoraciones y comentarios
