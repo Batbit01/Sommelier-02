@@ -191,7 +191,7 @@ async function cargarAudioNarrativa() {
     const audioUrl = dataCerebro.audio_url;
     if (audioUrl && audioUrl.startsWith("http")) {
       const player = document.getElementById('player');
-      player.innerHTML = `<source src="${audioUrl}" type="audio/mp3">`;
+      player.innerHTML = `<source src="${AudioUrl}" type="audio/mp3">`;
       // Inicializa Plyr SOLO después de poner el source
       new Plyr('#player', {
         speed: { 
