@@ -181,47 +181,61 @@
   <!-- Plyr.io JS -->
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
+  
 // REEMPLAZA TU FUNCIÓN ANTIGUA CON ESTA
   const vinoId = new URLSearchParams(window.location.search).get('vino_id');
+
 async function cargarNarrativaVino() {
+  const respuestaEl   = document.getElementById("respuesta");
+  const bloqueAudio   = document.getElementById("bloque-audio-narrativa");
+  const audioElement  = document.getElementById("player"); // <audio id="player">
+
+  // Estado inicial de seguridad
+  bloqueAudio.style.display = 'none';
+  respuestaEl.innerText = 'Cargando descripción del vino...';
+
   try {
-    // 1. Hacemos UNA SOLA LLAMADA para obtener todos los datos
-    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier` )).json();
+    const URL_CEREBRO = `https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${encodeURIComponent(vinoId)}&secret=midulcesommelier`;
+    const res = await fetch(URL_CEREBRO);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
 
-    console.log("Respuesta ÚNICA del cerebro:", dataCerebro);
+    console.log('Respuesta ÚNICA del cerebro:', data);
 
-    // 2. Actualizamos el texto de la narrativa
-    document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+    // 1) Narrativa: filtra valores de relleno
+    const narrativaBruta = data?.narrativa ?? '';
+    const narrativa = (narrativaBruta && narrativaBruta !== '-' && narrativaBruta !== '=') 
+      ? narrativaBruta 
+      : 'Narrativa no disponible por el momento.';
+    respuestaEl.innerText = narrativa;
 
-    // 3. MANEJAMOS EL REPRODUCTOR DE AUDIO AQUÍ MISMO
-    const audioUrl = dataCerebro.audio_url;
-    const bloqueAudio = document.getElementById('bloque-audio-narrativa');
-    const playerElement = document.getElementById('player');
+    // 2) Audio URL: contempla varias claves posibles
+    const audioUrl = data?.audio_url || data?.['Audio URL'] || data?.audioUrl || '';
+    if (typeof audioUrl === 'string' && audioUrl.startsWith('http')) {
+      // Asegúrate de que sea HTTPS si tu web es HTTPS
+      audioElement.innerHTML = '';           // limpia posibles <source> previos
+      audioElement.src = audioUrl;           // establece la URL
+      audioElement.load();                   // fuerza lectura de metadatos
 
-    if (audioUrl && audioUrl.startsWith("http" )) {
-      // Si hay URL, configuramos el reproductor
-      playerElement.innerHTML = `<source src="${audioUrl}" type="audio/mp3">`;
+      // Inicia Plyr sobre el <audio id="player">
       new Plyr('#player', {
-        speed: { 
-          selected: 1,
-          options: [0.75, 1, 1.25, 1.5, 2]
-        }
+        speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] }
       });
-      bloqueAudio.style.display = 'block'; // Mostramos el bloque
+
+      bloqueAudio.style.display = 'block';
     } else {
-      // Si no hay URL, nos aseguramos de que el bloque esté oculto
       bloqueAudio.style.display = 'none';
+      console.warn('No se encontró URL de audio válida en la respuesta');
     }
 
-  } catch (error) { 
-    console.error("❌ Error cargando la narrativa y/o audio del vino:", error);
-    // Si hay cualquier error, ocultamos ambos elementos
-    document.getElementById("respuesta").innerText = "No se pudo cargar la información del vino.";
-    document.getElementById('bloque-audio-narrativa').style.display = 'none';
+  } catch (err) {
+    console.error('❌ Error cargando la narrativa y/o audio del vino:', err);
+    respuestaEl.innerText = 'No se pudo cargar la información del vino.';
+    bloqueAudio.style.display = 'none';
   }
 }
-
 </script>
+
 
 <body>
   <h1 id="vinoTitulo">Ficha del Vino</h1>
@@ -260,8 +274,6 @@ async function cargarNarrativaVino() {
     Tu navegador no soporta audio HTML5.
   </audio>
 </div>
-  
-<div id="player"></div>
   
   <div id="radar-svg-container">
     <h3 style="margin-bottom:1.7rem;">Perfil organoléptico</h3>
