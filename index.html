@@ -180,6 +180,7 @@
 </head>
   <!-- Plyr.io JS -->
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  
 <script>
 // =======================
 // ID DEL VINO GLOBAL
@@ -187,47 +188,63 @@
 const urlParams = new URLSearchParams(window.location.search);
 const vinoId = urlParams.get("vino_id") || "";
 
+
 // =======================
 // FUNCIÓN CARGAR NARRATIVA
 // =======================
 async function cargarNarrativaVino() {
+  const respuestaEl = document.getElementById("respuesta");
+  const bloqueAudio = document.getElementById("bloque-audio-narrativa");
+  const playerEl    = document.getElementById("player");
+
   try {
-    const dataCerebro = await (await fetch(
+    const res = await fetch(
       `https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${encodeURIComponent(vinoId)}&secret=midulcesommelier`
-    )).json();
+    );
 
-    console.log("[Narrativa] Respuesta del cerebro:", dataCerebro);
+    // 1) Parseo robusto: primero texto, luego JSON si hay algo
+    const raw = await res.text();
+    console.log("[Narrativa][RAW]", raw);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = raw ? JSON.parse(raw) : {};
+    console.log("[Narrativa][OBJ]", data);
 
-    // Texto de la narrativa
-    document.getElementById("respuesta").innerText =
-      dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+    // 2) Texto
+    respuestaEl.innerText = data.narrativa || "No se pudo generar la narrativa del vino.";
 
-    // Reproductor de audio
-    const audioUrl = (dataCerebro.audio_url || "").trim();
-    const bloqueAudio = document.getElementById("bloque-audio-narrativa");
-    const playerElement = document.getElementById("player");
-
+    // 3) Audio
+    const audioUrl = (data.audio_url || "").trim();
     if (audioUrl) {
-      playerElement.innerHTML = `<source src="${audioUrl}" type="audio/mpeg">`;
-      new Plyr("#player", {
-        speed: {
-          selected: 1,
-          options: [0.75, 1, 1.25, 1.5, 2]
-        }
+      // Si ya había una instancia Plyr previa, destrúyela (evita dobles wrappers)
+      if (playerEl._plyr) {
+        try { playerEl._plyr.destroy(); } catch(e) {}
+        playerEl._plyr = null;
+      }
+
+      // Usa src directo y fuerza recarga del elemento nativo
+      playerEl.src = audioUrl;
+      playerEl.type = "audio/mpeg";
+      playerEl.load();
+
+      // (Re)inicializa Plyr y guárdalo para futuras limpiezas
+      const inst = new Plyr("#player", {
+        speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] }
       });
+      playerEl._plyr = inst;
+
       bloqueAudio.style.display = "block";
     } else {
+      // Sin URL -> ocultar el bloque
       bloqueAudio.style.display = "none";
     }
-
-  } catch (error) {
-    console.error("❌ Error cargando narrativa/audio:", error);
-    document.getElementById("respuesta").innerText =
-      "No se pudo cargar la información del vino.";
+  } catch (err) {
+    console.error("❌ Error cargando narrativa/audio:", err);
+    respuestaEl.innerText = "No se pudo cargar la información del vino.";
     document.getElementById("bloque-audio-narrativa").style.display = "none";
   }
 }
 </script>
+
 
 
 <body>
