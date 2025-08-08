@@ -181,46 +181,54 @@
   <!-- Plyr.io JS -->
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
-// REEMPLAZA TU FUNCIÓN ANTIGUA CON ESTA
+// =======================
+// ID DEL VINO GLOBAL
+// =======================
+const urlParams = new URLSearchParams(window.location.search);
+const vinoId = urlParams.get("vino_id") || "";
+
+// =======================
+// FUNCIÓN CARGAR NARRATIVA
+// =======================
 async function cargarNarrativaVino() {
   try {
-    // 1. Hacemos UNA SOLA LLAMADA para obtener todos los datos
-    const dataCerebro = await (await fetch(`https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${vinoId}&secret=midulcesommelier` )).json();
+    const dataCerebro = await (await fetch(
+      `https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw?vino_id=${encodeURIComponent(vinoId)}&secret=midulcesommelier`
+    )).json();
 
-    console.log("Respuesta ÚNICA del cerebro:", dataCerebro);
+    console.log("[Narrativa] Respuesta del cerebro:", dataCerebro);
 
-    // 2. Actualizamos el texto de la narrativa
-    document.getElementById("respuesta").innerText = dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
+    // Texto de la narrativa
+    document.getElementById("respuesta").innerText =
+      dataCerebro.narrativa || "No se pudo generar la narrativa del vino.";
 
-    // 3. MANEJAMOS EL REPRODUCTOR DE AUDIO AQUÍ MISMO
-    const audioUrl = dataCerebro.audio_url;
-    const bloqueAudio = document.getElementById('bloque-audio-narrativa');
-    const playerElement = document.getElementById('player');
+    // Reproductor de audio
+    const audioUrl = (dataCerebro.audio_url || "").trim();
+    const bloqueAudio = document.getElementById("bloque-audio-narrativa");
+    const playerElement = document.getElementById("player");
 
-    if (audioUrl && audioUrl.startsWith("http" )) {
-      // Si hay URL, configuramos el reproductor
-      playerElement.innerHTML = `<source src="${audioUrl}" type="audio/mp3">`;
-      new Plyr('#player', {
-        speed: { 
+    if (audioUrl) {
+      playerElement.innerHTML = `<source src="${audioUrl}" type="audio/mpeg">`;
+      new Plyr("#player", {
+        speed: {
           selected: 1,
           options: [0.75, 1, 1.25, 1.5, 2]
         }
       });
-      bloqueAudio.style.display = 'block'; // Mostramos el bloque
+      bloqueAudio.style.display = "block";
     } else {
-      // Si no hay URL, nos aseguramos de que el bloque esté oculto
-      bloqueAudio.style.display = 'none';
+      bloqueAudio.style.display = "none";
     }
 
-  } catch (error) { 
-    console.error("❌ Error cargando la narrativa y/o audio del vino:", error);
-    // Si hay cualquier error, ocultamos ambos elementos
-    document.getElementById("respuesta").innerText = "No se pudo cargar la información del vino.";
-    document.getElementById('bloque-audio-narrativa').style.display = 'none';
+  } catch (error) {
+    console.error("❌ Error cargando narrativa/audio:", error);
+    document.getElementById("respuesta").innerText =
+      "No se pudo cargar la información del vino.";
+    document.getElementById("bloque-audio-narrativa").style.display = "none";
   }
 }
-
 </script>
+
 
 <body>
   <h1 id="vinoTitulo">Ficha del Vino</h1>
