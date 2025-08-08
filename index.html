@@ -182,6 +182,7 @@
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
 // REEMPLAZA TU FUNCIÓN ANTIGUA CON ESTA
+  const vinoId = new URLSearchParams(window.location.search).get('vino_id');
 async function cargarNarrativaVino() {
   try {
     // 1. Hacemos UNA SOLA LLAMADA para obtener todos los datos
