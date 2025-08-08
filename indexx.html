@@ -191,60 +191,76 @@
   // =======================
   // FUNCIÓN CARGAR NARRATIVA (usa el WEBHOOK)
   // =======================
-  async function cargarNarrativaVino() {
-    const respuestaEl = document.getElementById("respuesta");
-    const bloqueAudio = document.getElementById("bloque-audio-narrativa");
-    const playerEl    = document.getElementById("player");
+ <script>
+async function cargarNarrativaVino() {
+  const respuestaEl = document.getElementById("respuesta");
+  const bloqueAudio = document.getElementById("bloque-audio-narrativa");
+  const playerEl    = document.getElementById("player");
 
-    if (!vinoId) {
-      respuestaEl.innerText = "No se especificó ningún vino.";
-      bloqueAudio.style.display = "none";
-      return;
-    }
-
-    try {
-      const reqUrl =
-        "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
-        `?vino_id=${encodeURIComponent(vinoId)}&secret=midulcesommelier&_ts=${Date.now()}`;
-
-      const res = await fetch(reqUrl, { cache: "no-store" });
-      const raw = await res.text();
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = raw ? JSON.parse(raw) : {};
-
-      // Fallback si llega envuelto en 'fields'
-      if (!data.audio_url && data.fields) {
-        data.audio_url = data.fields["Audio URL"] || "";
-        data.narrativa = data.narrativa || data.fields["narrativa"] || "";
-        data.vino_id   = data.vino_id   || data.fields["ID Vino"]  || "";
-      }
-
-      // Texto
-      respuestaEl.innerText = data.narrativa || "No se pudo generar la narrativa del vino.";
-
-      // Audio
-      const audioUrl = (data.audio_url || "").trim();
-      const esMP3 = /^https?:\/\/.+\.mp3(\?.*)?$/i.test(audioUrl);
-      if (esMP3) {
-        if (playerEl._plyr) { try { playerEl._plyr.destroy(); } catch(_) {} playerEl._plyr = null; }
-        playerEl.innerHTML = `<source src="${audioUrl}" type="audio/mpeg">`;
-        playerEl.removeAttribute("src");
-        playerEl.load();
-        const inst = new Plyr("#player", { speed:{ selected:1, options:[0.75,1,1.25,1.5,2] } });
-        playerEl._plyr = inst;
-        bloqueAudio.style.display = "block";
-        console.log("[Narrativa][AUDIO OK]", audioUrl);
-      } else {
-        bloqueAudio.style.display = "none";
-        console.warn("[Narrativa] audio_url vacío o no es .mp3:", audioUrl);
-      }
-    } catch (err) {
-      console.error("Narrativa/Audio:", err);
-      respuestaEl.innerText = "No se pudo cargar la información del vino.";
-      bloqueAudio.style.display = "none";
-    }
+  if (!vinoId) {
+    respuestaEl.innerText = "No se especificó ningún vino.";
+    bloqueAudio.style.display = "none";
+    return;
   }
-  </script>
+
+  try {
+    // Webhook correcto + anti-caché
+    const reqUrl =
+      "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
+      `?vino_id=${encodeURIComponent(vinoId)}&secret=midulcesommelier&_ts=${Date.now()}`;
+
+    const res = await fetch(reqUrl, { cache: "no-store" });
+    const raw = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status} :: ${raw.slice(0,120)}`);
+
+    let data = {};
+    try { data = raw ? JSON.parse(raw) : {}; } catch {
+      console.warn("[Narrativa] respuesta no-JSON:", raw);
+      data = {};
+    }
+
+    // Fallback si viene en fields
+    if (!data.audio_url && data.fields) {
+      data.audio_url = data.fields["Audio URL"] || "";
+      data.narrativa = data.narrativa || data.fields["narrativa"] || "";
+      data.vino_id   = data.vino_id   || data.fields["ID Vino"]  || "";
+    }
+
+    // 1) Texto
+    respuestaEl.innerText = data.narrativa || "No se pudo generar la narrativa del vino.";
+
+    // 2) Audio (sin exigir extensión .mp3)
+    const audioUrl = (data.audio_url || "").trim();
+    if (audioUrl) {
+      // Limpia Plyr previo
+      if (playerEl._plyr) { try { playerEl._plyr.destroy(); } catch(_) {} playerEl._plyr = null; }
+
+      // Resetea el <audio> y añade la <source>
+      playerEl.innerHTML = "";
+      const src = document.createElement("source");
+      src.src  = audioUrl;
+      src.type = "audio/mpeg"; // fuerza tipo estándar
+      playerEl.appendChild(src);
+      playerEl.load();
+
+      const inst = new Plyr(playerEl, {
+        speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] }
+      });
+      playerEl._plyr = inst;
+
+      bloqueAudio.style.display = "block";
+    } else {
+      console.warn("[Narrativa] audio_url vacío. Data:", data);
+      bloqueAudio.style.display = "none";
+    }
+  } catch (err) {
+    console.error("❌ Narrativa/Audio:", err);
+    respuestaEl.innerText = "No se pudo cargar la información del vino.";
+    bloqueAudio.style.display = "none";
+  }
+}
+</script>
+
 </head>
 
 <body>
