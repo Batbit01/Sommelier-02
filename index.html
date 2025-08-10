@@ -62,6 +62,27 @@
 <script>
   // --- Global: vinoId para que el resto del código lo use sin redeclararlo ---
   const vinoId = new URLSearchParams(window.location.search).get('vino_id') || "";
+<script>
+  // Disparamos ipapi ASAP y guardamos la promesa
+  window._datosUsuario = null;
+  window._datosUsuarioPromise = (async () => {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      window._datosUsuario = {
+        ciudad: data.city || '',
+        pais: data.country_name || '',
+        idioma: (navigator.language || 'es').slice(0,2)
+      };
+    } catch (e) {
+      window._datosUsuario = {
+        ciudad: '',
+        pais: '',
+        idioma: (navigator.language || 'es').slice(0,2)
+      };
+    }
+  })();
+</script>
 
   // --- Narrativa + audio: construimos la URL con idioma/ciudad/pais/qr/session/ua ---
   async function cargarNarrativaVino() {
@@ -76,17 +97,26 @@
     }
 
     try {
-      // Parámetros enriquecidos (con fallback por si aún no llegó ipapi)
-      const idioma    = (window._datosUsuario?.idioma || navigator.language || 'es').slice(0,2);
-      const qr_id     = new URLSearchParams(window.location.search).get('qr') || '';
-      const ciudad    = window._datosUsuario?.ciudad || '';
-      const pais      = window._datosUsuario?.pais || '';
-      const ua        = navigator.userAgent || '';
-      let   sessionId = localStorage.getItem('user_id');
-      if (!sessionId) {
-        sessionId = `user_${Math.random().toString(36).slice(2,10)}`;
-        localStorage.setItem('user_id', sessionId);
-      }
+      // Espera rápida a que tengamos ciudad/pais/idioma (máx 1000 ms)
+try {
+  await Promise.race([
+    window._datosUsuarioPromise,
+    new Promise(r => setTimeout(r, 1000))
+  ]);
+} catch (_) { /* no pasa nada */ }
+
+// Ahora ya leemos con fallback
+const idioma = (window._datosUsuario?.idioma || (navigator.language || 'es')).slice(0,2);
+const ciudad = window._datosUsuario?.ciudad || '';
+const pais   = window._datosUsuario?.pais || '';
+const qr_id  = new URLSearchParams(window.location.search).get('qr') || '';
+let sessionId = localStorage.getItem('user_id');
+if (!sessionId) {
+  sessionId = `user_${Math.random().toString(36).slice(2,10)}`;
+  localStorage.setItem('user_id', sessionId);
+}
+const ua = navigator.userAgent || '';
+
 
       const reqUrl =
         "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
