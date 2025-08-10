@@ -4,6 +4,7 @@
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
   <title id="vinoTitle">Ficha del Vino</title>
+
   <style>
     body { font-family: sans-serif; padding: 2rem; background-color: #fefefe; color: #222; max-width: 700px; margin: auto; }
     .vino-ficha img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 1rem; }
@@ -13,25 +14,49 @@
     #hablar { display: inline-block; margin-top: 2rem; padding: 0.75rem 1.5rem; background: #800000; color: white; border: none; border-radius: 1rem; cursor: pointer; transition: background .2s; font-weight: bold;}
     #hablar[disabled] { background: #a09797; color: #fff; cursor: not-allowed; }
     .redes a { margin-right: 1rem; text-decoration: none; color: #800000; }
+
+    /* Compartir */
     #modulo-compartir { margin: 2rem 0 0.5rem 0; position: relative; display: flex; flex-direction: column; align-items: flex-start; }
-    #btn-compartir { background: #fff; color: #800000; border: 2px solid #800000; border-radius: 2rem; padding: 0.5rem 1.25rem 0.5rem 0.75rem; font-weight: 600; font-size: 1.07rem; display: flex; align-items: center; gap: 0.55rem; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; box-shadow: 0 2px 6px #80000011; }
+    #btn-compartir {
+      background: #fff; color: #800000; border: 2px solid #800000; border-radius: 2rem;
+      padding: 0.5rem 1.25rem 0.5rem 0.75rem; font-weight: 600; font-size: 1.07rem;
+      display: flex; align-items: center; gap: 0.55rem; cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s; box-shadow: 0 2px 6px #80000011;
+    }
     #btn-compartir:hover { background: #f8eaea; box-shadow: 0 4px 12px #8000001a; }
     #btn-compartir svg { flex-shrink: 0; }
-    #menu-compartir { display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1.5px solid #e5dede; border-radius: 1.3rem; box-shadow: 0 6px 28px #80000012; min-width: 240px; padding: 0.5rem 0; z-index: 40; animation: fadeInCompartir 0.32s; transition: opacity 0.22s, transform 0.2s; }
+    #menu-compartir {
+      display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1.5px solid #e5dede;
+      border-radius: 1.3rem; box-shadow: 0 6px 28px #80000012; min-width: 240px; padding: 0.5rem 0; z-index: 40;
+      animation: fadeInCompartir 0.32s; transition: opacity 0.22s, transform 0.2s;
+    }
     @keyframes fadeInCompartir { from { opacity: 0; transform: translateY(12px);} to { opacity: 1; transform: translateY(0);} }
     #menu-compartir.open { display: block; }
-    .menu-item-compartir { display: flex; align-items: center; gap: 0.7rem; padding: 0.62rem 1.1rem; cursor: pointer; color: #700d18; font-size: 1.02rem; background: none; border: none; width: 100%; transition: background 0.17s, color 0.17s; }
+    .menu-item-compartir {
+      display: flex; align-items: center; gap: 0.7rem; padding: 0.62rem 1.1rem; cursor: pointer;
+      color: #700d18; font-size: 1.02rem; background: none; border: none; width: 100%;
+      transition: background 0.17s, color 0.17s;
+    }
     .menu-item-compartir:hover, .menu-item-compartir:focus { background: #f8eaea; color: #c9003f; outline: none; }
     .menu-item-compartir svg { width: 1.35em; height: 1.35em; display: block; }
     .menu-item-compartir.copiado { color: #218838; font-weight: 600; }
 
-    #radar-svg-container { width: 100%; max-width: 520px; margin: 0 auto 2.5rem auto; background: #f8f4f2; border-radius: 22px; box-shadow: 0 2px 24px #0001; padding: 2.5rem 0 2.5rem 0; display: flex; flex-direction: column; align-items: center; }
+    /* Radar */
+    #radar-svg-container {
+      width: 100%; max-width: 520px; margin: 0 auto 2.5rem auto; background: #f8f4f2;
+      border-radius: 22px; box-shadow: 0 2px 24px #0001; padding: 2.5rem 0; display: flex; flex-direction: column; align-items: center;
+    }
     .switch-buttons { display: flex; justify-content: center; gap: 0.7rem; margin-bottom: 1.6rem; }
-    .switch-buttons button { background-color: #a97c7c; color: white; border: 2px solid #800000; padding: 0.65rem 1.25rem; border-radius: 20px; cursor: pointer; transition: all 0.3s; font-weight: bold; }
+    .switch-buttons button {
+      background-color: #a97c7c; color: white; border: 2px solid #800000; padding: 0.65rem 1.25rem;
+      border-radius: 20px; cursor: pointer; transition: all 0.3s; font-weight: bold;
+    }
     .switch-buttons button:hover { background-color: #800000; }
     .switch-buttons button.active { background-color: #800000; box-shadow: 0 0 10px rgba(128,0,0,0.5 ); }
     #radarSVG { background: none; display: block; margin: 0 auto; }
     .radar-label { font-size: 1rem; font-weight: bold; fill: #800000; text-anchor: middle; alignment-baseline: middle; pointer-events: none; }
+
+    /* Valoraciones */
     #score-container, #valoracion-container { margin-top: 3rem; }
     #score-bar { width: 100%; height: 20px; background-color: #ddd; border-radius: 10px; overflow: hidden; }
     #score-fill { height: 100%; background-color: #800000; text-align: center; line-height: 20px; color: white; font-size: 0.9rem; }
@@ -40,13 +65,18 @@
     #estrellas-nota { color: #800000; font-size: 1.8rem; vertical-align: middle; }
     #lista-comentarios .comentario { margin-bottom: 1rem; padding: 0.75rem; border: 1px solid #ddd; border-radius: 0.5rem; background-color: #fafafa; text-align: left; }
 
+    /* Sommelier (candado QR) */
     #modulo-sommelier { margin-bottom: 2.3rem; }
-    #modulo-sommelier #sommelier-aviso { margin-top:0.7rem; color:#7b7171; background:#f7f3f0; padding:1rem 1.2rem; border-radius:1.1rem; font-size:1.07rem; display:flex; align-items:center; gap:0.7rem; }
+    #modulo-sommelier #sommelier-aviso {
+      margin-top:0.7rem; color:#7b7171; background:#f7f3f0; padding:1rem 1.2rem;
+      border-radius:1.1rem; font-size:1.07rem; display:flex; align-items:center; gap:0.7rem;
+    }
   </style>
 
   <!-- Plyr.io CSS -->
   <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
   <style>
+    /* Personalización Plyr */
     .plyr--audio .plyr__controls { background: #f1f1f1; border-radius: 2rem; box-shadow: 0 2px 12px #80000012; }
     .plyr__control.plyr__control--overlaid, .plyr__control { background: #800000; color: #fff; }
     .plyr__control[aria-pressed="true"], .plyr__control:hover { background: #a97c7c; color: #fff; }
@@ -56,93 +86,6 @@
   </style>
 </head>
 
-<!-- Plyr.io JS -->
-<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-
-<script>
-  // --- Global: vinoId para que el resto del código lo use sin redeclararlo ---
-  const vinoId = new URLSearchParams(window.location.search).get('vino_id') || "";
-
-  // --- Narrativa + audio: construimos la URL con idioma/ciudad/pais/qr/session/ua ---
-  async function cargarNarrativaVino() {
-    const respuestaEl = document.getElementById("respuesta");
-    const bloqueAudio = document.getElementById("bloque-audio-narrativa");
-    const playerEl    = document.getElementById("player");
-
-    if (!vinoId) {
-      respuestaEl.innerText = "No se especificó ningún vino.";
-      bloqueAudio.style.display = "none";
-      return;
-    }
-
-    try {
-      // Parámetros enriquecidos (con fallback por si aún no llegó ipapi)
-      const idioma    = (window._datosUsuario?.idioma || navigator.language || 'es').slice(0,2);
-      const qr_id     = new URLSearchParams(window.location.search).get('qr') || '';
-      const ciudad    = window._datosUsuario?.ciudad || '';
-      const pais      = window._datosUsuario?.pais || '';
-      const ua        = navigator.userAgent || '';
-      let   sessionId = localStorage.getItem('user_id');
-      if (!sessionId) {
-        sessionId = `user_${Math.random().toString(36).slice(2,10)}`;
-        localStorage.setItem('user_id', sessionId);
-      }
-
-      const reqUrl =
-        "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
-        `?vino_id=${encodeURIComponent(vinoId)}` +
-        `&secret=${encodeURIComponent('midulcesommelier')}` +
-        `&idioma=${encodeURIComponent(idioma)}` +
-        `&ciudad=${encodeURIComponent(ciudad)}` +
-        `&pais=${encodeURIComponent(pais)}` +
-        `&qr_id=${encodeURIComponent(qr_id)}` +
-        `&session_id=${encodeURIComponent(sessionId)}` +
-        `&ua=${encodeURIComponent(ua)}` +
-        `&_ts=${Date.now()}`;
-
-      const res = await fetch(reqUrl, { cache: "no-store" });
-      const raw = await res.text();
-      if (!res.ok) throw new Error(`HTTP ${res.status} :: ${raw.slice(0,120)}`);
-
-      let data = {};
-      try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
-
-      // Fallback si viene dentro de "fields"
-      if (!data.audio_url && data.fields) {
-        data.audio_url = data.fields["Audio URL"] || "";
-        data.narrativa = data.narrativa || data.fields["narrativa"] || "";
-        data.vino_id   = data.vino_id   || data.fields["ID Vino"]  || "";
-      }
-
-      // 1) Texto
-      respuestaEl.innerText = data.narrativa || "No se pudo generar la narrativa del vino.";
-
-      // 2) Audio (normaliza URL y no exige .mp3)
-      let audioUrl = (data.audio_url || "").trim();
-      if (audioUrl.startsWith("http://")) audioUrl = audioUrl.replace(/^http:\/\//i, "https://");
-
-      if (audioUrl) {
-        if (playerEl._plyr) { try { playerEl._plyr.destroy(); } catch(_) {} playerEl._plyr = null; }
-        playerEl.innerHTML = "";
-        const src = document.createElement("source");
-        src.src  = audioUrl;
-        src.type = "audio/mpeg";
-        playerEl.appendChild(src);
-        playerEl.load();
-
-        const inst = new Plyr(playerEl, { speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] } });
-        playerEl._plyr = inst;
-        bloqueAudio.style.display = "block";
-      } else {
-        bloqueAudio.style.display = "none";
-      }
-    } catch (err) {
-      console.error("❌ Narrativa/Audio:", err);
-      respuestaEl.innerText = "No se pudo cargar la información del vino.";
-      bloqueAudio.style.display = "none";
-    }
-  }
-</script>
 <body>
   <h1 id="vinoTitulo">Ficha del Vino</h1>
   <div class="vino-ficha">
@@ -175,14 +118,16 @@
     </div>
   </div>
 
+  <!-- NARRATIVA -->
   <div id="respuesta">Cargando descripción del vino...</div>
-
   <div id="bloque-audio-narrativa" style="margin:2.5rem 0; display:none;">
     <h3 style="margin-bottom:0.7rem; color: #800000;">Narrativa del sommelier</h3>
     <audio id="player" controls>
       Tu navegador no soporta audio HTML5.
     </audio>
   </div>
+
+  <!-- RADAR -->
   <div id="radar-svg-container">
     <h3 style="margin-bottom:1.7rem;">Perfil organoléptico</h3>
     <div class="switch-buttons">
@@ -193,6 +138,7 @@
     <svg id="radarSVG" width="430" height="430"></svg>
   </div>
 
+  <!-- VALORACIONES -->
   <div id="score-container">
     <h3>Puntuación Total</h3>
     <div id="score-bar"><div id="score-fill" style="width: 0%">0</div></div>
@@ -220,31 +166,124 @@
     </div>
   </div>
 
-  <!-- Enriquecemos datos del usuario (ciudad/pais/idioma) lo antes posible -->
+  <!-- JS LIB Plyr -->
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+
+  <!-- JS APP -->
   <script>
-    (async function() {
+    // ---- Parámetros globales ----
+    const vinoId = new URLSearchParams(window.location.search).get('vino_id') || "";
+
+    // Carga de datos del usuario (ciudad/pais/idioma) con promesa reutilizable
+    window._datosUsuario = null;
+    window._datosUsuarioPromise = (async () => {
       try {
         const res = await fetch('https://ipapi.co/json/');
         const data = await res.json();
         window._datosUsuario = {
-          ciudad: data.city || 'Desconocido',
-          pais: data.country_name || 'Desconocido',
+          ciudad: data.city || '',
+          pais: data.country_name || '',
           idioma: (navigator.language || 'es').slice(0,2)
         };
       } catch (e) {
         window._datosUsuario = {
-          ciudad: 'Desconocida',
-          pais: 'Desconocido',
+          ciudad: '',
+          pais: '',
           idioma: (navigator.language || 'es').slice(0,2)
         };
       }
     })();
-  </script>
 
-  <!-- Resto de lógica de página -->
-  <script>
+    // ---- Narrativa + audio (webhook único) ----
+    async function cargarNarrativaVino() {
+      const respuestaEl = document.getElementById("respuesta");
+      const bloqueAudio = document.getElementById("bloque-audio-narrativa");
+      const playerEl    = document.getElementById("player");
+
+      if (!vinoId) {
+        respuestaEl.innerText = "No se especificó ningún vino.";
+        bloqueAudio.style.display = "none";
+        return;
+      }
+
+      try {
+        // Espera rápida por city/country/lang (máx 1000ms)
+        try {
+          await Promise.race([
+            window._datosUsuarioPromise,
+            new Promise(r => setTimeout(r, 1000))
+          ]);
+        } catch (_) {}
+
+        // Parámetros enriquecidos
+        const idioma = (window._datosUsuario?.idioma || (navigator.language || 'es')).slice(0,2);
+        const ciudad = window._datosUsuario?.ciudad || '';
+        const pais   = window._datosUsuario?.pais || '';
+        const qr_id  = new URLSearchParams(window.location.search).get('qr') || '';
+        let sessionId = localStorage.getItem('user_id');
+        if (!sessionId) {
+          sessionId = `user_${Math.random().toString(36).slice(2,10)}`;
+          localStorage.setItem('user_id', sessionId);
+        }
+        const ua = navigator.userAgent || '';
+
+        const reqUrl =
+          "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
+          `?vino_id=${encodeURIComponent(vinoId)}` +
+          `&secret=${encodeURIComponent('midulcesommelier')}` +
+          `&idioma=${encodeURIComponent(idioma)}` +
+          `&ciudad=${encodeURIComponent(ciudad)}` +
+          `&pais=${encodeURIComponent(pais)}` +
+          `&qr_id=${encodeURIComponent(qr_id)}` +
+          `&session_id=${encodeURIComponent(sessionId)}` +
+          `&ua=${encodeURIComponent(ua)}` +
+          `&_ts=${Date.now()}`;
+
+        const res = await fetch(reqUrl, { cache: "no-store" });
+        const raw = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status} :: ${raw.slice(0,120)}`);
+
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
+
+        // Fallback si viene dentro de "fields"
+        if (!data.audio_url && data.fields) {
+          data.audio_url = data.fields["Audio URL"] || "";
+          data.narrativa = data.narrativa || data.fields["narrativa"] || "";
+          data.vino_id   = data.vino_id   || data.fields["ID Vino"]  || "";
+        }
+
+        // Texto
+        respuestaEl.innerText = data.narrativa || "No se pudo generar la narrativa del vino.";
+
+        // Audio (forzar https si llega http)
+        let audioUrl = (data.audio_url || "").trim();
+        if (audioUrl.startsWith("http://")) audioUrl = audioUrl.replace(/^http:\/\//i, "https://");
+
+        if (audioUrl) {
+          if (playerEl._plyr) { try { playerEl._plyr.destroy(); } catch(_) {} playerEl._plyr = null; }
+          playerEl.innerHTML = "";
+          const src = document.createElement("source");
+          src.src  = audioUrl;
+          src.type = "audio/mpeg";
+          playerEl.appendChild(src);
+          playerEl.load();
+
+          const inst = new Plyr(playerEl, { speed: { selected: 1, options: [0.75, 1, 1.25, 1.5, 2] } });
+          playerEl._plyr = inst;
+          bloqueAudio.style.display = "block";
+        } else {
+          bloqueAudio.style.display = "none";
+        }
+      } catch (err) {
+        console.error("❌ Narrativa/Audio:", err);
+        respuestaEl.innerText = "No se pudo cargar la información del vino.";
+        bloqueAudio.style.display = "none";
+      }
+    }
+
+    // ---- Radar y resto de módulos ----
     document.addEventListener("DOMContentLoaded", function() {
-      // ---------------------- RADAR SVG Y FICHA ----------------------
       const perfilesConfig = {
         gustativo: {
           labels: ["Cuerpo", "Acidez", "Dulzor", "Taninos", "Frescura", "Mineralidad"],
@@ -316,7 +355,7 @@
         }
       }
 
-      // --------- Cargar ficha y datos (usa el vinoId global definido arriba) ---------
+      // --------- Cargar ficha y datos ---------
       async function cargarFichaVino() {
         try {
           const fichaData = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/vino/${vinoId}`)).json();
@@ -350,7 +389,7 @@
       async function cargarValoraciones() {
         try {
           const res = await fetch(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`);
-          const data = await res.json();
+        const data = await res.json();
           document.getElementById("media-nota").innerText = data.nota_media !== undefined ? data.nota_media.toFixed(1) : "-";
           const contenedor = document.getElementById("estrellas-nota");
           contenedor.innerHTML = "";
@@ -488,7 +527,7 @@
       const iconosCompartir = {
         whatsapp: `<svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.029-.967-.273-.099-.471-.148-.669.149-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.151-.172.2-.297.3-.495.099-.198.05-.372-.025-.521-.075-.149-.669-1.611-.916-2.207-.242-.579-.487-.5-.669-.509l-.571-.011c-.198 0-.521.074-.792.372-.272.297-1.041 1.017-1.041 2.479 0 1.462 1.066 2.875 1.214 3.074.149.198 2.098 3.2 5.076 4.363.71.306 1.263.488 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.288.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 6.412h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.999-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.244c.001-5.455 4.436-9.888 9.893-9.888 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.896 6.994c-.003 5.455-4.437 9.888-9.893 9.888M20.013 3.988A11.815 11.815 0 0 0 12.004 1c-6.624 0-12 5.373-12 11.993a11.91 11.91 0 0 0 1.605 6.006L.057 23l6.118-1.605a11.933 11.933 0 0 0 5.822 1.487h.005c6.623 0 11.999-5.373 12-11.992a11.823 11.823 0 0 0-3.989-8.902" fill="#25D366"/></svg>`,
         telegram: `<svg viewBox="0 0 24 24"><path d="M9.885 15.568l-.397 3.57c.571 0 .816-.244 1.111-.54l2.664-2.53 5.526 4.043c1.01.556 1.723.264 1.981-.936l3.597-16.624c.328-1.515-.55-2.109-1.523-1.787L1.436 9.76c-1.475.461-1.455 1.398-.254 1.772l4.301 1.343 10.008-6.304c.47-.287.898-.128.545.159z" fill="#229ED9"/></svg>`,
-        instagram: `<svg viewBox="0 0 24 24"><linearGradient id="a" x1="1.67" x2="22.33" y1="1.67" y2="22.33" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fd5"/><stop offset=".5" stop-color="#ff543f"/><stop offset="1" stop-color="#c837ab"/></linearGradient><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.206.057 2.003.24 2.47.411a4.9 4.9 0 0 1 1.675 1.013 4.898 4.898 0 0 1 1.013 1.675c.172.468.355 1.265.411 2.47.058 1.266.07 1.646.07 4.85s-.012 3.584-.07 4.85c-.056 1.206-.239 2.003-.411 2.47a4.908 4.908 0 0 1-1.013 1.675 4.9 4.9 0 0 1-1.675 1.013c-.468.172-1.265.355-2.47.411-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.206-.057-2.003-.24-2.47-.411a4.902 4.902 0 0 1-1.675-1.013 4.9 4.9 0 0 1-1.013-1.675c-.172-.468-.355-1.265-.411-2.47C2.175 15.797 2.163 15.417 2.163 12s.012-3.584.07-4.85c.056-1.206.239-2.003.411-2.47A4.906 4.906 0 0 1 3.657 3.006 4.902 4.902 0 0 1 5.332 1.993c.468-.172 1.265-.355 2.47-.411C8.416 2.175 8.796 2.163 12 2.163zM12 0C8.74 0 8.333.013 7.052.07c-1.272.058-2.148.244-2.904.52a7.005 7.005 0 0 0-2.55 1.659A7.006 7.006 0 0 0 .59 3.548c-.276.756-.462 1.632-.52 2.904C.013 8.333 0 8.74 0 12c0 3.26.013 3.667.07 4.948.058 1.272.244 2.148.52 2.904a7.009 7.009 0 0 0 1.659 2.55 7.003 7.003 0 0 0 2.55 1.659c.756.276 1.632.462 2.904.52C8.333 23.987 8.74 24 12 24s3.667-.013 4.948-.07c1.272-.058 2.148-.244 2.904-.52a7.004 7.004 0 0 0 2.55-1.659 7.008 7.008 0 0 0 1.659-2.55c.276-.756.462-1.632.52-2.904.058-1.281.07-1.688.07-4.948s-.013-3.667-.07-4.948c-.058-1.272-.244-2.148-.52-2.904a7.004 7.004 0 0 0-1.659-2.55A7.007 7.007 0 0 0 19.452.59c-.756-.276-1.632-.462-2.904-.52C15.667.013 15.26 0 12 0z" fill="url(#a)"/><path d="M12 5.838A6.162 6.162 0 1 0 12 18.162 6.162 6.162 0 1 0 12 5.838zm0 10.162a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" fill="#fff"/></svg>`,
+        instagram: `<svg viewBox="0 0 24 24"><linearGradient id="a" x1="1.67" x2="22.33" y1="1.67" y2="22.33" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fd5"/><stop offset=".5" stop-color="#ff543f"/><stop offset="1" stop-color="#c837ab"/></linearGradient><path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.206.057 2.003.24 2.47.411a4.9 4.9 0 0 1 1.675 1.013 4.898 4.898 0 0 1 1.013 1.675c.172.468.355 1.265.411 2.47.058 1.266.07 1.646.07 4.85s-.012 3.584-.07 4.85c-.056 1.206-.239 2.003-.411 2.47a4.908 4.908 0 0 1-1.013 1.675 4.9 4.9 0 0 1-1.675 1.013c-.468.172-1.265.355-2.47.411-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.206-.057-2.003-.24-2.47-.411a4.902 4.902 0 0 1-1.675-1.013 4.9 4.9 0 0 1-1.013-1.675c-.172-.468-.355-1.265-.411-2.47C2.175 15.797 2.163 15.417 2.163 12s.012-3.584.07-4.85c.056-1.206.239-2.003.411-2.47A4.906 4.906 0 0 1 3.657 3.006 4.902 4.902 0 0 1 5.332 1.993c.468-.172 1.265-.355 2.47-.411C8.416 2.175 8.796 2.163 12 2.163z" fill="url(#a)"/><path d="M12 5.838A6.162 6.162 0 1 0 12 18.162 6.162 6.162 0 1 0 12 5.838zm0 10.162a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" fill="#fff"/></svg>`,
         gmail: `<svg viewBox="0 0 24 24"><path d="M12 13.172l7.727-7.727A2 2 0 0 1 22 5.172v13.656A2 2 0 0 1 20 21H4a2 2 0 0 1-2-2V5.172a2 2 0 0 1 2.273-1.727L12 13.172z" fill="#EA4335"/><path d="M2.273 3.445L12 13.172l9.727-9.727A2 2 0 0 0 20 3H4a2 2 0 0 0-1.727.445z" fill="#34A853"/></svg>`,
         pocket: `<svg viewBox="0 0 24 24"><path d="M17.8 2.2H6.2C3.4 2.2 1.2 4.4 1.2 7.2v9.6c0 2.8 2.2 5 5 5h11.6c2.8 0 5-2.2 5-5V7.2c0-2.8-2.2-5-5-5zm2.6 14.6c0 1.5-1.1 2.6-2.6 2.6H6.2c-1.5 0-2.6-1.1-2.6-2.6V7.2c0-1.5 1.1-2.6 2.6-2.6h11.6c1.5 0 2.6 1.1 2.6 2.6v9.6zm-4.8-4.1c-.2.2-.4.3-.7.3s-.5-.1-.7-.3l-2.5-2.6a.995.995 0 0 1 1.4-1.4l1.8 1.8 1.8-1.8a.995.995 0 1 1 1.4 1.4l-2.5 2.6z" fill="#EF3F56"/></svg>`,
         beeper: `<svg viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#181A20"/><path d="M16.5 8.6a.8.8 0 0 0-1.13 0l-2.4 2.4-2.4-2.4a.8.8 0 0 0-1.13 1.13l2.4 2.4-2.4 2.4a.8.8 0 1 0 1.13 1.13l2.4-2.4 2.4 2.4a.8.8 0 1 0 1.13-1.13l-2.4-2.4 2.4-2.4a.8.8 0 0 0 0-1.13z" fill="#fff"/></svg>`,
@@ -520,6 +559,7 @@
         el.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
+          // Siempre quitamos qr=1 del enlace compartido
           const urlActual = window.location.href.replace(/[?#].*$/, '') + window.location.search.replace(/[&?]qr=1/gi, '').replace(/([?&])$/, '');
           if(opc.id === 'copiar') {
             navigator.clipboard.writeText(urlActual);
