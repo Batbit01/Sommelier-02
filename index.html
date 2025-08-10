@@ -216,7 +216,7 @@
         } catch (_) {}
 
         // Parámetros enriquecidos
-        const idioma = (window._datosUsuario?.idioma || (navigator.language || 'es')).slice(0,2);
+        const idioma = (window._datosUsuario?.idioma || (navigator.language || 'es').slice(0,2);
         const ciudad = window._datosUsuario?.ciudad || '';
         const pais   = window._datosUsuario?.pais || '';
         const qr_id  = new URLSearchParams(window.location.search).get('qr') || '';
