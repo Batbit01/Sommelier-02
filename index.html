@@ -63,6 +63,22 @@
   // --- Global: vinoId para que el resto del código lo use sin redeclararlo ---
   const vinoId = new URLSearchParams(window.location.search).get('vino_id') || "";
 
+  <script>
+// Espera muy breve a que window._datosUsuario exista (máx 1200 ms)
+function waitUserData(timeout = 1200) {
+  return new Promise((resolve) => {
+    if (window._datosUsuario) return resolve();
+    const start = Date.now();
+    const t = setInterval(() => {
+      if (window._datosUsuario || Date.now() - start > timeout) {
+        clearInterval(t);
+        resolve();
+      }
+    }, 50);
+  });
+}
+</script>
+
   // --- Narrativa + audio: construimos la URL con idioma/ciudad/pais/qr/session/ua ---
   async function cargarNarrativaVino() {
     const respuestaEl = document.getElementById("respuesta");
@@ -76,29 +92,33 @@
     }
 
     try {
-      // Parámetros enriquecidos (con fallback por si aún no llegó ipapi)
-      const idioma    = (window._datosUsuario?.idioma || navigator.language || 'es').slice(0,2);
-      const qr_id     = new URLSearchParams(window.location.search).get('qr') || '';
-      const ciudad    = window._datosUsuario?.ciudad || '';
-      const pais      = window._datosUsuario?.pais || '';
-      const ua        = navigator.userAgent || '';
-      let   sessionId = localStorage.getItem('user_id');
-      if (!sessionId) {
-        sessionId = `user_${Math.random().toString(36).slice(2,10)}`;
-        localStorage.setItem('user_id', sessionId);
-      }
+      // Espera a que tengamos ciudad/pais/idioma (o cae en fallback rápido)
+await waitUserData();
 
-      const reqUrl =
-        "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
-        `?vino_id=${encodeURIComponent(vinoId)}` +
-        `&secret=${encodeURIComponent('midulcesommelier')}` +
-        `&idioma=${encodeURIComponent(idioma)}` +
-        `&ciudad=${encodeURIComponent(ciudad)}` +
-        `&pais=${encodeURIComponent(pais)}` +
-        `&qr_id=${encodeURIComponent(qr_id)}` +
-        `&session_id=${encodeURIComponent(sessionId)}` +
-        `&ua=${encodeURIComponent(ua)}` +
-        `&_ts=${Date.now()}`;
+   // Lee/compone los parámetros
+   const idioma    = (window._datosUsuario?.idioma || navigator.language || 'es').slice(0, 2);
+   const qr_id     = new URLSearchParams(window.location.search).get('qr') || '';
+   const ciudad    = window._datosUsuario?.ciudad || '';
+   const pais      = window._datosUsuario?.pais || '';
+   let   sessionId = localStorage.getItem('user_id') || '';
+   if (!sessionId) {
+     sessionId = `user_${Math.random().toString(36).slice(2, 10)}`;
+     localStorage.setItem('user_id', sessionId);
+   }
+   const ua        = navigator.userAgent || '';
+
+      // Construye la URL al webhook REAL con todos los params
+     const reqUrl =
+     "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw" +
+     `?vino_id=${encodeURIComponent(vinoId)}` +
+     `&secret=${encodeURIComponent('midulcesommelier')}` +
+     `&idioma=${encodeURIComponent(idioma)}` +
+     `&ciudad=${encodeURIComponent(ciudad)}` +
+     `&pais=${encodeURIComponent(pais)}` +
+     `&qr_id=${encodeURIComponent(qr_id)}` +
+     `&session_id=${encodeURIComponent(sessionId)}` +
+     `&ua=${encodeURIComponent(ua)}` +
+     `&_ts=${Date.now()}`; // anticaché, no ralentiza nada
 
       const res = await fetch(reqUrl, { cache: "no-store" });
       const raw = await res.text();
