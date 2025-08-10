@@ -215,8 +215,25 @@
           ]);
         } catch (_) {}
 
-        // Parámetros enriquecidos
-        const idioma = (window._datosUsuario?.idioma || (navigator.language || 'es')).slice(0,2);
+        // 🔹 Detección mejorada de idioma con soporte de override por URL
+const qp = new URLSearchParams(location.search);
+const langOverride = qp.get('lang'); // Ej: ?lang=en
+
+function detectarIdioma() {
+  // Usa primero el idioma preferido del navegador
+  if (Array.isArray(navigator.languages) && navigator.languages.length > 0) {
+    return navigator.languages[0].toLowerCase().replace('_','-').slice(0,2);
+  }
+  // Si no hay lista, usa navigator.language
+  if (navigator.language) {
+    return navigator.language.toLowerCase().replace('_','-').slice(0,2);
+  }
+  // Fallback final
+  return 'es';
+}
+
+const idioma = (langOverride || window._datosUsuario?.idioma || detectarIdioma());
+
         const ciudad = window._datosUsuario?.ciudad || '';
         const pais   = window._datosUsuario?.pais || '';
         const qr_id  = new URLSearchParams(window.location.search).get('qr') || '';
