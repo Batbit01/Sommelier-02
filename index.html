@@ -356,18 +356,22 @@
     });
     return url.toString();
   }
+async function cargarNarrativaVino() {
+  const respuestaEl = document.getElementById("respuesta");
+  const bloqueAudio = document.getElementById("bloque-audio-narrativa");
+  const playerEl    = document.getElementById("player");
 
-    async function cargarNarrativaVino() {
-      const respuestaEl = document.getElementById("respuesta");
-      const bloqueAudio = document.getElementById("bloque-audio-narrativa");
-      const playerEl    = document.getElementById("player");
+  const ctx = window.__SOMM_CTX__ || {};
+  const idEfectivo = window.vinoId || ctx.vino_id || "";
 
-      if (!vinoId) {
-        respuestaEl.innerText = "No se especificó ningún vino.";
-        bloqueAudio.style.display = "none";
-        return;
-      }
+  if (!idEfectivo) {
+    respuestaEl.innerText = "No se especificó ningún vino.";
+    bloqueAudio.style.display = "none";
+    return;
+  }
 
+  try {
+    // tu código existente sigue igual a partir de aquí
       try {
         // Espera rápida por city/country/lang (máx 1000ms)
         try {
