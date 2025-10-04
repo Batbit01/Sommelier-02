@@ -337,16 +337,36 @@
     return __ctxPromise;
   }
 
-  // Garantiza que el parámetro ?idioma esté en URL (para compartir enlaces persistentes)
-  (function ensureLangInUrl(){
-    const params = new URLSearchParams(location.search);
-    if (!params.get('idioma')) {
-      const lang = localStorage.getItem('idioma')
-        || ((navigator.languages && navigator.languages[0]) || navigator.language || 'es').slice(0,2).toLowerCase();
-      params.set('idioma', lang);
-      history.replaceState({}, '', `${location.pathname}?${params.toString()}`);
-    }
-  })();
+   // Garantiza parámetro ?lang en URL y elimina ?idioma si existe
+(function ensureLangInUrl(){
+  const params = new URLSearchParams(location.search);
+  let changed = false;
+
+  // Si viene ?idioma lo convertimos a ?lang
+  if (params.has('idioma') && !params.has('lang')) {
+    const v = String(params.get('idioma') || '').slice(0,2).toLowerCase();
+    if (v) { params.set('lang', v); changed = true; }
+  }
+
+  // Si falta ?lang, lo fijamos desde localStorage('idioma') o navegador
+  if (!params.has('lang')) {
+    const v =
+      (localStorage.getItem('idioma') || // seguimos usando tu clave existente
+       (navigator.languages && navigator.languages[0]) || navigator.language || 'es'
+      ).slice(0,2).toLowerCase();
+    params.set('lang', v);
+    changed = true;
+  }
+
+  // Limpieza: quitar ?idioma si quedó
+  if (params.has('idioma')) { params.delete('idioma'); changed = true; }
+
+  if (changed) {
+    const q = params.toString();
+    history.replaceState({}, '', q ? `${location.pathname}?${q}` : location.pathname);
+  }
+})();
+
 
   async function withCtx(baseUrl) {
     const ctx = await __getCtx();
