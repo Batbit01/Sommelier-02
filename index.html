@@ -105,6 +105,11 @@
     </button>
     <div id="menu-compartir"></div>
   </div>
+  
+  <!-- Botón Sommelier (aparece solo si el módulo está activo) -->
+  <button id="btnSommelier" hidden aria-controls="somm-modal">
+  Hablar con el sommelier
+  </button>
 
   <!-- MÓDULO SOMMELIER VIRTUAL -->
   <div id="modulo-sommelier">
@@ -767,5 +772,118 @@
       });
     });
   </script>
+  <script type="module">
+  // ---------- UTILIDADES ----------
+  const qs = (sel, root=document) => root.querySelector(sel);
+
+  // 1) Detección de ruta: /qr2/{vino_id}/{anyada}/{lang}/index.html
+  function parseFromPath() {
+    const segs = location.pathname.split('/').filter(Boolean);
+    const i = segs.findIndex(s => s === 'qr2');
+    if (i >= 0 && segs.length >= i + 4) {
+      return { vino_id: segs[i+1], anyada: segs[i+2], lang: segs[i+3] };
+    }
+    return { vino_id: null, anyada: null, lang: 'es' };
+  }
+
+  // 2) URL robusta de ficha.json (misma carpeta que index.html)
+  function currentFichaUrl() {
+    // Reemplaza index.html -> ficha.json usando URL relativa
+    return new URL('./ficha.json', window.location.href).href;
+  }
+
+  // 3) Carga ficha.json publicada
+  async function loadFicha() {
+    const url = currentFichaUrl();
+    try {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn('⚠️ No pude cargar ficha.json en', url, e);
+      return null;
+    }
+  }
+
+  // 4) Arranque del Sommelier (usa ElevenLabs si está, si no emite evento)
+  async function startSommelier(ctx) {
+    const system = `
+Eres el sommelier de la casa. Usa el tool get_qr2_ficha con:
+vino_id=${ctx.vino_id}, anyada=${ctx.anyada}, lang=${ctx.lang}.
+Responde breve y luego ofrece ampliar. Si falta ficha, ofrece publicarla.
+`.trim();
+
+    // Si existe el SDK del agente, lo usamos (ajusta a tu integración real)
+    if (window.ElevenAgents?.create) {
+      const agent = await window.ElevenAgents.create({
+        agentId: "AGENT_ID", // <-- pon aquí tu ID
+        session: {
+          metadata: {
+            vino_id: ctx.vino_id,
+            anyada:  ctx.anyada,
+            lang:    ctx.lang
+          },
+          system_message: system
+        },
+        tools: {
+          get_qr2_ficha: {
+            beforeCall: (params) => ({
+              vino_id: params?.vino_id || ctx.vino_id,
+              anyada:  params?.anyada  || ctx.anyada,
+              lang:    params?.lang    || ctx.lang,
+              secret:  window.AGENT_TOOL_SECRET // ⚠️ inyéctalo en runtime; no lo dejes hardcoded
+            })
+          },
+          publish_qr2_ficha: {
+            beforeCall: (params) => ({
+              vino_id: params?.vino_id || ctx.vino_id,
+              anyada:  params?.anyada  || ctx.anyada,
+              lang:    params?.lang    || ctx.lang,
+              secret:  window.AGENT_TOOL_SECRET
+            })
+          }
+        }
+      });
+
+      agent.open(); // abre modal/widget del Agent
+      return;
+    }
+
+    // Fallback: emite un evento para que tu app lo capture y abra su UI
+    document.dispatchEvent(new CustomEvent('somm:start', { detail: ctx }));
+    console.info('ℹ️ ElevenAgents SDK no disponible. Emitido evento somm:start con el contexto.');
+  }
+
+  // ---------- BOOT ----------
+  (async function initSommelierButton() {
+    const btn = qs('#btnSommelier');
+    if (!btn) return;
+
+    // Contexto mínimo desde la ruta
+    const base = parseFromPath();
+
+    // Carga ficha.json y arma el contexto final
+    const data = await loadFicha();
+
+    const ctx = {
+      vino_id: data?.meta?.vino_id || data?.ficha?.vino_id || base.vino_id,
+      anyada:  String(data?.meta?.anyada || data?.ficha?.anyada || base.anyada || ''),
+      lang:    data?.meta?.lang || data?.ficha?.lang || base.lang || 'es',
+      title:   data?.ficha?.title || '',
+      do:      data?.ficha?.do || '',
+      sommelier_enabled: !!(data?.modules?.sommelier?.enabled || data?.meta?.sommelier_enabled)
+    };
+
+    // Exponer contexto por si lo quieres para otras partes
+    window.__SOMM_CTX__ = ctx;
+
+    // Mostrar/ocultar botón
+    btn.hidden = !ctx.sommelier_enabled;
+
+    // Click → arrancar sommelier
+    btn.addEventListener('click', () => startSommelier(ctx));
+  })();
+</script>
+
 </body>
 </html>
