@@ -854,35 +854,61 @@ Responde breve y luego ofrece ampliar. Si falta ficha, ofrece publicarla.
     console.info('ℹ️ ElevenAgents SDK no disponible. Emitido evento somm:start con el contexto.');
   }
 
-  // ---------- BOOT ----------
-  (async function initSommelierButton() {
-    const btn = qs('#btnSommelier');
-    if (!btn) return;
+    // ---------- BOOT ----------
+  (async function boot() {
+    const btn = document.querySelector('#btnSommelier');
 
-    // Contexto mínimo desde la ruta
-    const base = parseFromPath();
+    // 1) Intenta por ruta /qr2/{vino_id}/{anyada}/{lang}
+    const fromPath = parseFromPath();
 
-    // Carga ficha.json y arma el contexto final
+    // 2) Carga ficha.json publicada
     const data = await loadFicha();
 
-    const ctx = {
-      vino_id: data?.meta?.vino_id || data?.ficha?.vino_id || base.vino_id,
-      anyada:  String(data?.meta?.anyada || data?.ficha?.anyada || base.anyada || ''),
-      lang:    data?.meta?.lang || data?.ficha?.lang || base.lang || 'es',
-      title:   data?.ficha?.title || '',
-      do:      data?.ficha?.do || '',
-      sommelier_enabled: !!(data?.modules?.sommelier?.enabled || data?.meta?.sommelier_enabled)
+    // 3) Contexto efectivo (única verdad)
+    const CTX = {
+      vino_id: (new URLSearchParams(location.search).get('vino_id'))
+                || data?.meta?.vino_id || data?.ficha?.vino_id || fromPath.vino_id || "",
+      anyada:  (new URLSearchParams(location.search).get('anyada'))
+                || String(data?.meta?.anyada || data?.ficha?.anyada || fromPath.anyada || ""),
+      lang:    (new URLSearchParams(location.search).get('lang'))
+                || data?.meta?.lang || data?.ficha?.lang || fromPath.lang || 'es',
+      sommelier_enabled: !!(data?.modules?.sommelier?.enabled || data?.meta?.sommelier_enabled),
+      _rawFicha: data
     };
 
-    // Exponer contexto por si lo quieres para otras partes
-    window.__SOMM_CTX__ = ctx;
+    // Exponer por si otras funciones lo necesitan
+    window.__SOMM_CTX__ = CTX;
 
-    // Mostrar/ocultar botón
-    btn.hidden = !ctx.sommelier_enabled;
+    // Mostrar/ocultar botón Sommelier
+    if (btn) btn.hidden = !CTX.sommelier_enabled;
 
-    // Click → arrancar sommelier
-    btn.addEventListener('click', () => startSommelier(ctx));
+    // Reescribe vinoId global (para tu narrativa/valoraciones)
+    window.vinoId = CTX.vino_id;
+
+    // Pintado rápido desde ficha.json si existe
+    if (data?.ficha) {
+      try {
+        document.getElementById("vinoImagen").src = data.image || data.ficha?.assets?.image_url || "";
+        document.title = document.getElementById("vinoTitulo").innerText = data.ficha?.title || "Ficha del Vino";
+        document.getElementById("vinoTipo").innerText = data.ficha?.tipo || "";
+        document.getElementById("vinoUva").innerText = data.ficha?.variedad || "";
+        document.getElementById("vinoOrigen").innerText = data.ficha?.do || "";
+        document.getElementById("bodegaNombre").innerText = data.ficha?.bodega || "";
+      } catch {}
+    } else {
+      // Fallback a tus endpoints si no hay ficha en CDN
+      cargarFichaVino();
+    }
+
+    cargarNarrativaVino();
+    cargarPerfilOrganoleptico();
+    cargarValoraciones();
+    cargarComentarios();
+
+    // Click → arranca el sommelier con el CTX unificado
+    if (btn) btn.addEventListener('click', () => startSommelier(CTX));
   })();
+
 </script>
 
 </body>
