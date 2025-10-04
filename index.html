@@ -791,23 +791,46 @@ async function cargarNarrativaVino() {
   }
 
   // 2) URL robusta de ficha.json (misma carpeta que index.html)
-  function currentFichaUrl() {
-    // Reemplaza index.html -> ficha.json usando URL relativa
+function currentFichaUrl() {
+  // ¿Estamos en /qr2/{vino}/{anyada}/{lang}/ ?
+  const segs = location.pathname.split('/').filter(Boolean);
+  const i = segs.findIndex(s => s === 'qr2');
+  const inQr2Path = (i >= 0 && segs.length >= i + 4);
+
+  if (inQr2Path) {
+    // Modo carpeta: index.html y ficha.json viven juntos
     return new URL('./ficha.json', window.location.href).href;
   }
 
-  // 3) Carga ficha.json publicada
-  async function loadFicha() {
-    const url = currentFichaUrl();
-    try {
-      const res = await fetch(url, { cache: 'no-cache' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      console.warn('⚠️ No pude cargar ficha.json en', url, e);
-      return null;
-    }
+  // Modo raíz con query params → leemos del CDN
+  const q = new URLSearchParams(location.search);
+  const vino  = (q.get('vino_id') || '').trim();
+  const any   = (q.get('anyada')  || '').trim();
+  const lang  = (q.get('lang')    || 'es').slice(0,2).toLowerCase();
+
+  if (vino && any) {
+    const CDN_BASE = 'https://f005.backblazeb2.com/file/SommelierLab-media';
+    return `${CDN_BASE}/qr2/${vino}/${any}/${lang}/ficha.json`;
   }
+
+  // Sin info suficiente → no intentamos cargar ficha.json
+  return null;
+}
+
+  // 3) Carga ficha.json publicada
+ async function loadFicha() {
+  const url = currentFichaUrl();
+  if (!url) return null; // ← evita peticiones si faltan params
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.warn('⚠️ No pude cargar ficha.json en', url, e);
+    return null;
+  }
+}
+
 
   // 4) Arranque del Sommelier (usa ElevenLabs si está, si no emite evento)
   async function startSommelier(ctx) {
