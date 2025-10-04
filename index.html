@@ -249,10 +249,10 @@
     try { localStorage.setItem('geo_backoff_until', String(until)); } catch {}
   }
 
-  function __getUrlLang() {
-    const p = new URLSearchParams(location.search).get('idioma');
-    return p ? String(p).slice(0,2).toLowerCase() : '';
-  }
+ function __getUrlLang() {
+  const p = new URLSearchParams(location.search).get('lang');
+  return p ? String(p).slice(0,2).toLowerCase() : '';
+}
 
   // Única promesa global para geolocalización
   window.__geoPromise = null;
