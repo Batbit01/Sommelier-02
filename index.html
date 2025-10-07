@@ -450,3 +450,44 @@
       if (!puntuacionSeleccionada) { mensaje.innerText="Por favor, selecciona una puntuación (de 1 a 5)."; mensaje.style.color="red"; return; }
       try {
         const id = window.vinoId || new URLSearchParams(location.search).get('vino_id') || '';
+        let user = localStorage.getItem("user_id"); if (!user){ user=`user_${Math.random().toString(36).slice(2,10)}`; localStorage.setItem("user_id",user); }
+        await fetch("https://n8n-production-cb18.up.railway.app/webhook/comentar-vino",{
+          method:"POST", headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({
+            vino_id:id, puntuacion:puntuacionSeleccionada, comentario,
+            user_id:user, ciudad: window._datosUsuario?.ciudad || "Desconocida",
+            pais: window._datosUsuario?.pais || "Desconocido",
+            idioma: window._datosUsuario?.idioma || "es",
+            dispositivo: (__detectDevice().dispositivo), ua:(navigator.userAgent||"")
+          })
+        });
+        mensaje.innerText="¡Gracias por tu valoración!"; mensaje.style.color="green";
+        puntuacionSeleccionada=0; document.querySelectorAll(".estrella").forEach(star=>star.classList.remove("seleccionada"));
+        qs("#comentario").value=""; cargarValoraciones(); cargarComentarios();
+      } catch {
+        mensaje.innerText="Error al enviar tu valoración."; mensaje.style.color="red";
+      }
+    });
+  })();
+
+  // ---------- Compartir ----------
+  (function initShare(){
+    const btn = qs('#btn-compartir'); const menu = qs('#menu-compartir');
+    const opciones = [
+      { key:'copy', label:'Copiar enlace', icon:'📋', action: async ()=>{
+        await navigator.clipboard.writeText(location.href);
+        const first = menu.querySelector('.menu-item-compartir'); if (first){ first.classList.add('copiado'); first.textContent='¡Copiado!'; setTimeout(()=>first.classList.remove('copiado'), 1500); }
+      }},
+      { key:'whatsapp', label:'WhatsApp', icon:'🟢', action:()=>window.open(`https://wa.me/?text=${encodeURIComponent(location.href)}`,'_blank') },
+      { key:'mail', label:'Email', icon:'✉️', action:()=>location.href=`mailto:?subject=Ficha del vino&body=${encodeURIComponent(location.href)}` }
+    ];
+    function crear(op){ const el=document.createElement('button'); el.className='menu-item-compartir'; el.innerHTML=`<span>${op.icon}</span><span>${op.label}</span>`; el.onclick=op.action; return el; }
+    function render(){ menu.innerHTML=''; opciones.forEach(o=>menu.appendChild(crear(o))); }
+    btn.onclick=(e)=>{ e.stopPropagation(); if(menu.classList.contains('open')) menu.classList.remove('open'); else { render(); menu.classList.add('open'); } };
+    document.addEventListener('click', ()=>{ if(menu.classList.contains('open')) menu.classList.remove('open'); });
+  })();
+
+  </script>
+</body>
+</html>
+
