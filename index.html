@@ -97,10 +97,10 @@
     <div id="menu-compartir"></div>
   </div>
 
-  <!-- Botón Sommelier (aparece solo si el módulo está activo) -->
+  <!-- Botón Sommelier -->
   <button id="btnSommelier" hidden aria-controls="somm-modal">Hablar con el sommelier</button>
 
-  <!-- SOMMELIER VIRTUAL: aviso por si no hay QR válido -->
+  <!-- SOMMELIER VIRTUAL: aviso -->
   <div id="modulo-sommelier">
     <button id="hablar" disabled style="opacity:0.6;pointer-events:none;">
       <svg width="23" height="23" style="vertical-align:middle; margin-right:7px;" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8.5" stroke="#888" stroke-width="1.6"/><path d="M10 6.5v4.2M10 14h.01" stroke="#888" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -168,11 +168,12 @@
   <script type="module">
   // ---------- Endpoints ----------
   const N8N_BASE = "https://n8n-production-cb18.up.railway.app";
-  const EP_BUILD = "/webhook/7-QR2—BUILD—RESPOND";                 // <-- ajusta si tu slug cambia
-  const EP_PUBLISH_SOMM = "/webhook/7.2 QR2—PUBLISH (para sommelier)"; // <-- ajusta si tu slug cambia
+  const EP_BUILD = "/webhook/7-QR2—BUILD—RESPOND";                   // ajusta si tu slug cambia
+  const EP_PUBLISH_SOMM = "/webhook/7.2 QR2—PUBLISH (para sommelier)"; // ajusta si tu slug cambia
 
-  // ---------- Utils ----------
+  // ---------- Helpers ----------
   const qs = (sel, root=document) => root.querySelector(sel);
+
   function parseFromPath() {
     const segs = location.pathname.split('/').filter(Boolean);
     const i = segs.findIndex(s => s === 'qr2');
@@ -180,7 +181,24 @@
     return { vino_id: null, anyada: null, lang: 'es' };
   }
 
-  // URL robusta para ficha.json (solo fallback)
+  // Descubre automáticamente la añada si no viene (últimos 6 años)
+  async function discoverAnyada(vino_id, lang = 'es', maxBack = 6) {
+    const now = new Date().getFullYear();
+    const years = Array.from({length: maxBack+1}, (_,i)=>String(now-i));
+    for (const y of years) {
+      try {
+        const u1 = `https://f005.backblazeb2.com/file/SommelierLab-media/qr2/${vino_id}/${y}/${lang}/ficha.json`;
+        const r1 = await fetch(u1, { method:'HEAD', cache:'no-store' });
+        if (r1.ok) return y;
+        const u2 = `https://f005.backblazeb2.com/file/SommelierLab-media/qr2/${vino_id}/${y}/en/ficha.json`;
+        const r2 = await fetch(u2, { method:'HEAD', cache:'no-store' });
+        if (r2.ok) return y;
+      } catch {}
+    }
+    return null;
+  }
+
+  // Ficha.json directa (solo fallback)
   function currentFichaUrl() {
     const segs = location.pathname.split('/').filter(Boolean);
     const i = segs.findIndex(s => s === 'qr2');
@@ -190,20 +208,18 @@
     const q = new URLSearchParams(location.search);
     const vino  = (q.get('vino_id') || '').trim();
     const any   = (q.get('anyada')  || '').trim();
-    const lang  = (q.get('lang')    || 'es').slice(0,2).toLowerCase();
+    const lang  = (q.get('lang') || q.get('idioma') || 'es').slice(0,2).toLowerCase();
     if (vino && any) return `https://f005.backblazeb2.com/file/SommelierLab-media/qr2/${vino}/${any}/${lang}/ficha.json`;
     return null;
   }
-
   async function loadFicha() {
     const url = currentFichaUrl();
     if (!url) return null;
-    try { const res = await fetch(url, { cache: 'no-store' }); if (!res.ok) throw 0; return await res.json(); }
+    try { const res = await fetch(url, { cache:'no-store' }); if (!res.ok) throw 0; return await res.json(); }
     catch { return null; }
   }
 
-  // ---------- Contexto enriquecido (idioma/geo/dispositivo/sesión) ----------
-  const __ctxParams = new URLSearchParams(window.location.search);
+  // ---------- Contexto enriquecido (lang/geo/device/session) ----------
   function __ensureSessionId() {
     let sid = localStorage.getItem('user_id');
     if (!sid) { sid = `user_${Math.random().toString(36).slice(2,10)}`; localStorage.setItem('user_id', sid); }
@@ -224,9 +240,10 @@
   function __backoffActive(){ const until = parseInt(localStorage.getItem('geo_backoff_until')||'0',10); return until && Date.now()<until; }
 
   async function __buildCtxOnce() {
-    const path = parseFromPath();
-    const lang = (new URLSearchParams(location.search).get('lang') || path.lang || (navigator.language||'es')).slice(0,2).toLowerCase();
-    const sess = __ensureSessionId();
+    const fromPath = parseFromPath();
+    const q = new URLSearchParams(location.search);
+    const lang = (q.get('lang') || q.get('idioma') || fromPath.lang || (navigator.language||'es')).slice(0,2).toLowerCase();
+    const session_id = __ensureSessionId();
     const { dispositivo, ua } = __detectDevice();
 
     let geo = __getCachedGeo() || { ciudad:'', pais:'', idioma:lang };
@@ -237,14 +254,9 @@
       } catch { localStorage.setItem('geo_backoff_until', String(Date.now() + 60*60*1000)); }
     }
 
-    const qr_id = (new URLSearchParams(location.search).get('qr') || '').trim();
-    return {
-      lang, ciudad: geo.ciudad, pais: geo.pais, idioma: geo.idioma,
-      dispositivo, ua, session_id: sess, qr_id
-    };
+    const qr_id = (q.get('qr') || '').trim();
+    return { lang, ciudad: geo.ciudad, pais: geo.pais, idioma: geo.idioma, dispositivo, ua, session_id, qr_id };
   }
-
-  // Memo de contexto para toda la sesión
   let __ctxMemo = null, __ctxPromise = null;
   async function __getCtx(){ if(__ctxMemo) return __ctxMemo; if(!__ctxPromise) __ctxPromise = __buildCtxOnce().then(c=>(__ctxMemo=c)); return __ctxPromise; }
   async function withCtx(baseUrl){
@@ -267,20 +279,20 @@
   }
 
   function renderFromBuild(data) {
-    // título e imagen
+    // Título e imagen
     qs('#vinoImagen').src = data.image || data.ficha?.assets?.image_url || "";
     document.title = qs('#vinoTitulo').innerText = data.summary?.title || data.ficha?.title || "Ficha del Vino";
 
-    // campos básicos
+    // Campos básicos
     qs('#vinoTipo').innerText   = data.ficha?.tipo || "";
     qs('#vinoUva').innerText    = data.ficha?.variedad || "";
     qs('#vinoOrigen').innerText = data.region || data.ficha?.do || "";
     qs('#bodegaNombre').innerText = data.ficha?.bodega || "";
 
-    // narrativa
+    // Narrativa
     qs('#respuesta').textContent = data.ficha?.narrative_text || "Narrativa no disponible todavía.";
 
-    // audio
+    // Audio
     const audioUrl = data.urls?.audio_url || "";
     const bloqueAudio = qs('#bloque-audio-narrativa');
     const playerEl = qs('#player');
@@ -295,40 +307,56 @@
       bloqueAudio.style.display = 'none';
     }
 
-    // contexto global para otros módulos y botón sommelier
+    // Contexto global + botón sommelier
     window.__SOMM_CTX__ = { meta: data.meta, ficha: data.ficha, urls: data.urls, sommelier_enabled: true };
     window.vinoId = data.meta?.vino_id || window.vinoId;
     const btn = qs('#btnSommelier'); if (btn) btn.hidden = false;
   }
-
-  // ---------- Boot ----------
+  // ---------- Boot (con compatibilidad retro) ----------
   (async function boot(){
     const fromPath = parseFromPath();
     const q = new URLSearchParams(location.search);
+
     const vino_id = q.get('vino_id') || fromPath.vino_id || "";
-    const anyada  = q.get('anyada')  || fromPath.anyada  || "";
-    const lang    = q.get('lang')    || fromPath.lang    || "es";
+    let anyada    = q.get('anyada')  || fromPath.anyada  || "";
+    const lang    = (q.get('lang') || q.get('idioma') || fromPath.lang || "es").slice(0,2).toLowerCase();
+
     if (!vino_id) { qs('#respuesta').innerText = "No se especificó ningún vino."; return; }
 
+    // Descubre añada si falta (URLs antiguas)
+    if (!anyada) {
+      try { anyada = await discoverAnyada(vino_id, lang, 6); } catch {}
+    }
+
     try {
+      if (!anyada) throw new Error("missing anyada");
       const data = await fetchBuildRespond(vino_id, anyada, lang);
       renderFromBuild(data);
     } catch (e) {
-      console.warn("⚠️ BUILD—RESPOND falló, intento ficha.json directa", e);
+      console.warn("⚠️ BUILD—RESPOND falló o falta añada:", e);
       const alt = await loadFicha();
       if (alt && alt.ficha) {
-        renderFromBuild({ ok:true, meta:{ vino_id, anyada, lang }, urls:{ audio_url: alt.ficha?.assets?.audio_url || null }, ficha: alt.ficha, image: alt.ficha?.assets?.image_url || null, region: alt.ficha?.do || null, summary:{ title: alt.ficha?.title || `${vino_id} ${anyada}`, bullets:[] } });
+        renderFromBuild({
+          ok:true,
+          meta:{ vino_id, anyada: anyada || alt.ficha.anyada || null, lang },
+          urls:{ audio_url: alt.ficha?.assets?.audio_url || null },
+          ficha: alt.ficha,
+          image: alt.ficha?.assets?.image_url || null,
+          region: alt.ficha?.do || null,
+          summary:{ title: alt.ficha?.title || `${vino_id} ${anyada||''}`, bullets:[] }
+        });
       } else {
-        qs('#respuesta').innerText = "No se pudo cargar la ficha.";
+        qs('#respuesta').innerText = "No se pudo cargar la ficha (prueba añadiendo &anyada=2024).";
       }
     }
 
-    // Módulos adicionales (se apoyan en window.vinoId y __SOMM_CTX__)
+    // Módulos auxiliares
     cargarPerfilOrganoleptico();
     cargarValoraciones();
     cargarComentarios();
   })();
-  // ---------- Botón "Hablar con el sommelier" ----------
+
+  // ---------- Sommelier: botón → PUBLISH (para sommelier) ----------
   async function onSommelierClick() {
     const ctx = window.__SOMM_CTX__?.meta || {};
     if (!ctx.vino_id) return;
@@ -340,13 +368,13 @@
     const res = await fetch(url, { method:'GET', cache:'no-store' });
     const pack = await res.json();
     document.dispatchEvent(new CustomEvent('somm:publish-ready', { detail: pack }));
-    // Aquí lanzarías tu agente ElevenLabs con "pack"
+    // Aquí enganchas tu agente ElevenLabs con "pack"
   }
   qs('#btnSommelier')?.addEventListener('click', onSommelierClick);
 
-  // ---------- Perfil organoléptico (stub seguro) ----------
+  // ---------- Perfil organoléptico (stub) ----------
   let organo = null, radarType = 'aromatico';
-  function setRadarType(t){ radarType = t; /* TODO: dibujar radar con 'organo' si lo tienes */ }
+  function setRadarType(t){ radarType = t; /* TODO: dibujar radar con 'organo' */ }
   async function cargarPerfilOrganoleptico(){
     try {
       const id = window.vinoId || new URLSearchParams(location.search).get('vino_id') || '';
@@ -422,43 +450,3 @@
       if (!puntuacionSeleccionada) { mensaje.innerText="Por favor, selecciona una puntuación (de 1 a 5)."; mensaje.style.color="red"; return; }
       try {
         const id = window.vinoId || new URLSearchParams(location.search).get('vino_id') || '';
-        let user = localStorage.getItem("user_id"); if (!user){ user=`user_${Math.random().toString(36).slice(2,10)}`; localStorage.setItem("user_id",user); }
-        await fetch("https://n8n-production-cb18.up.railway.app/webhook/comentar-vino",{
-          method:"POST", headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({
-            vino_id:id, puntuacion:puntuacionSeleccionada, comentario,
-            user_id:user, ciudad: window._datosUsuario?.ciudad || "Desconocida",
-            pais: window._datosUsuario?.pais || "Desconocido",
-            idioma: window._datosUsuario?.idioma || "es",
-            dispositivo: (__detectDevice().dispositivo), ua:(navigator.userAgent||"")
-          })
-        });
-        mensaje.innerText="¡Gracias por tu valoración!"; mensaje.style.color="green";
-        puntuacionSeleccionada=0; document.querySelectorAll(".estrella").forEach(star=>star.classList.remove("seleccionada"));
-        qs("#comentario").value=""; cargarValoraciones(); cargarComentarios();
-      } catch {
-        mensaje.innerText="Error al enviar tu valoración."; mensaje.style.color="red";
-      }
-    });
-  })();
-
-  // ---------- Compartir ----------
-  (function initShare(){
-    const btn = qs('#btn-compartir'); const menu = qs('#menu-compartir');
-    const opciones = [
-      { key:'copy', label:'Copiar enlace', icon:'📋', action: async ()=>{
-        await navigator.clipboard.writeText(location.href);
-        const first = menu.querySelector('.menu-item-compartir'); if (first){ first.classList.add('copiado'); first.textContent='¡Copiado!'; setTimeout(()=>first.classList.remove('copiado'), 1500); }
-      }},
-      { key:'whatsapp', label:'WhatsApp', icon:'🟢', action:()=>window.open(`https://wa.me/?text=${encodeURIComponent(location.href)}`,'_blank') },
-      { key:'mail', label:'Email', icon:'✉️', action:()=>location.href=`mailto:?subject=Ficha del vino&body=${encodeURIComponent(location.href)}` }
-    ];
-    function crear(op){ const el=document.createElement('button'); el.className='menu-item-compartir'; el.innerHTML=`<span>${op.icon}</span><span>${op.label}</span>`; el.onclick=op.action; return el; }
-    function render(){ menu.innerHTML=''; opciones.forEach(o=>menu.appendChild(crear(o))); }
-    btn.onclick=(e)=>{ e.stopPropagation(); if(menu.classList.contains('open')) menu.classList.remove('open'); else { render(); menu.classList.add('open'); } };
-    document.addEventListener('click', ()=>{ if(menu.classList.contains('open')) menu.classList.remove('open'); });
-  })();
-
-  </script>
-</body>
-</html>
