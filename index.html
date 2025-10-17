@@ -445,10 +445,12 @@ const reqUrl = await withCtx(baseConsultar + `?vino_id=${encodeURIComponent(idFo
         }
         const ua = navigator.userAgent || '';
 
-        // Construcción de URL con contexto
-        const baseConsultar = "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw";
-        const reqUrl = await withCtx(baseConsultar + `?vino_id=${encodeURIComponent(vinoId)}&secret=${encodeURIComponent("midulcesommelier")}`);
-        const res = await fetch(reqUrl, { cache: "no-store" });
+       // Construcción de URL con ID EFECTIVO (fallback con candidatos)
+const idForN8n = window.__VINOID_EFFECTIVE__ || (window.__VINOID_CANDIDATES__?.[0]) || vinoId;
+const baseConsultar = "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw";
+const reqUrl = await withCtx(baseConsultar + `?vino_id=${encodeURIComponent(idForN8n)}&secret=${encodeURIComponent("midulcesommelier")}`);
+const res = await fetch(reqUrl, { cache: "no-store" });
+
         const raw = await res.text();
         if (!res.ok) throw new Error(`HTTP ${res.status} :: ${raw.slice(0,120)}`);
 
@@ -605,8 +607,9 @@ const reqUrl = await withCtx(baseConsultar + `?vino_id=${encodeURIComponent(idFo
 
       async function cargarPerfilOrganoleptico() {
         try {
-          const response = await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${encodeURIComponent(id)}`);
-          organo = await response.json();
+         const id = window.__VINOID_EFFECTIVE__ || (window.__VINOID_CANDIDATES__?.[0]) || vinoId;
+const response = await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${encodeURIComponent(id)}`);
+
           setRadarType(radarType);
         } catch (err) {
           alert("No se pudo cargar el perfil organoléptico");
@@ -873,17 +876,26 @@ function currentFichaUrl() {
     // Modo carpeta: index.html y ficha.json viven juntos
     return new URL('./ficha.json', window.location.href).href;
   }
+// Modo raíz con query params → también soporta vino_id=qr2/VINO/AÑO/lang/...
+const q = new URLSearchParams(location.search);
+let vino  = (q.get('vino_id') || '').trim();
+let any   = (q.get('anyada')  || '').trim();
+let lang  = (q.get('lang')    || (navigator.language||'es')).slice(0,2).toLowerCase();
 
-  // Modo raíz con query params → leemos del CDN
-  const q = new URLSearchParams(location.search);
-  const vino  = (q.get('vino_id') || '').trim();
-  const any   = (q.get('anyada')  || '').trim();
-  const lang  = (q.get('lang')    || 'es').slice(0,2).toLowerCase();
+// Si vino_id viene como ruta qr2/VINO/AÑO/lang/index.html, parseamos
+if (vino && !any && /(^|\/)qr2\//i.test(vino)) {
+  const segs = vino.replace(/^\/+/, '').split('/').filter(Boolean);
+  const i = Math.max(0, segs.findIndex(s => s.toLowerCase()==='qr2'));
+  if (segs[i+1]) vino = segs[i+1];
+  if (segs[i+2]) any  = segs[i+2];
+  if (segs[i+3]) lang = String(segs[i+3]).slice(0,2).toLowerCase();
+}
 
-  if (vino && any) {
-    const CDN_BASE = 'https://f005.backblazeb2.com/file/SommelierLab-media';
-    return `${CDN_BASE}/qr2/${vino}/${any}/${lang}/ficha.json`;
-  }
+if (vino && any) {
+  const CDN_BASE = 'https://f005.backblazeb2.com/file/SommelierLab-media';
+  return `${CDN_BASE}/qr2/${vino}/${any}/${lang}/ficha.json`;
+}
+
 
   // Sin info suficiente → no intentamos cargar ficha.json
   return null;
