@@ -417,40 +417,32 @@ async function cargarNarrativaVino() {
   const bloqueAudio = document.getElementById("bloque-audio-narrativa");
   const playerEl    = document.getElementById("player");
   
-// INTENTO RÁPIDO: si el ficha.json trae audio_url o narrativa, pinta ya sin esperar al webhook
-try {
-  const _f = await __loadFichaJSON();
-  if (_f) {
-    // Narrativa breve si viene
-    if (_f?.content?.narrative_text && !respuestaEl.textContent.trim()) {
+  // INTENTO RÁPIDO: si el ficha.json trae audio/narrativa, pinta ya sin esperar al webhook
+__loadFichaJSON()
+  .then(function(_f){
+    if (!_f) return;
+
+    // Narrativa breve si viene y aún no hay texto
+    if (_f.content && _f.content.narrative_text && !respuestaEl.textContent.trim()) {
       respuestaEl.textContent = _f.content.narrative_text;
       document.getElementById("bloque-audio-narrativa").style.display = "block";
     }
+
     // Audio directo si viene
-    const au = _f?.assets?.audio_url;
+    var au = _f.assets && _f.assets.audio_url;
     if (au) {
-      try { if (playerEl._plyr) playerEl._plyr.destroy(); } catch {}
+      try { if (playerEl._plyr) playerEl._plyr.destroy(); } catch(e){}
       playerEl.innerHTML = '';
-      const s = document.createElement('source');
-      s.src  = au; s.type = 'audio/mpeg';
+      var s = document.createElement('source');
+      s.src = au; s.type = 'audio/mpeg';
       playerEl.appendChild(s);
       playerEl.load();
-      playerEl._plyr = new Plyr(playerEl, { speed:{selected:1, options:[0.75,1,1.25,1.5,2]} });
+      try { playerEl._plyr = new Plyr(playerEl, { speed:{selected:1, options:[0.75,1,1.25,1.5,2]} }); } catch(e){}
       bloqueAudio.style.display = 'block';
     }
-  }
-} catch(_) {}
+  })
+  .catch(function(){ /* silencioso */ });
 
-  const ctx = window.__SOMM_CTX__ || {};
-  const idEfectivo = window.vinoId || ctx.vino_id || "";
-
-  if (!idEfectivo) {
-    respuestaEl.innerText = "No se especificó ningún vino.";
-    bloqueAudio.style.display = "none";
-    return;
-  }
-
-  try {
     // tu código existente sigue igual a partir de aquí
       try {
         // Espera rápida por city/country/lang (máx 1000ms)
