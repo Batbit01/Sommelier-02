@@ -409,6 +409,12 @@ async function cargarNarrativaVino() {
 
   const ctx = window.__SOMM_CTX__ || {};
   const idEfectivo = window.vinoId || ctx.vino_id || "";
+  
+  // dentro de cargarNarrativaVino(), antes del fetch:
+const idForN8n = window.__VINOID_EFFECTIVE__ || (window.__VINOID_CANDIDATES__?.[0]) || vinoId;
+const baseConsultar = "https://n8n-production-cb18.up.railway.app/webhook/Consultar-vino-7dbyxa8kql19qw";
+const reqUrl = await withCtx(baseConsultar + `?vino_id=${encodeURIComponent(idForN8n)}&secret=${encodeURIComponent("midulcesommelier")}`);
+
 
   if (!idEfectivo) {
     respuestaEl.innerText = "No se especificó ningún vino.";
@@ -560,28 +566,46 @@ async function cargarNarrativaVino() {
 
       // --------- Cargar ficha y datos ---------
       async function cargarFichaVino() {
-        try {
-          const fichaData = await (await fetch(`https://sommelierlab-api-production.up.railway.app/api/vino/${vinoId}`)).json();
-          document.getElementById("vinoImagen").src = fichaData.imagen?.[0]?.url || "";
-          document.title = document.getElementById("vinoTitulo").innerText = fichaData.nombre || "Ficha del Vino";
-          document.getElementById("vinoTipo").innerText = fichaData.tipo;
-          document.getElementById("vinoUva").innerText = fichaData.variedad;
-          document.getElementById("vinoOrigen").innerText = fichaData.origen;
-          document.getElementById("bodegaNombre").innerText = fichaData.bodega?.nombre || "";
-          const redesHtml = [];
-          if (fichaData.bodega?.web) redesHtml.push(`<a href="${fichaData.bodega.web}" target="_blank">🌐 Web</a>`);
-          if (fichaData.bodega?.facebook) redesHtml.push(`<a href="${fichaData.bodega.facebook}" target="_blank">📘 Facebook</a>`);
-          if (fichaData.bodega?.instagram) redesHtml.push(`<a href="${fichaData.bodega.instagram}" target="_blank">📸 Instagram</a>`);
-          if (fichaData.bodega?.twitter) redesHtml.push(`<a href="${fichaData.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
-          document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
-        } catch (error) {
-          console.error("❌ Error cargando la ficha del vino:", error);
-        }
-      }
+  try {
+    let data = null, used = null, lastErr = null;
+    for (const candidate of (window.__VINOID_CANDIDATES__ || [vinoId])) {
+      try {
+        const r = await fetch(
+          `https://sommelierlab-api-production.up.railway.app/api/vino/${encodeURIComponent(candidate)}`,
+          { cache: 'no-store' }
+        );
+        if (r.ok) { data = await r.json(); used = candidate; break; }
+        lastErr = new Error(`HTTP ${r.status}`);
+      } catch(e){ lastErr = e; }
+    }
+    if (!data) throw lastErr || new Error('Sin datos de API');
+
+    // id efectivo para el resto de llamadas
+    window.__VINOID_EFFECTIVE__ = used;
+
+    // pintado
+    if (data.imagen?.[0]?.url) document.getElementById("vinoImagen").src = data.imagen[0].url;
+    document.title = document.getElementById("vinoTitulo").innerText = data.nombre || "Ficha del Vino";
+    if (data.tipo)     document.getElementById("vinoTipo").innerText   = data.tipo;
+    if (data.variedad) document.getElementById("vinoUva").innerText    = data.variedad;
+    if (data.origen)   document.getElementById("vinoOrigen").innerText = data.origen;
+
+    document.getElementById("bodegaNombre").innerText = data.bodega?.nombre || "";
+    const redesHtml = [];
+    if (data.bodega?.web)       redesHtml.push(`<a href="${data.bodega.web}" target="_blank">🌐 Web</a>`);
+    if (data.bodega?.facebook)  redesHtml.push(`<a href="${data.bodega.facebook}" target="_blank">📘 Facebook</a>`);
+    if (data.bodega?.instagram) redesHtml.push(`<a href="${data.bodega.instagram}" target="_blank">📸 Instagram</a>`);
+    if (data.bodega?.twitter)   redesHtml.push(`<a href="${data.bodega.twitter}" target="_blank">🐦 Twitter</a>`);
+    document.getElementById("bodega-redes").innerHTML = redesHtml.join(" · ");
+  } catch (error) {
+    console.error("❌ Error cargando la ficha del vino:", error);
+  }
+}
+
 
       async function cargarPerfilOrganoleptico() {
         try {
-          const response = await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${vinoId}`);
+          const response = await fetch(`https://sommelierlab-api-production.up.railway.app/api/organoleptica/${encodeURIComponent(id)}`);
           organo = await response.json();
           setRadarType(radarType);
         } catch (err) {
@@ -591,8 +615,9 @@ async function cargarNarrativaVino() {
 
       async function cargarValoraciones() {
         try {
-          const res = await fetch(await withCtx(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${vinoId}`));
-        const data = await res.json();
+        const id = window.__VINOID_EFFECTIVE__ || (window.__VINOID_CANDIDATES__?.[0]) || vinoId;
+const res = await fetch(await withCtx(`https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones?vino_id=${encodeURIComponent(id)}`));
+
           document.getElementById("media-nota").innerText = data.nota_media !== undefined ? data.nota_media.toFixed(1) : "-";
           const contenedor = document.getElementById("estrellas-nota");
           contenedor.innerHTML = "";
@@ -616,7 +641,8 @@ async function cargarNarrativaVino() {
 
       async function cargarComentarios() {
         try {
-          const res = await fetch(await withCtx(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${vinoId}`));
+         const id = window.__VINOID_EFFECTIVE__ || (window.__VINOID_CANDIDATES__?.[0]) || vinoId;
+const res = await fetch(await withCtx(`https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios?vino_id=${encodeURIComponent(id)}`));
           const data = await res.json();
           const listaComentariosEl = document.getElementById("lista-comentarios");
           const comentarios = Array.isArray(data.comentarios) ? data.comentarios : Array.isArray(data) ? data : [];
