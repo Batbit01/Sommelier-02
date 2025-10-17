@@ -178,6 +178,42 @@
   <script>
     // ---- Parámetros globales ----
     const vinoId = new URLSearchParams(window.location.search).get('vino_id') || "";
+    
+// ---- DERIVAR IDs y URL de ficha.json (Backblaze) ----
+function __parseFromPathOrQuery(){
+  const q  = new URLSearchParams(location.search);
+  let vp   = q.get('vino_id') || location.pathname;
+  const qp = vp.indexOf('?');
+  if (qp !== -1) vp = vp.slice(0, qp);
+
+  const segs = vp.replace(/^\/+/, '').split('/').filter(Boolean);
+  const i    = Math.max(0, segs.findIndex(s => s.toLowerCase()==='qr2'));
+  return {
+    vino:  segs[i+1] || '',            // V002
+    anyo:  segs[i+2] || '',            // 2024
+    lang:  (new URLSearchParams(location.search).get('lang') ||
+           segs[i+3] || (navigator.language||'es').slice(0,2)).slice(0,2).toLowerCase()
+  };
+}
+
+function __currentFichaUrl(){
+  const { vino, anyo, lang } = __parseFromPathOrQuery();
+  if (!vino || !anyo || !lang) return null;
+  return `https://f005.backblazeb2.com/file/SommelierLab-media/qr2/${vino}/${anyo}/${lang}/ficha.json`;
+}
+
+async function __loadFichaJSON(){
+  const url = __currentFichaUrl();
+  if (!url) return null;
+  try{
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error(String(r.status));
+    return await r.json();
+  }catch(e){
+    console.warn('ficha.json no disponible', e);
+    return null;
+  }
+}
 
     // Carga de datos del usuario (ciudad/pais/idioma) con promesa reutilizable
     window._datosUsuario = null;
@@ -380,6 +416,30 @@ async function cargarNarrativaVino() {
   const respuestaEl = document.getElementById("respuesta");
   const bloqueAudio = document.getElementById("bloque-audio-narrativa");
   const playerEl    = document.getElementById("player");
+  
+// INTENTO RÁPIDO: si el ficha.json trae audio_url o narrativa, pinta ya sin esperar al webhook
+try {
+  const _f = await __loadFichaJSON();
+  if (_f) {
+    // Narrativa breve si viene
+    if (_f?.content?.narrative_text && !respuestaEl.textContent.trim()) {
+      respuestaEl.textContent = _f.content.narrative_text;
+      document.getElementById("bloque-audio-narrativa").style.display = "block";
+    }
+    // Audio directo si viene
+    const au = _f?.assets?.audio_url;
+    if (au) {
+      try { if (playerEl._plyr) playerEl._plyr.destroy(); } catch {}
+      playerEl.innerHTML = '';
+      const s = document.createElement('source');
+      s.src  = au; s.type = 'audio/mpeg';
+      playerEl.appendChild(s);
+      playerEl.load();
+      playerEl._plyr = new Plyr(playerEl, { speed:{selected:1, options:[0.75,1,1.25,1.5,2]} });
+      bloqueAudio.style.display = 'block';
+    }
+  }
+} catch(_) {}
 
   const ctx = window.__SOMM_CTX__ || {};
   const idEfectivo = window.vinoId || ctx.vino_id || "";
@@ -530,7 +590,25 @@ async function cargarNarrativaVino() {
           let [px, py] = polarToCartesian(cx, cy, r, angle);
           svg.innerHTML += `<circle cx="${px}" cy="${py}" r="8" fill="#800000" stroke="white" stroke-width="2"/>`;
         }
-      }
+      } 
+      // Primer pintado con ficha.json si existe (no elimina el fallback API)
+try {
+  const _f = await __loadFichaJSON();
+  if (_f) {
+    document.title = document.getElementById("vinoTitulo").innerText = _f.title || _f?.ficha?.title || "Ficha del Vino";
+    const img = _f?.assets?.image_url || _f.image;
+    if (img) {
+      document.getElementById("vinoImagen").src = img;
+    }
+    // chips básicos
+    const tipo = _f.tipo || _f?.details?.tipo || '';
+    const uva  = _f.variedad || _f?.details?.variedad || '';
+    const orig = _f.do || _f.region || _f?.details?.origen || '';
+    if (tipo) document.getElementById("vinoTipo").innerText = tipo;
+    if (uva)  document.getElementById("vinoUva").innerText  = uva;
+    if (orig) document.getElementById("vinoOrigen").innerText = orig;
+  }
+}catch(_){}
 
       // --------- Cargar ficha y datos ---------
       async function cargarFichaVino() {
