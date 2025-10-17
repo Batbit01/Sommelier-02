@@ -2,295 +2,350 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>SommelierLab · Ficha</title>
+  <meta name="color-scheme" content="light">
   <style>
-    :root { --fg:#111; --muted:#666; --bg:#fff; --border:#e6e6e6; }
-    * { box-sizing: border-box }
-    body { margin:0; background:var(--bg); color:var(--fg); font: 16px/1.45 system-ui, Segoe UI, Roboto, Arial, sans-serif }
-    .wrap { max-width:840px; margin:0 auto; padding:20px }
-    header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 6px 0 14px }
-    h1 { font-size:1.8rem; margin: 6px 0 0 }
-    .muted { color:var(--muted) }
-    .hero { border-radius:16px; overflow:hidden; border:1px solid var(--border); background:#fafafa }
-    .hero img { display:block; width:100%; height:auto }
-    .buttons { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 6px }
-    .btn { padding:12px 16px; border-radius:12px; border:1px solid var(--border); background:#f7f7f7; text-decoration:none; color:inherit; cursor:pointer }
-    .btn[disabled] { opacity:.45; cursor:not-allowed }
-    .btn-primary { background:#111; color:#fff; border-color:#111 }
-    .btn-secondary { background:#f0f0f0 }
-    section.card { border:1px solid var(--border); border-radius:16px; padding:16px; margin:16px 0; background:#fff }
-    .grid-2 { display:grid; grid-template-columns:1fr; gap:16px }
-    @media (min-width: 720px) { .grid-2 { grid-template-columns:1fr 1fr } }
-    ul.clean { margin:8px 0 0 18px }
-    #foot { font-size:.85rem; margin:28px 0 8px }
-    .chip { display:inline-block; font-size:.85rem; padding:4px 8px; background:#f4f4f4; border:1px solid var(--border); border-radius:999px; margin-right:6px }
-    .sr-only { position:absolute; left:-9999px }
+    :root{--fg:#111;--muted:#666;--bg:#fff;--card:#fff;--b:#e6e6e6}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:1000px;margin:0 auto;padding:18px}
+    header{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;margin:6px 0 10px}
+    h1{font-size:1.9rem;margin:0}
+    .muted{color:var(--muted)}
+    .chip{display:inline-block;font-size:.85rem;padding:4px 8px;border:1px solid var(--b);border-radius:999px;background:#f7f7f7;margin-right:6px}
+    .hero{border:1px solid var(--b);border-radius:16px;overflow:hidden;background:#fafafa}
+    .hero img{display:block;width:100%;height:auto}
+    .buttons{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px}
+    .btn{padding:12px 16px;border-radius:12px;border:1px solid var(--b);background:#f7f7f7;text-decoration:none;color:inherit;cursor:pointer}
+    .btn[disabled]{opacity:.45;cursor:not-allowed}
+    .btn-primary{background:#111;color:#fff;border-color:#111}
+    .btn-secondary{background:#f0f0f0}
+    section.card{border:1px solid var(--b);border-radius:16px;padding:16px;margin:14px 0;background:var(--card)}
+    .grid-2{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:800px){.grid-2{grid-template-columns:1fr 1fr}}
+    ul.clean{margin:8px 0 0 18px}
+    #foot{font-size:.85rem;margin:24px 0 8px}
+    .sr-only{position:absolute;left:-9999px}
+    .stars{display:inline-flex;gap:4px;vertical-align:middle}
+    .star{font-size:1.2rem;color:#f5a623}
+    .comment{border-top:1px solid var(--b);padding:10px 0}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <div id="do" class="chip" style="display:none"></div>
-        <div id="variedad" class="chip" style="display:none"></div>
-        <h1 id="title">Cargando…</h1>
-        <div id="subtitle" class="muted"></div>
-      </div>
-      <div id="share" style="display:none">
-        <!-- reservado: módulo compartir -->
-      </div>
-    </header>
+<div class="wrap">
 
-    <div id="hero" class="hero" style="display:none">
-      <img id="heroImg" alt="">
+  <header>
+    <div>
+      <div id="doChip" class="chip" style="display:none"></div>
+      <div id="variedadChip" class="chip" style="display:none"></div>
+      <h1 id="vinoTitulo">Cargando…</h1>
+      <div id="subTitulo" class="muted"></div>
     </div>
-
-    <div class="buttons">
-      <button id="btnComprar"  class="btn btn-primary" disabled>🛒 Comprar ahora</button>
-      <button id="btnReservar" class="btn btn-secondary" disabled>🎟️ Reservar visita</button>
-      <!-- Activa si en futuro quieres lead sin URL de reserva -->
-      <!-- <button id="btnSolicitar" class="btn">📩 Solicitar visita</button> -->
+    <div id="share" style="margin-left:auto;display:none">
+      <!-- Módulo compartir (se puede rellenar después) -->
     </div>
+  </header>
 
-    <section id="narrativa" class="card" style="display:none">
-      <h2 style="margin-top:0">Historia &amp; narrativa</h2>
-      <p id="narrativeText"></p>
-      <div id="audioWrap" style="margin-top:12px"></div>
-    </section>
-
-    <section id="organoleptico" class="card" style="display:none">
-      <h2 style="margin-top:0">Perfil organoléptico</h2>
-      <div class="grid-2">
-        <div>
-          <h3>Visual</h3>
-          <ul id="org-visual" class="clean"></ul>
-          <h3>Aroma</h3>
-          <ul id="org-aroma" class="clean"></ul>
-        </div>
-        <div>
-          <h3>Boca</h3>
-          <ul id="org-boca" class="clean"></ul>
-          <h3>Maridaje</h3>
-          <ul id="org-maridaje" class="clean"></ul>
-        </div>
-      </div>
-    </section>
-
-    <section id="curiosidad" class="card" style="display:none">
-      <h2 style="margin-top:0">Curiosidad</h2>
-      <p id="curioText"></p>
-    </section>
-
-    <!-- Reservado: módulos Sommelier Conversacional / Ratings & Comentarios -->
-    <section id="otros" style="display:none"></section>
-
-    <p id="foot" class="muted"></p>
+  <div id="hero" class="hero" style="display:none">
+    <img id="vinoImagen" alt="">
   </div>
 
-<script>
-(function(){
-  // ---------- CONFIG ----------
-  const N8N = {
-    SCAN: "https://n8n-production-cb18.up.railway.app/webhook/qr/scan",
-    CTA:  "https://n8n-production-cb18.up.railway.app/webhook/qr/cta",
-    LEAD: "https://n8n-production-cb18.up.railway.app/webhook/qr/lead",
-  };
-  const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media/qr2";
-  const SRC_VALUES = ["botella","mostrador","sala","carta","web","feria"];
-  const LANGS = ["es","en"]; // añade si publicas más
+  <div class="buttons" id="ctaButtons">
+    <button id="btnComprar"  class="btn btn-primary" disabled>🛒 Comprar ahora</button>
+    <button id="btnReservar" class="btn btn-secondary" disabled>🎟️ Reservar visita</button>
+    <!-- Si quieres activar LEAD como fallback, agrega:
+    <button id="btnSolicitar" class="btn">📩 Solicitar visita</button> -->
+  </div>
 
-  const UTM = ({src}) => `utm_source=qr&utm_medium=${encodeURIComponent(src)}&utm_campaign=qr2`;
-  const withUtm = (url, src) => {
-    if (!url) return null;
-    return url.includes("?") ? `${url}&${UTM({src})}` : `${url}?${UTM({src})}`;
-  };
+  <!-- Narrativa + audio -->
+  <section id="bloque-narrativa" class="card" style="display:none">
+    <h2 style="margin:0 0 8px">Historia &amp; narrativa</h2>
+    <p id="respuesta" style="white-space:pre-wrap"></p>
+    <div id="bloque-audio-narrativa" style="display:none;margin-top:12px">
+      <audio id="player" controls preload="none" style="width:100%">
+        <!-- <source src="…" type="audio/mpeg" /> -->
+      </audio>
+    </div>
+  </section>
 
-  // ---------- URL PARTS ----------
-  const parts = location.pathname.split("/").filter(Boolean);
-  // Esperado: /qr2/{VINO}/{AÑO}/{LANG}/index.html
-  const i = Math.max(0, parts.length - 5);
-  const VINO_ID = parts[i+1] || "";   // {VINO}
-  const ANYADA  = parts[i+2] || "";   // {AÑO}
-  const LANG_IN_URL = parts[i+3] || ""; // {LANG}
-  const srcParam = new URLSearchParams(location.search).get("src");
-  const SRC = SRC_VALUES.includes((srcParam||"").toLowerCase()) ? srcParam.toLowerCase() : "botella";
+  <!-- Organoléptico -->
+  <section id="bloque-organoleptico" class="card" style="display:none">
+    <h2 style="margin:0 0 8px">Perfil organoléptico</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Visual</h3>
+        <ul id="org-visual" class="clean"></ul>
+        <h3>Aroma</h3>
+        <ul id="org-aroma" class="clean"></ul>
+      </div>
+      <div>
+        <h3>Boca</h3>
+        <ul id="org-boca" class="clean"></ul>
+        <h3>Maridaje</h3>
+        <ul id="org-maridaje" class="clean"></ul>
+      </div>
+    </div>
+  </section>
 
-  // ---------- LANG ----------
-  const preferred = (navigator.language || "es").slice(0,2).toLowerCase();
-  const LANG = LANGS.includes(LANG_IN_URL) ? LANG_IN_URL
-              : (LANGS.includes(preferred) ? preferred : "es");
+  <!-- Sommelier conversacional (placeholder opcional) -->
+  <section id="bloque-sommelier" class="card" style="display:none">
+    <h2 style="margin:0 0 8px">Sommelier virtual</h2>
+    <p class="muted">Disponible cuando activemos el endpoint.</p>
+  </section>
 
-  // ---------- HELPERS ----------
-  const $ = sel => document.querySelector(sel);
-  const setText = (sel, val, show=true) => {
-    const el = $(sel);
-    if (!el) return;
-    if (val) { el.textContent = val; if (show) el.parentElement?.style && (el.parentElement.style.display = ""); }
-    else { if (show) el.parentElement?.style && (el.parentElement.style.display = "none"); }
-  };
-  const show = (id, on=true) => { const el = $(id); if (el) el.style.display = on ? "" : "none"; };
-  const fillList = (ulSel, arr) => {
-    const ul = $(ulSel); if (!ul) return;
-    ul.innerHTML = "";
-    (arr||[]).forEach(x => {
-      const li = document.createElement("li");
-      li.textContent = (typeof x === "string") ? x : (x?.label || JSON.stringify(x));
-      ul.appendChild(li);
-    });
-  };
+  <!-- Valoraciones -->
+  <section id="bloque-valoraciones" class="card" style="display:none">
+    <h2 style="margin:0 0 8px">Valoraciones</h2>
+    <div id="scoreWrap" class="muted" style="margin-bottom:8px">
+      <span id="avgScore">—</span> / 5
+      <span id="countScore">(0 votos)</span>
+      <span class="stars" id="avgStars"></span>
+    </div>
+    <form id="formRating" style="display:flex;gap:10px;align-items:center">
+      <label for="ratingSelect">Tu puntuación:</label>
+      <select id="ratingSelect">
+        <option value="5">5 ⭐⭐⭐⭐⭐</option>
+        <option value="4">4 ⭐⭐⭐⭐</option>
+        <option value="3">3 ⭐⭐⭐</option>
+        <option value="2">2 ⭐⭐</option>
+        <option value="1">1 ⭐</option>
+      </select>
+      <button class="btn" type="submit">Enviar</button>
+    </form>
+  </section>
 
-  // ---------- BUILD JSON URL ----------
-  async function fetchFicha(langTry){
-    const url = `${CDN_BASE}/${VINO_ID}/${ANYADA}/${langTry}/ficha.json`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`No ficha for ${langTry}`);
-    return res.json();
+  <!-- Comentarios -->
+  <section id="bloque-comentarios" class="card" style="display:none">
+    <h2 style="margin:0 0 8px">Comentarios</h2>
+    <form id="formComentario" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+      <textarea id="comentarioTexto" rows="3" placeholder="Deja tu comentario…" style="resize:vertical"></textarea>
+      <button class="btn" type="submit">Publicar</button>
+    </form>
+    <div id="listaComentarios"></div>
+  </section>
+
+  <p id="foot" class="muted"></p>
+</div>
+  <script>
+/*** CONFIG ***/
+const N8N = {
+  SCAN: "https://n8n-production-cb18.up.railway.app/webhook/qr/scan",
+  CTA:  "https://n8n-production-cb18.up.railway.app/webhook/qr/cta",
+  LEAD: "https://n8n-production-cb18.up.railway.app/webhook/qr/lead", // solo si activas LEAD
+};
+const CDN_BASE  = "https://f005.backblazeb2.com/file/SommelierLab-media/qr2";
+const SRC_ENUM  = ["botella","mostrador","sala","carta","web","feria"];
+const LANGS     = ["es","en"]; // añade si publicas más idiomas
+
+// Endpoints de tu API (fallbacks que ya usabas)
+const API_BASE          = "https://sommelierlab-api-production.up.railway.app";
+const API_VINO          = (vinoId) => `${API_BASE}/api/vino/${vinoId}`;
+const API_ORGANOLEPTICA = (vinoId) => `${API_BASE}/api/organoleptica/${vinoId}`;
+
+// Endpoints n8n ya existentes para valoraciones/comentarios (ajústalos si varían)
+const N8N_RATINGS_GET   = "https://n8n-production-cb18.up.railway.app/webhook/consultar-valoraciones";
+const N8N_RATINGS_POST  = "https://n8n-production-cb18.up.railway.app/webhook/valorar-vino";
+const N8N_COMMS_GET     = "https://n8n-production-cb18.up.railway.app/webhook/consultar-comentarios";
+const N8N_COMMS_POST    = "https://n8n-production-cb18.up.railway.app/webhook/comentar-vino";
+
+/*** PARSING — soporta ?vino_id=qr2/V002/2024/es/index.html&src=botella y también /qr2/V002/2024/es/index.html ***/
+const qs = new URLSearchParams(location.search);
+let vinoPath = qs.get("vino_id") || location.pathname;
+const qPos = vinoPath.indexOf("?");
+if (qPos !== -1){
+  const inner = new URLSearchParams(vinoPath.slice(qPos+1));
+  if (!qs.get("src") && inner.get("src")) qs.set("src", inner.get("src"));
+  vinoPath = vinoPath.slice(0, qPos);
+}
+const segs = vinoPath.replace(/^\/+/, "").split("/").filter(Boolean);
+const idxQ = Math.max(0, segs.findIndex(s => s.toLowerCase() === "qr2"));
+const VINO_ID = segs[idxQ+1] || "";     // V002
+const ANYADA  = segs[idxQ+2] || "";     // 2024
+const LANG_IN = segs[idxQ+3] || "";     // es
+const SRC_RAW = (qs.get("src")||"").toLowerCase();
+const SRC     = SRC_ENUM.includes(SRC_RAW) ? SRC_RAW : "botella";
+const preferred = (navigator.language || "es").slice(0,2).toLowerCase();
+const LANG    = LANGS.includes(LANG_IN) ? LANG_IN : (LANGS.includes(preferred) ? preferred : "es");
+
+// Helpers
+const $ = sel => document.querySelector(sel);
+const show = (el, on=true) => { const n = (typeof el === "string") ? $(el) : el; if (n) n.style.display = on ? "" : "none"; };
+function withUtm(url){ if(!url) return null; const utm=`utm_source=qr&utm_medium=${encodeURIComponent(SRC)}&utm_campaign=qr2`; return url.includes("?")?`${url}&${utm}`:`${url}?${utm}`; }
+function fillList(sel, arr){ const ul=$(sel); if(!ul) return; ul.innerHTML=""; (arr||[]).forEach(x=>{ const li=document.createElement("li"); li.textContent=(typeof x==="string")?x:(x?.label||JSON.stringify(x)); ul.appendChild(li); }); }
+function stars(n){ const s=Math.round(Number(n)||0); return "★★★★★☆☆☆☆☆".slice(5-s,10-s).split("").map((c,i)=>`<span class="star">★</span>`).join(""); }
+
+// Carga ficha.json de Backblaze (rápido) con fallback a "es"
+async function loadFichaJSON(){
+  async function pull(lang){
+    const url = `${CDN_BASE}/${VINO_ID}/${ANYADA}/${lang}/ficha.json`;
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`No ficha.json ${lang}`);
+    return r.json();
+  }
+  try { return await pull(LANG); } catch(e) {
+    if (LANG !== "es") { try { return await pull("es"); } catch(_){} }
+  }
+  return null;
+}
+
+// Fallback a API antigua (solo datos básicos para mantener compat)
+async function loadFichaAPI(vinoId){
+  try {
+    const r = await fetch(API_VINO(vinoId));
+    if (!r.ok) throw new Error("API vino not ok");
+    return r.json();
+  } catch(e){ console.warn("API vino fallback error", e); return null; }
+}
+// Render con preferencia ficha.json, manteniendo tus módulos
+async function boot(){
+  if (!VINO_ID || !ANYADA){
+    $("#vinoTitulo").textContent = "Ruta inválida";
+    return;
   }
 
-  async function loadFicha(){
-    let ficha = null;
-    try { ficha = await fetchFicha(LANG); }
-    catch {
-      if (LANG !== "es") {
-        try { ficha = await fetchFicha("es"); }
-        catch (e) { console.error(e); }
-      }
+  // 1) Cargar ficha.json (rápido)
+  const ficha = await loadFichaJSON();
+
+  // 2) Pintar básicos (si ficha.json existe)
+  if (ficha){
+    $("#vinoTitulo").textContent = ficha.title || ficha?.content?.title || "Vino";
+    const subt = ficha.subtitle || ficha?.content?.subtitle || "";
+    $("#subTitulo").textContent = subt;
+
+    const doText = ficha.do || ficha.region || ficha?.details?.origen || "";
+    if (doText){ $("#doChip").textContent = doText; show("#doChip", true); }
+
+    const variedad = ficha.variedad || ficha?.details?.variedad || "";
+    if (variedad){ $("#variedadChip").textContent = variedad; show("#variedadChip", true); }
+
+    const img = ficha?.assets?.image_url || ficha.image;
+    if (img){ $("#vinoImagen").src = img; show("#hero", true); }
+
+    // Narrativa/audio desde JSON si viene (sin romper tu flow)
+    const nar = ficha?.content?.narrative_text || "";
+    if (nar){ $("#respuesta").textContent = nar; show("#bloque-narrativa", true); }
+    const audio = ficha?.assets?.audio_url || "";
+    if (audio){
+      const p = $("#player"); p.innerHTML = "";
+      const s = document.createElement("source"); s.src = audio; s.type="audio/mpeg"; p.appendChild(s);
+      try{ p.load(); }catch{}
+      show("#bloque-audio-narrativa", true); show("#bloque-narrativa", true);
     }
-    return ficha;
-  }
 
-  // ---------- WEBHOOKS ----------
-  function beacon(url, payload){
-    try {
-      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-      navigator.sendBeacon(url, blob);
-    } catch(e) { /* noop */ }
-  }
-
-  function logScan(ids){
-    beacon(N8N.SCAN, { ...ids, Ubicacion: SRC });
-  }
-  function logCTA(ids, cta){
-    beacon(N8N.CTA, { ...ids, Ubicacion: SRC, CTA: cta });
-  }
-  function postLead(ids, data){
-    return fetch(N8N.LEAD, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...ids, ...data })
-    });
-  }
-
-  // ---------- RENDER ----------
-  function renderFicha(f){
-    const title = f.title || f?.content?.title || "Vino";
-    $("#title").textContent = title;
-
-    const subtitle = f.subtitle || f?.content?.subtitle || "";
-    $("#subtitle").textContent = subtitle;
-
-    const doText = f.do || f.region || "";
-    if (doText) { $("#do").style.display="inline-block"; $("#do").textContent = doText; }
-
-    const variedad = f.variedad || f.grape || "";
-    if (variedad) { $("#variedad").style.display="inline-block"; $("#variedad").textContent = variedad; }
-
-    const img = f?.assets?.image_url || f.image;
-    if (img) { $("#heroImg").src = img; $("#heroImg").alt = title; show("#hero", true); }
-
-    const nar = f?.content?.narrative_text || f?.narrative || "";
-    if (nar) { $("#narrativeText").textContent = nar; show("#narrativa", true); }
-
-    const audio = f?.assets?.audio_url;
-    if (audio) {
-      $("#audioWrap").innerHTML = `<audio controls preload="none" style="width:100%"><source src="${audio}" type="audio/mpeg"></audio>`;
-      show("#narrativa", true);
-    }
-
-    // Organoléptico (listas)
-    const org = f?.modules?.organoleptico || {};
-    const visual = org?.visual || [];
-    const aroma  = org?.aroma  || [];
-    const boca   = org?.boca   || [];
-    const mar    = f?.modules?.maridaje || f?.maridaje || [];
-    const anyOrg = (visual.length+aroma.length+boca.length+mar.length) > 0;
-    if (anyOrg) {
-      fillList("#org-visual", visual);
-      fillList("#org-aroma", aroma);
-      fillList("#org-boca", boca);
+    // Organoléptico básico (listas)
+    const org = ficha?.modules?.organoleptico || {};
+    const mar = ficha?.modules?.maridaje || ficha?.maridaje || [];
+    const anyOrg = (org.visual?.length||0)+(org.aroma?.length||0)+(org.boca?.length||0)+(mar.length||0) > 0;
+    if (anyOrg){
+      fillList("#org-visual", org.visual || []);
+      fillList("#org-aroma",  org.aroma || []);
+      fillList("#org-boca",   org.boca || []);
       fillList("#org-maridaje", mar);
-      show("#organoleptico", true);
+      show("#bloque-organoleptico", true);
     }
 
-    const curio = f?.modules?.curiosidad || f?.curiosidad || "";
-    if (curio) { $("#curioText").textContent = curio; show("#curiosidad", true); }
-
-    // CTAs (deshabilitar si no hay URL)
-    const compraUrl  = f?.cta?.compra?.url || f.buy_url || null;
-    const reservaUrl = f?.cta?.reserva?.url || f.book_url || null;
-
-    const compraFinal  = withUtm(compraUrl, SRC);
-    const reservaFinal = withUtm(reservaUrl, SRC);
-
-    const btnComprar  = $("#btnComprar");
-    const btnReservar = $("#btnReservar");
-
-    if (compraFinal) { btnComprar.disabled = false; btnComprar.dataset.href = compraFinal; }
-    if (reservaFinal){ btnReservar.disabled = false; btnReservar.dataset.href = reservaFinal; }
-
-    // Footer debug simple
-    $("#foot").textContent = `ID: ${VINO_ID}/${ANYADA} · lang=${LANG} · src=${SRC}`;
+    // CTAs y habilitar/deshabilitar
+    const compra  = withUtm(ficha?.cta?.compra?.url || null);
+    const reserva = withUtm(ficha?.cta?.reserva?.url || null);
+    const btnC = $("#btnComprar"), btnR = $("#btnReservar");
+    if (compra){  btnC.disabled=false; btnC.dataset.href = compra; }
+    if (reserva){ btnR.disabled=false; btnR.dataset.href = reserva; }
   }
 
-  // ---------- BOOT ----------
-  (async function boot(){
-    if (!VINO_ID || !ANYADA) {
-      $("#title").textContent = "Ruta inválida";
-      return;
+  // 3) Fallback a API para mantener compatibilidad (si no hubo JSON)
+  if (!ficha){
+    const vinoIdLegacy = `${VINO_ID}-${ANYADA}`;
+    const apiData = await loadFichaAPI(vinoIdLegacy);
+    if (apiData){
+      $("#vinoTitulo").textContent = apiData.nombre || "Vino";
+      if (apiData.imagen?.[0]?.url){ $("#vinoImagen").src = apiData.imagen[0].url; show("#hero", true); }
+      $("#subTitulo").textContent  = apiData.tipo || "";
+      if (apiData.origen){ $("#doChip").textContent = apiData.origen; show("#doChip", true); }
+      if (apiData.variedad){ $("#variedadChip").textContent = apiData.variedad; show("#variedadChip", true); }
+      // narrativa/audio/organoléptico seguirán por tus flows antiguos si los tienes en este HTML.
+    } else {
+      $("#vinoTitulo").textContent = "Ficha no disponible";
     }
+  }
 
-    const ficha = await loadFicha();
-    if (!ficha) {
-      $("#title").textContent = "Ficha no disponible";
-      return;
+  // 4) Valoraciones (GET) — si tienes flow activo
+  try{
+    const r = await fetch(`${N8N_RATINGS_GET}?vino_id=${encodeURIComponent(VINO_ID)}&anyada=${encodeURIComponent(ANYADA)}`);
+    if (r.ok){
+      const j = await r.json(); // {avg,count}
+      const avg = Number(j.avg||0).toFixed(1);
+      const cnt = Number(j.count||0);
+      $("#avgScore").textContent = avg;
+      $("#countScore").textContent = `(${cnt} votos)`;
+      $("#avgStars").innerHTML = stars(avg);
+      show("#bloque-valoraciones", true);
     }
+  }catch{}
 
-    renderFicha(ficha);
+  // 5) Comentarios (GET) — si tienes flow activo
+  try{
+    const r = await fetch(`${N8N_COMMS_GET}?vino_id=${encodeURIComponent(VINO_ID)}&anyada=${encodeURIComponent(ANYADA)}`);
+    if (r.ok){
+      const arr = await r.json(); // [{nombre,texto,fecha,score?},...]
+      const wrap = $("#listaComentarios"); wrap.innerHTML = "";
+      (arr||[]).forEach(c=>{
+        const div = document.createElement("div"); div.className = "comment";
+        div.innerHTML = `<div class="muted">${c.nombre||"Anónimo"} · ${c.fecha||""}</div><div>${c.texto||""}</div>`;
+        wrap.appendChild(div);
+      });
+      show("#bloque-comentarios", true);
+    }
+  }catch{}
 
-    // IDs para analítica (Bodega_ID opcional; si lo tienes en ficha.ids, úsalo)
-    const Bodega_ID = ficha?.ids?.Bodega_ID || null;
-    const ids = { Bodega_ID, ID_Vino: VINO_ID, ID_Añada: `${VINO_ID}-${ANYADA}` };
+  // 6) Eventos de enviar puntuación/comentario (POST) — si flujos activos
+  $("#formRating").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const score = Number($("#ratingSelect").value||"5");
+    try{
+      await fetch(N8N_RATINGS_POST, { method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ vino_id: VINO_ID, anyada: ANYADA, score }) });
+      alert("¡Gracias por tu voto!");
+    }catch{ alert("No se pudo enviar tu voto."); }
+  });
 
-    // Scan al cargar (no bloquea)
-    logScan(ids);
+  $("#formComentario").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const texto = ($("#comentarioTexto").value||"").trim();
+    if (!texto) return;
+    try{
+      await fetch(N8N_COMMS_POST, { method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ vino_id: VINO_ID, anyada: ANYADA, texto }) });
+      $("#comentarioTexto").value = "";
+      alert("¡Comentario enviado!");
+    }catch{ alert("No se pudo enviar el comentario."); }
+  });
 
-    // CTA handlers
-    $("#btnComprar").addEventListener("click", (e)=>{
-      const url = e.currentTarget.dataset.href || null;
-      logCTA(ids, "comprar");
-      if (url) setTimeout(()=>location.href=url, 40);
-    });
+  // 7) Tracking n8n (scan y cta)
+  const ids = { Bodega_ID: (ficha?.ids?.Bodega_ID||null), ID_Vino: VINO_ID, ID_Añada: `${VINO_ID}-${ANYADA}` };
 
-    $("#btnReservar").addEventListener("click", (e)=>{
-      const url = e.currentTarget.dataset.href || null;
-      logCTA(ids, "reservar");
-      if (url) setTimeout(()=>location.href=url, 40);
-    });
+  // scan al cargar (no bloquea)
+  try{ navigator.sendBeacon(N8N.SCAN, new Blob([JSON.stringify({ ...ids, Ubicacion: SRC })], {type:"application/json"})); }catch{}
 
-    // Si activas el botón de lead en el HTML:
-    // document.getElementById("btnSolicitar").addEventListener("click", async ()=>{
-    //   const Nombre = prompt("Tu nombre"); if(!Nombre) return;
-    //   const contacto = prompt("Email o WhatsApp"); if(!contacto) return;
-    //   const Email = /@/.test(contacto) ? contacto : null;
-    //   const WhatsApp = Email ? null : contacto;
-    //   const FechaPreferida = prompt("Fecha preferida (YYYY-MM-DD)") || null;
-    //   const Personas = parseInt(prompt("Personas")||"2",10);
-    //   await postLead(ids, { Nombre, Email, WhatsApp, FechaPreferida, Personas, Estado: "Nuevo", Notas: "" });
-    //   alert("Solicitud enviada ✅");
-    // });
-  })();
-})();
+  // cta en clic
+  $("#btnComprar").addEventListener("click", (e)=>{
+    const href = e.currentTarget.dataset.href || null;
+    try{ navigator.sendBeacon(N8N.CTA, new Blob([JSON.stringify({ ...ids, Ubicacion: SRC, CTA:"comprar" })], {type:"application/json"})); }catch{}
+    if (href) setTimeout(()=>location.href = href, 40);
+  });
+  $("#btnReservar").addEventListener("click", (e)=>{
+    const href = e.currentTarget.dataset.href || null;
+    try{ navigator.sendBeacon(N8N.CTA, new Blob([JSON.stringify({ ...ids, Ubicacion: SRC, CTA:"reservar" })], {type:"application/json"})); }catch{}
+    if (href) setTimeout(()=>location.href = href, 40);
+  });
+
+  // 8) Footer debug (quítalo cuando quieras)
+  $("#foot").textContent = `ID: ${VINO_ID}/${ANYADA} · lang=${LANG} · src=${SRC}`;
+}
+
+// ¡arrancamos!
+boot();
 </script>
 </body>
 </html>
+
