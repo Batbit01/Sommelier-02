@@ -485,7 +485,7 @@ const res = await fetch(reqUrl, { cache: "no-store" });
         bloqueAudio.style.display = "none";
       }
     }
-
+}
     // ---- Radar y resto de módulos ----
     document.addEventListener("DOMContentLoaded", function() {
       const perfilesConfig = {
@@ -860,6 +860,15 @@ const res = await fetch(await withCtx(`https://n8n-production-cb18.up.railway.ap
           }
         }
       });
+        // ---- Exportar funciones para el <script type="module"> ----
+window.cargarFichaVino = cargarFichaVino;
+window.cargarPerfilOrganoleptico = cargarPerfilOrganoleptico;
+window.cargarNarrativaVino = cargarNarrativaVino;
+window.cargarValoraciones = cargarValoraciones;
+window.cargarComentarios = cargarComentarios;
+
+}); // ← este cierra el DOMContentLoaded
+
     });
   </script>
   <script type="module">
