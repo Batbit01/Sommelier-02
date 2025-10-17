@@ -178,6 +178,32 @@
   <script>
     // ---- Parámetros globales ----
     const vinoId = new URLSearchParams(window.location.search).get('vino_id') || "";
+    // --- Genera candidatos de ID (con y sin añada) a partir de query o ruta estilo qr2/VINO/AÑO/lang/...
+(function buildVinoIdCandidates(){
+  function splitFromPathOrQuery(){
+    const q  = new URLSearchParams(location.search);
+    // si viene ?vino_id=qr2/V123/2024/es/index.html lo aprovechamos
+    let vp   = q.get('vino_id') || location.pathname;
+    const qp = vp.indexOf('?'); if (qp !== -1) vp = vp.slice(0, qp);
+    const segs = vp.replace(/^\/+/, '').split('/').filter(Boolean);
+    const i    = Math.max(0, segs.findIndex(s => s.toLowerCase()==='qr2'));
+    return { vino: segs[i+1]||'', anyo: segs[i+2]||'' };
+  }
+  const p = splitFromPathOrQuery();
+
+  // candidato “completo” VINO-ANYO si ambos existen
+  const C_FULL = (p.vino && p.anyo) ? `${p.vino}-${p.anyo}` : null;
+
+  // candidato “base” solo VINO
+  const C_BASE = p.vino || null;
+
+  // si vinoId ya viene simple (ej. V002 o V002-2024), también sirve de candidato
+  const list = [vinoId, C_FULL, C_BASE].filter(Boolean);
+
+  // guardamos candidatos y el efectivo que confirmaremos tras el primer 200
+  window.__VINOID_CANDIDATES__ = Array.from(new Set(list));
+  window.__VINOID_EFFECTIVE__  = null;
+})();
 
     // Carga de datos del usuario (ciudad/pais/idioma) con promesa reutilizable
     window._datosUsuario = null;
