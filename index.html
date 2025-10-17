@@ -1007,25 +1007,39 @@ Responde breve y luego ofrece ampliar. Si falta ficha, ofrece publicarla.
     // Reescribe vinoId global (para tu narrativa/valoraciones)
     window.vinoId = CTX.vino_id;
 
-    // Pintado rápido desde ficha.json si existe
-    if (data?.ficha) {
-      try {
-        document.getElementById("vinoImagen").src = data.image || data.ficha?.assets?.image_url || "";
-        document.title = document.getElementById("vinoTitulo").innerText = data.ficha?.title || "Ficha del Vino";
-        document.getElementById("vinoTipo").innerText = data.ficha?.tipo || "";
-        document.getElementById("vinoUva").innerText = data.ficha?.variedad || "";
-        document.getElementById("vinoOrigen").innerText = data.ficha?.do || "";
-        document.getElementById("bodegaNombre").innerText = data.ficha?.bodega || "";
-      } catch {}
-    } else {
-      // Fallback a tus endpoints si no hay ficha en CDN
-      cargarFichaVino();
+   // Pintado rápido desde ficha.json si existe (tolerante a estructura)
+if (data) {
+  try {
+    const title = data?.ficha?.title || data?.title || data?.meta?.title || "Ficha del Vino";
+    const image = data?.ficha?.assets?.image_url || data?.assets?.image_url || data?.image || "";
+
+    document.title = document.getElementById("vinoTitulo").innerText = title;
+    if (image) document.getElementById("vinoImagen").src = image;
+
+    document.getElementById("vinoTipo").innerText   =
+      data?.ficha?.tipo || data?.details?.tipo || document.getElementById("vinoTipo").innerText;
+    document.getElementById("vinoUva").innerText    =
+      data?.ficha?.variedad || data?.details?.variedad || document.getElementById("vinoUva").innerText;
+    document.getElementById("vinoOrigen").innerText =
+      data?.ficha?.do || data?.details?.origen || data?.region || document.getElementById("vinoOrigen").innerText;
+    document.getElementById("bodegaNombre").innerText =
+      data?.ficha?.bodega || data?.bodega || document.getElementById("bodegaNombre").innerText;
+  } catch (e) {
+    console.warn('Pintado tolerante falló:', e);
+  }
+}
+
+// Siempre intentamos API para completar (aunque el JSON pinte algo)
+if (window.cargarFichaVino) window.cargarFichaVino();
+
     }
 
-    cargarNarrativaVino();
-    cargarPerfilOrganoleptico();
-    cargarValoraciones();
-    cargarComentarios();
+   window.cargarFichaVino && window.cargarFichaVino();
+window.cargarNarrativaVino && window.cargarNarrativaVino();
+window.cargarPerfilOrganoleptico && window.cargarPerfilOrganoleptico();
+window.cargarValoraciones && window.cargarValoraciones();
+window.cargarComentarios && window.cargarComentarios();
+
 
     // Click → arranca el sommelier con el CTX unificado
     if (btn) btn.addEventListener('click', () => startSommelier(CTX));
