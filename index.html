@@ -1032,20 +1032,19 @@ if (data) {
 // Siempre intentamos API para completar (aunque el JSON pinte algo)
 if (window.cargarFichaVino) window.cargarFichaVino();
 
-    }
-
-   window.cargarFichaVino && window.cargarFichaVino();
+// Cargas principales redundantes (por si el script normal tarda en registrar)
+window.cargarFichaVino && window.cargarFichaVino();
 window.cargarNarrativaVino && window.cargarNarrativaVino();
 window.cargarPerfilOrganoleptico && window.cargarPerfilOrganoleptico();
 window.cargarValoraciones && window.cargarValoraciones();
 window.cargarComentarios && window.cargarComentarios();
 
-
-    // Click → arranca el sommelier con el CTX unificado
-    if (btn) btn.addEventListener('click', () => startSommelier(CTX));
+// Click → arranca el sommelier con el CTX unificado
+if (btn) btn.addEventListener('click', () => startSommelier(CTX));
   })();
 
 </script>
+
 
 </body>
 </html>
