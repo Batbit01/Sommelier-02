@@ -479,13 +479,22 @@ const res = await fetch(reqUrl, { cache: "no-store" });
         } else {
           bloqueAudio.style.display = "none";
         }
-      } catch (err) {
+            } catch (err) {
         console.error("❌ Narrativa/Audio:", err);
         respuestaEl.innerText = "No se pudo cargar la información del vino.";
         bloqueAudio.style.display = "none";
       }
     }
-}
+
+  // ⚠️ ESTE catch cierra el try { abierto en ~línea 418
+  } catch (err) {
+    console.error("❌ Error global en cargarFichaVino:", err);
+    try {
+      const respuestaEl = document.getElementById("respuesta");
+      if (respuestaEl) respuestaEl.innerText = "No se pudo cargar la información del vino.";
+    } catch {}
+  }
+
     // ---- Radar y resto de módulos ----
     document.addEventListener("DOMContentLoaded", function() {
       const perfilesConfig = {
