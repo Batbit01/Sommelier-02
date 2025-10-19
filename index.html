@@ -214,80 +214,60 @@ function paintBasics(d){
   document.getElementById("bodegaNombre").innerText = d?.bodega||d?.ficha?.bodega||"-";
 }
 
-/* --- Narrativa + audio robusto --- */
-function guessMime(url){
-  const u=(url||"").toLowerCase();
-  if(u.endsWith('.mp3')) return 'audio/mpeg';
-  if(u.endsWith('.m4a')||u.endsWith('.mp4')) return 'audio/mp4';
-  if(u.endsWith('.ogg')||u.endsWith('.oga')) return 'audio/ogg';
-  if(u.endsWith('.wav')) return 'audio/wav';
-  return 'audio/mpeg';
-/* Narrativa + audio (todas las variantes: narrative_text, assets.audio_url, urls.audio_url, ficha.narrativa.audio_url) */
+/* --- Narrativa + audio (narrative_text, assets.audio_url, urls.audio_url, ficha.narrativa.audio_url) --- */
 function paintNarrativa(data) {
-  // 1) Texto (tú lo guardas en narrative_text)
   const texto =
     data?.narrative_text ||
     data?.ficha?.narrativa?.texto ||
     "";
 
-  // 2) Audio: probamos varias rutas reales de tus flujos
   let audio =
-    data?.assets?.audio_url ||              // tu ejemplo anterior
-    data?.urls?.audio_url ||                // lo que se ve en tu captura de DevTools
-    data?.ficha?.narrativa?.audio_url ||    // fallback si lo metéis ahí
+    data?.assets?.audio_url ||
+    data?.urls?.audio_url ||
+    data?.ficha?.narrativa?.audio_url ||
     "";
 
-  // (por si en algún momento queda como http)
   if (audio && /^http:\/\//i.test(audio)) audio = audio.replace(/^http:\/\//i, "https://");
 
-  // 3) Pintado
   const respuestaEl = document.getElementById("respuesta");
   const bloqueAudio = document.getElementById("bloque-audio-narrativa");
   const playerEl    = document.getElementById("player");
 
   respuestaEl.innerText = texto || "—";
 
-  // 4) Audio robusto (CORS / MIME)
-  if (audio) {
-    // Deducimos MIME por extensión (mp3 por defecto)
-    const lower = audio.toLowerCase();
-    const mime =
-      lower.endsWith(".mp3") ? "audio/mpeg" :
-      lower.endsWith(".m4a") || lower.endsWith(".mp4") ? "audio/mp4" :
-      lower.endsWith(".ogg") || lower.endsWith(".oga") ? "audio/ogg" :
-      lower.endsWith(".wav") ? "audio/wav" : "audio/mpeg";
+  const guessMime = (url) => {
+    const u = (url||"").toLowerCase();
+    if (u.endsWith(".mp3")) return "audio/mpeg";
+    if (u.endsWith(".m4a") || u.endsWith(".mp4")) return "audio/mp4";
+    if (u.endsWith(".ogg") || u.endsWith(".oga")) return "audio/ogg";
+    if (u.endsWith(".wav")) return "audio/wav";
+    return "audio/mpeg";
+  };
 
+  if (audio) {
     playerEl.setAttribute("crossorigin", "anonymous");
     playerEl.setAttribute("preload", "metadata");
     playerEl.innerHTML = "";
     const src = document.createElement("source");
     src.src  = audio;
-    src.type = mime;
+    src.type = guessMime(audio);
     playerEl.appendChild(src);
     playerEl.load();
-
-    // Mensajes útiles si hay problema de reproducción
     playerEl.onerror = () => {
-      console.error("[audio] error al reproducir", { audio, mime, mediaError: playerEl.error });
-      console.warn("Verifica en Backblaze el CORS del bucket y el Content-Type correcto del mp3.");
+      console.error("[audio] error al reproducir", { audio, type: src.type, code: playerEl.error?.code, mediaError: playerEl.error });
+      console.warn("Revisa en Backblaze: CORS (Access-Control-Allow-Origin para sommelierlab.com) y Content-Type correcto del archivo.");
     };
-
-    try { if (playerEl._plyr) playerEl._plyr.destroy(); } catch(_) {}
+    try { if (playerEl._plyr) playerEl._plyr.destroy(); } catch {}
     playerEl._plyr = new Plyr(playerEl, { speed: { selected: 1, options: [0.75,1,1.25,1.5,2] } });
     bloqueAudio.style.display = "block";
   } else {
     bloqueAudio.style.display = "none";
   }
 
-  // Log rápido para verificar en consola qué se encontró
-  console.log("[narrativa]", {
-    texto_len: (texto || "").length,
-    audio_url: audio || "(sin audio)"
-  });
+  console.log("[narrativa]", { texto_len: (texto||"").length, audio_url: audio || "(sin audio)" });
 }
 
-
-/* --- Organoléptico: soporta números (radar) o arrays de texto (chips) --- */
+/* --- Organoléptico: radar (números) o chips (arrays de texto en módulos) --- */
 const perfilesRadar={
   aromatico:{labels:["Fruta","Floral","Cítrico","Herbáceo","Especiado","Tostado"],keys:["fruta","floral","citrico","herbaceo","especiado","tostado"]},
   gustativo:{labels:["Cuerpo","Acidez","Dulzor","Taninos","Persistencia","Equilibrio"],keys:["cuerpo","acidez","dulzor","taninos","persistencia","equilibrio"]},
@@ -335,7 +315,6 @@ function drawRadar(values,cfg){
 }
 
 function renderOrgano(organo){
-  // aceptar cualquiera de estas rutas
   const o = organo?.ficha?.organoleptico || organo?.modules?.organoleptico || organo?.organoleptico || {};
   const block = o?.[radarType];
 
@@ -366,7 +345,6 @@ document.addEventListener("DOMContentLoaded", async function(){
     paintBasics(data);
     paintNarrativa(data);
 
-    // Guardamos el organoléptico en las tres formas posibles
     window.__ORGANO__={ ficha:{organoleptico:data?.ficha?.organoleptico}, modules:{organoleptico:data?.modules?.organoleptico}, organoleptico:data?.organoleptico };
     document.getElementById('btn-aromatico')?.classList.add('active');
     renderOrgano(window.__ORGANO__);
