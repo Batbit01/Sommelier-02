@@ -174,9 +174,9 @@
   <!-- JS LIB Plyr -->
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
-/* ========= SOLO CDN: leer ficha.json y pintar ========= */
+/* ========= SOLO CDN: leer tu ficha.json y pintar ========= */
 
-/* 1) Resolver contexto desde ruta o query */
+/* Resolver contexto */
 function parseFromPath() {
   const segs = location.pathname.split('/').filter(Boolean);
   const i = segs.findIndex(s => s.toLowerCase() === 'qr2');
@@ -190,7 +190,6 @@ function parseFromQuery() {
   let vino = (q.get('vino_id') || "").trim();
   let any  = (q.get('anyada')  || "").trim();
   let lang = (q.get('lang')    || "").trim().slice(0,2).toLowerCase();
-  // Si vino_id viene como "qr2/VINO/AÑO/lang/index.html"
   if (vino && /(^|\/)qr2\//i.test(vino)) {
     const segs = vino.replace(/^\/+/, '').split('/').filter(Boolean);
     const i = Math.max(0, segs.findIndex(s => s.toLowerCase()==='qr2'));
@@ -210,13 +209,12 @@ function resolveCtx() {
   };
 }
 
-/* 2) Construir URL de ficha.json (Backblaze) */
+/* URL Backblaze */
 function currentFichaUrl(ctx) {
   if (ctx.vino_id && ctx.anyada && ctx.lang) {
     const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
     return `${CDN_BASE}/qr2/${ctx.vino_id}/${ctx.anyada}/${ctx.lang}/ficha.json`;
   }
-  // Si la ruta ya es /qr2/{vino}/{año}/{lang}/
   const segs = location.pathname.split('/').filter(Boolean);
   const i = segs.findIndex(s => s.toLowerCase()==='qr2');
   if (i >= 0 && segs.length >= i + 4) {
@@ -225,7 +223,7 @@ function currentFichaUrl(ctx) {
   return null;
 }
 
-/* 3) Traer JSON */
+/* Fetch JSON */
 async function loadFicha(url) {
   if (!url) throw new Error("No se pudo construir la URL de ficha.json");
   const res = await fetch(url, { cache: 'no-store' });
@@ -236,53 +234,30 @@ async function loadFicha(url) {
   return await res.json();
 }
 
-/* 4) Pintar básicos */
+/* Pintar básicos según TU esquema */
 function paintBasics(data) {
-  const title = data?.ficha?.title || data?.title || data?.meta?.title || "Ficha del Vino";
-  const image = data?.ficha?.assets?.image_url || data?.assets?.image_url || data?.image || "";
+  const title = data?.title || data?.ficha?.title || "Ficha del Vino";
+  const image = data?.assets?.image_url || data?.ficha?.assets?.image_url || "";
   document.title = document.getElementById("vinoTitulo").innerText = title;
   if (image) document.getElementById("vinoImagen").src = image;
 
-  document.getElementById("vinoTipo").innerText =
-    data?.ficha?.tipo || data?.details?.tipo || "-";
-  document.getElementById("vinoUva").innerText =
-    data?.ficha?.variedad || data?.details?.variedad || "-";
-  document.getElementById("vinoOrigen").innerText =
-    data?.ficha?.do || data?.details?.origen || data?.region || "-";
-  document.getElementById("bodegaNombre").innerText =
-    data?.ficha?.bodega || data?.bodega || "-";
-
-  // Redes (si existen)
-  const redes = data?.ficha?.bodega_info?.redes || {};
-  const redesEl = document.getElementById("bodega-redes");
-  const parts = [];
-  if (data?.ficha?.bodega_info?.sitio_web) parts.push(`<a target="_blank" href="${data.ficha.bodega_info.sitio_web}">🌐 Web</a>`);
-  if (redes.instagram) parts.push(`<a target="_blank" href="${redes.instagram}">📸 Instagram</a>`);
-  if (redes.facebook)  parts.push(`<a target="_blank" href="${redes.facebook}">📘 Facebook</a>`);
-  if (redes.x)         parts.push(`<a target="_blank" href="${redes.x}">𝕏</a>`);
-  redesEl.innerHTML = parts.join(" · ");
-
-  // Servicio (si has añadido estos campos en la ficha)
-  const temp = data?.ficha?.servicio?.temperatura || "";
-  const ocas = data?.ficha?.servicio?.ocasion || "";
-  const mar  = data?.ficha?.servicio?.maridaje || [];
-  if (temp) { const el = document.getElementById("servicio-temperatura"); if (el) el.innerText = temp; }
-  if (ocas) { const el = document.getElementById("servicio-ocasion"); if (el) el.innerText = ocas; }
-  if (Array.isArray(mar) && mar.length) {
-    const el = document.getElementById("servicio-maridaje");
-    if (el) el.innerHTML = mar.map(m=>`<span class="chip">${m}</span>`).join(' ');
-  }
+  document.getElementById("vinoTipo").innerText   = data?.tipo || data?.ficha?.tipo || "-";
+  document.getElementById("vinoUva").innerText    = data?.variedad || data?.ficha?.variedad || "-";
+  document.getElementById("vinoOrigen").innerText = data?.do || data?.ficha?.do || "-";
+  document.getElementById("bodegaNombre").innerText = data?.bodega || data?.ficha?.bodega || "-";
 }
 
-/* 5) Narrativa + audio */
+/* Narrativa + audio según TU esquema */
 function paintNarrativa(data) {
-  const texto = data?.ficha?.narrativa?.texto || "";
-  const audio = (data?.ficha?.narrativa?.audio_url || "").replace(/^http:\/\//i, "https://");
+  const texto = data?.narrative_text || "";                 // <- tu clave real
+  let   audio = data?.assets?.audio_url || "";              // <- tu clave real
   const respuestaEl = document.getElementById("respuesta");
   const bloqueAudio = document.getElementById("bloque-audio-narrativa");
   const playerEl    = document.getElementById("player");
 
   respuestaEl.innerText = texto || "—";
+
+  if (audio && /^http:\/\//i.test(audio)) audio = audio.replace(/^http:\/\//i, "https://");
   if (audio) {
     playerEl.innerHTML = "";
     const src = document.createElement("source");
@@ -296,37 +271,73 @@ function paintNarrativa(data) {
   } else {
     bloqueAudio.style.display = "none";
   }
+
+  // Curiosidad / Maridaje si los quieres mostrar (opcionales)
+  const curiosidad = data?.modules?.curiosidad;
+  const maridaje   = Array.isArray(data?.modules?.maridaje) ? data.modules.maridaje : [];
+  if (curiosidad) console.log('[curiosidad]', curiosidad);
+  if (maridaje.length) console.log('[maridaje]', maridaje);
 }
 
-/* 6) Organoléptico — etiquetas + autodetección */
-const perfilesConfig = {
-  aromatico: { labels:["Fruta","Floral","Especiado","Tostado","Herbáceo"], keys:["fruta","floral","especiado","tostado","herbaceo"] },
-  gustativo: { labels:["Cuerpo","Acidez","Dulzor","Taninos","Frescura","Mineralidad"], keys:["cuerpo","acidez","dulzor","taninos","frescura","mineralidad"] },
-  sensorial: { labels:["Persistencia","Complejidad","Astringencia","Alcohol","Armonía"], keys:["persistencia","complejidad","astringencia","alcohol_percibido","armonia"] }
+/* Organoléptico: TU JSON trae ARRAYS de texto → pintamos chips. 
+   Si algún día publicas números (0–10) en lugar de arrays, el radar se activará automáticamente. */
+function ensureOrganoUI() {
+  // contenedor de chips bajo los botones (si no existe, lo creamos)
+  let chips = document.getElementById('organo-chips');
+  if (!chips) {
+    chips = document.createElement('div');
+    chips.id = 'organo-chips';
+    chips.style.margin = '0.8rem auto 0';
+    chips.style.display = 'flex';
+    chips.style.flexWrap = 'wrap';
+    chips.style.gap = '0.5rem';
+    chips.style.maxWidth = '520px';
+    const radarBox = document.getElementById('radar-svg-container');
+    radarBox.insertBefore(chips, document.getElementById('radarSVG'));
+  }
+  return chips;
+}
+function paintChips(items) {
+  const chips = ensureOrganoUI();
+  chips.innerHTML = '';
+  (items || []).forEach(t => {
+    const span = document.createElement('span');
+    span.textContent = String(t);
+    span.style.padding = '0.35rem 0.7rem';
+    span.style.border = '1px solid #e0c9c9';
+    span.style.borderRadius = '999px';
+    span.style.background = '#fff';
+    span.style.color = '#800000';
+    span.style.fontSize = '0.95rem';
+    span.style.boxShadow = '0 2px 8px #80000014';
+    chips.appendChild(span);
+  });
+}
+
+/* Radar (solo si hay números) */
+const perfilesRadar = {
+  aromatico: { labels:["Fruta","Floral","Cítrico","Herbáceo","Especiado","Tostado"], keys:["fruta","floral","citrico","herbaceo","especiado","tostado"] },
+  gustativo: { labels:["Cuerpo","Acidez","Dulzor","Taninos","Persistencia","Equilibrio"], keys:["cuerpo","acidez","dulzor","taninos","persistencia","equilibrio"] },
+  sensorial: { labels:["Frescura","Mineralidad","Alcohol","Complejidad","Armonía","Intensidad"], keys:["frescura","mineralidad","alcohol_percibido","complejidad","armonia","intensidad"] }
 };
 let radarType = "aromatico";
-window.setRadarType = function(tipo){ radarType=tipo; document.querySelectorAll('.switch-buttons button').forEach(b=>b.classList.remove('active')); const b=document.getElementById(`btn-${tipo}`); if(b) b.classList.add('active'); renderRadar(window.__ORGANO__||{}); };
+window.setRadarType = function(tipo){
+  radarType = tipo;
+  document.querySelectorAll('.switch-buttons button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`btn-${tipo}`)?.classList.add('active');
+  renderOrgano(window.__ORGANO__||{});
+};
 
 function polarToCartesian(cx,cy,r,a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
-function renderRadar(organo) {
+function drawRadar(values, cfg) {
   const svg = document.getElementById("radarSVG");
   svg.innerHTML = `<rect x="0" y="0" width="430" height="430" fill="#f8f4f2"/>`;
-  const cfg = perfilesConfig[radarType];
-  // 1) Intento con claves esperadas
-  let values = cfg.keys.map(k => Number(organo[k] ?? 0));
-  // 2) Si todo cero, toma los primeros N valores numéricos que existan
-  if (values.every(v => v===0)) {
-    const nums = Object.values(organo).map(v => Number(v)).filter(v => !isNaN(v));
-    if (nums.length) values = nums.slice(0, cfg.keys.length);
-  }
   const N = cfg.labels.length, R=155, cx=215, cy=215, min=0, max=10;
-  // malla
   for (let c=1;c<=5;c++){
     const r=(R*c)/5, mesh=[];
     for (let i=0;i<N;i++){ const ang=-Math.PI/2 + (2*Math.PI*i)/N; mesh.push(polarToCartesian(cx,cy,r,ang)); }
     svg.innerHTML += `<polygon points="${mesh.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#d7bebe" stroke-width="1"/>`;
   }
-  // ejes + labels
   for (let i=0;i<N;i++){
     const ang=-Math.PI/2 + (2*Math.PI*i)/N;
     const [x2,y2]=polarToCartesian(cx,cy,R,ang);
@@ -334,7 +345,6 @@ function renderRadar(organo) {
     const [lx,ly]=polarToCartesian(cx,cy,R+30,ang);
     svg.innerHTML += `<text x="${lx}" y="${ly}" class="radar-label">${cfg.labels[i]}</text>`;
   }
-  // polígono + puntos
   const poly=[];
   for (let i=0;i<N;i++){
     const v=Number(values[i] ?? 0), r=(v-min)/(max-min)*R, ang=-Math.PI/2 + (2*Math.PI*i)/N;
@@ -347,24 +357,61 @@ function renderRadar(organo) {
     svg.innerHTML += `<circle cx="${px}" cy="${py}" r="8" fill="#800000" stroke="white" stroke-width="2"/>`;
   }
 }
+function renderOrgano(organoRaw) {
+  const chipsBox = ensureOrganoUI();
+  const svg = document.getElementById("radarSVG");
 
-/* 7) Boot: solo CDN */
+  // Tu JSON: modules.organoleptico.{aromatico|gustativo|sensorial} = arrays de texto
+  const mod = (organoRaw && organoRaw.modules && organoRaw.modules.organoleptico) ? organoRaw.modules.organoleptico : organoRaw.organoleptico || {};
+  const block = mod?.[radarType];
+
+  // Si es array de textos -> mostramos chips y ocultamos radar
+  if (Array.isArray(block) && block.length && typeof block[0] === 'string') {
+    svg.style.display = 'none';
+    chipsBox.style.display = 'flex';
+    paintChips(block);
+    return;
+  }
+
+  // Si es objeto con números -> radar
+  const cfg = perfilesRadar[radarType];
+  const values = cfg.keys.map(k => Number((mod?.[radarType]||{})[k] ?? (mod||{})[k] ?? 0));
+  const hasNumbers = values.some(v => !isNaN(v) && v>0);
+
+  if (hasNumbers) {
+    chipsBox.style.display = 'none';
+    svg.style.display = 'block';
+    drawRadar(values, cfg);
+  } else {
+    // Nada que mostrar
+    svg.style.display = 'none';
+    chipsBox.style.display = 'none';
+  }
+}
+
+/* Boot */
 document.addEventListener("DOMContentLoaded", async function(){
   try{
     const CTX = resolveCtx();
-    // Forzar ?lang en URL sin recargar
     const params = new URLSearchParams(location.search);
     if (!params.has('lang')) { params.set('lang', CTX.lang); history.replaceState({}, '', `${location.pathname}?${params.toString()}`); }
 
     const url = currentFichaUrl(CTX);
     const data = await loadFicha(url);
-    window.__FICHA_DATA__ = data;                 // por si quieres inspeccionar en consola
-    window.__ORGANO__     = data?.ficha?.organoleptico || {};
+    window.__FICHA_DATA__ = data;
 
     paintBasics(data);
     paintNarrativa(data);
+
+    // Guardamos organoléptico tal como viene en TU JSON para que el renderer decida
+    window.__ORGANO__ = {
+      modules: { organoleptico: data?.modules?.organoleptico || {} },
+      organoleptico: data?.organoleptico || null
+    };
+
+    // Estado inicial Aromático
     document.getElementById('btn-aromatico')?.classList.add('active');
-    renderRadar(window.__ORGANO__);
+    renderOrgano(window.__ORGANO__);
 
   } catch (err) {
     console.error("Error cargando ficha.json:", err);
@@ -373,7 +420,6 @@ document.addEventListener("DOMContentLoaded", async function(){
   }
 });
 </script>
-
  
 </body>
 </html>
