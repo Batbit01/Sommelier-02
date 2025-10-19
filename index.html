@@ -222,38 +222,70 @@ function guessMime(url){
   if(u.endsWith('.ogg')||u.endsWith('.oga')) return 'audio/ogg';
   if(u.endsWith('.wav')) return 'audio/wav';
   return 'audio/mpeg';
-}
-function paintNarrativa(d){
-  const texto = d?.narrative_text || d?.ficha?.narrativa?.texto || "";
-  let   audio = d?.assets?.audio_url || d?.ficha?.narrativa?.audio_url || "";
-  const respuestaEl=document.getElementById("respuesta");
-  const bloqueAudio=document.getElementById("bloque-audio-narrativa");
-  const player=document.getElementById("player");
+/* Narrativa + audio (todas las variantes: narrative_text, assets.audio_url, urls.audio_url, ficha.narrativa.audio_url) */
+function paintNarrativa(data) {
+  // 1) Texto (tú lo guardas en narrative_text)
+  const texto =
+    data?.narrative_text ||
+    data?.ficha?.narrativa?.texto ||
+    "";
+
+  // 2) Audio: probamos varias rutas reales de tus flujos
+  let audio =
+    data?.assets?.audio_url ||              // tu ejemplo anterior
+    data?.urls?.audio_url ||                // lo que se ve en tu captura de DevTools
+    data?.ficha?.narrativa?.audio_url ||    // fallback si lo metéis ahí
+    "";
+
+  // (por si en algún momento queda como http)
+  if (audio && /^http:\/\//i.test(audio)) audio = audio.replace(/^http:\/\//i, "https://");
+
+  // 3) Pintado
+  const respuestaEl = document.getElementById("respuesta");
+  const bloqueAudio = document.getElementById("bloque-audio-narrativa");
+  const playerEl    = document.getElementById("player");
 
   respuestaEl.innerText = texto || "—";
 
-  if(audio && /^http:\/\//i.test(audio)) audio = audio.replace(/^http:\/\//i,'https://');
-  if(audio){
-    player.setAttribute('crossorigin','anonymous'); // ayuda con CORS media
-    player.setAttribute('preload','metadata');
-    player.innerHTML="";
-    const src=document.createElement('source');
-    src.src=audio;
-    src.type=guessMime(audio);
-    player.appendChild(src);
-    player.load();
-    player.oncanplay = ()=>{ /* OK */ };
-    player.onerror = (e)=>{
-      console.error('Audio error', {src:audio, type:src.type, code:player.error?.code, mediaError:player.error});
-      console.warn('Revisa CORS y MIME en Backblaze para el audio: Access-Control-Allow-Origin y Content-Type correctos.');
+  // 4) Audio robusto (CORS / MIME)
+  if (audio) {
+    // Deducimos MIME por extensión (mp3 por defecto)
+    const lower = audio.toLowerCase();
+    const mime =
+      lower.endsWith(".mp3") ? "audio/mpeg" :
+      lower.endsWith(".m4a") || lower.endsWith(".mp4") ? "audio/mp4" :
+      lower.endsWith(".ogg") || lower.endsWith(".oga") ? "audio/ogg" :
+      lower.endsWith(".wav") ? "audio/wav" : "audio/mpeg";
+
+    playerEl.setAttribute("crossorigin", "anonymous");
+    playerEl.setAttribute("preload", "metadata");
+    playerEl.innerHTML = "";
+    const src = document.createElement("source");
+    src.src  = audio;
+    src.type = mime;
+    playerEl.appendChild(src);
+    playerEl.load();
+
+    // Mensajes útiles si hay problema de reproducción
+    playerEl.onerror = () => {
+      console.error("[audio] error al reproducir", { audio, mime, mediaError: playerEl.error });
+      console.warn("Verifica en Backblaze el CORS del bucket y el Content-Type correcto del mp3.");
     };
-    try{ if(player._plyr) player._plyr.destroy(); }catch{}
-    player._plyr=new Plyr(player,{speed:{selected:1,options:[0.75,1,1.25,1.5,2]}});
-    bloqueAudio.style.display="block";
-  }else{
-    bloqueAudio.style.display="none";
+
+    try { if (playerEl._plyr) playerEl._plyr.destroy(); } catch(_) {}
+    playerEl._plyr = new Plyr(playerEl, { speed: { selected: 1, options: [0.75,1,1.25,1.5,2] } });
+    bloqueAudio.style.display = "block";
+  } else {
+    bloqueAudio.style.display = "none";
   }
+
+  // Log rápido para verificar en consola qué se encontró
+  console.log("[narrativa]", {
+    texto_len: (texto || "").length,
+    audio_url: audio || "(sin audio)"
+  });
 }
+
 
 /* --- Organoléptico: soporta números (radar) o arrays de texto (chips) --- */
 const perfilesRadar={
