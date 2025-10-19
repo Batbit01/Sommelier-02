@@ -174,10 +174,9 @@
   <!-- JS LIB Plyr -->
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
-/* ========= CONFIG ========= */
-const N8N_BASE = "https://n8n-production-cb18.up.railway.app/webhook";
+/* ========= SOLO CDN: leer ficha.json y pintar ========= */
 
-/* ========= PARSEO CONTEXTO (ruta o query) ========= */
+/* 1) Resolver contexto desde ruta o query */
 function parseFromPath() {
   const segs = location.pathname.split('/').filter(Boolean);
   const i = segs.findIndex(s => s.toLowerCase() === 'qr2');
@@ -191,6 +190,7 @@ function parseFromQuery() {
   let vino = (q.get('vino_id') || "").trim();
   let any  = (q.get('anyada')  || "").trim();
   let lang = (q.get('lang')    || "").trim().slice(0,2).toLowerCase();
+  // Si vino_id viene como "qr2/VINO/AÑO/lang/index.html"
   if (vino && /(^|\/)qr2\//i.test(vino)) {
     const segs = vino.replace(/^\/+/, '').split('/').filter(Boolean);
     const i = Math.max(0, segs.findIndex(s => s.toLowerCase()==='qr2'));
@@ -206,17 +206,17 @@ function resolveCtx() {
   return {
     vino_id: q.vino_id || p.vino_id || "",
     anyada:  q.anyada  || p.anyada  || "",
-    lang:    (q.lang || p.lang || (navigator.language||'es')).slice(0,2).toLowerCase(),
-    src:     new URLSearchParams(location.search).get('src') || ""
+    lang:    (q.lang || p.lang || (navigator.language||'es')).slice(0,2).toLowerCase()
   };
 }
 
-/* ========= URL de ficha.json (CDN) ========= */
+/* 2) Construir URL de ficha.json (Backblaze) */
 function currentFichaUrl(ctx) {
   if (ctx.vino_id && ctx.anyada && ctx.lang) {
     const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
     return `${CDN_BASE}/qr2/${ctx.vino_id}/${ctx.anyada}/${ctx.lang}/ficha.json`;
   }
+  // Si la ruta ya es /qr2/{vino}/{año}/{lang}/
   const segs = location.pathname.split('/').filter(Boolean);
   const i = segs.findIndex(s => s.toLowerCase()==='qr2');
   if (i >= 0 && segs.length >= i + 4) {
@@ -225,15 +225,18 @@ function currentFichaUrl(ctx) {
   return null;
 }
 
-/* ========= FETCH JSON (CDN) ========= */
+/* 3) Traer JSON */
 async function loadFicha(url) {
-  if (!url) return null;
+  if (!url) throw new Error("No se pudo construir la URL de ficha.json");
   const res = await fetch(url, { cache: 'no-store' });
+  const ct  = (res.headers.get('content-type')||'').toLowerCase();
+  console.log('[ficha.json]', url, res.status, ct);
   if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
+  if (!ct.includes('application/json')) throw new Error(`MIME inesperado: ${ct}`);
   return await res.json();
 }
 
-/* ========= PINTADO BÁSICO (DOM) ========= */
+/* 4) Pintar básicos */
 function paintBasics(data) {
   const title = data?.ficha?.title || data?.title || data?.meta?.title || "Ficha del Vino";
   const image = data?.ficha?.assets?.image_url || data?.assets?.image_url || data?.image || "";
@@ -249,6 +252,7 @@ function paintBasics(data) {
   document.getElementById("bodegaNombre").innerText =
     data?.ficha?.bodega || data?.bodega || "-";
 
+  // Redes (si existen)
   const redes = data?.ficha?.bodega_info?.redes || {};
   const redesEl = document.getElementById("bodega-redes");
   const parts = [];
@@ -257,9 +261,20 @@ function paintBasics(data) {
   if (redes.facebook)  parts.push(`<a target="_blank" href="${redes.facebook}">📘 Facebook</a>`);
   if (redes.x)         parts.push(`<a target="_blank" href="${redes.x}">𝕏</a>`);
   redesEl.innerHTML = parts.join(" · ");
+
+  // Servicio (si has añadido estos campos en la ficha)
+  const temp = data?.ficha?.servicio?.temperatura || "";
+  const ocas = data?.ficha?.servicio?.ocasion || "";
+  const mar  = data?.ficha?.servicio?.maridaje || [];
+  if (temp) { const el = document.getElementById("servicio-temperatura"); if (el) el.innerText = temp; }
+  if (ocas) { const el = document.getElementById("servicio-ocasion"); if (el) el.innerText = ocas; }
+  if (Array.isArray(mar) && mar.length) {
+    const el = document.getElementById("servicio-maridaje");
+    if (el) el.innerHTML = mar.map(m=>`<span class="chip">${m}</span>`).join(' ');
+  }
 }
 
-/* ========= NARRATIVA + AUDIO DESDE JSON ========= */
+/* 5) Narrativa + audio */
 function paintNarrativa(data) {
   const texto = data?.ficha?.narrativa?.texto || "";
   const audio = (data?.ficha?.narrativa?.audio_url || "").replace(/^http:\/\//i, "https://");
@@ -283,28 +298,35 @@ function paintNarrativa(data) {
   }
 }
 
-/* ========= RADAR ORGANOLÉPTICO DESDE JSON ========= */
+/* 6) Organoléptico — etiquetas + autodetección */
 const perfilesConfig = {
-  gustativo: { labels:["Cuerpo","Acidez","Dulzor","Taninos","Frescura","Mineralidad"], fields:["cuerpo","acidez","dulzor","taninos","frescura","mineralidad"] },
-  aromatico: { labels:["Fruta","Floral","Especiado","Tostado","Herbáceo"], fields:["fruta","floral","especiado","tostado","herbaceo"] },
-  sensorial: { labels:["Persistencia","Complejidad","Astringencia","Alcohol","Armonía"], fields:["persistencia","complejidad","astringencia","alcohol_percibido","armonia"] }
+  aromatico: { labels:["Fruta","Floral","Especiado","Tostado","Herbáceo"], keys:["fruta","floral","especiado","tostado","herbaceo"] },
+  gustativo: { labels:["Cuerpo","Acidez","Dulzor","Taninos","Frescura","Mineralidad"], keys:["cuerpo","acidez","dulzor","taninos","frescura","mineralidad"] },
+  sensorial: { labels:["Persistencia","Complejidad","Astringencia","Alcohol","Armonía"], keys:["persistencia","complejidad","astringencia","alcohol_percibido","armonia"] }
 };
 let radarType = "aromatico";
-function setRadarType(tipo){ radarType = tipo; document.querySelectorAll('.switch-buttons button').forEach(b=>b.classList.remove('active')); const b=document.getElementById(`btn-${tipo}`); if(b) b.classList.add('active'); renderRadar(window.__ORGANO__||{}); }
-window.setRadarType = setRadarType;
+window.setRadarType = function(tipo){ radarType=tipo; document.querySelectorAll('.switch-buttons button').forEach(b=>b.classList.remove('active')); const b=document.getElementById(`btn-${tipo}`); if(b) b.classList.add('active'); renderRadar(window.__ORGANO__||{}); };
 
 function polarToCartesian(cx,cy,r,a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
 function renderRadar(organo) {
   const svg = document.getElementById("radarSVG");
   svg.innerHTML = `<rect x="0" y="0" width="430" height="430" fill="#f8f4f2"/>`;
   const cfg = perfilesConfig[radarType];
+  // 1) Intento con claves esperadas
+  let values = cfg.keys.map(k => Number(organo[k] ?? 0));
+  // 2) Si todo cero, toma los primeros N valores numéricos que existan
+  if (values.every(v => v===0)) {
+    const nums = Object.values(organo).map(v => Number(v)).filter(v => !isNaN(v));
+    if (nums.length) values = nums.slice(0, cfg.keys.length);
+  }
   const N = cfg.labels.length, R=155, cx=215, cy=215, min=0, max=10;
-  const values = cfg.fields.map(f => Number(organo[f] ?? 0));
+  // malla
   for (let c=1;c<=5;c++){
     const r=(R*c)/5, mesh=[];
     for (let i=0;i<N;i++){ const ang=-Math.PI/2 + (2*Math.PI*i)/N; mesh.push(polarToCartesian(cx,cy,r,ang)); }
     svg.innerHTML += `<polygon points="${mesh.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#d7bebe" stroke-width="1"/>`;
   }
+  // ejes + labels
   for (let i=0;i<N;i++){
     const ang=-Math.PI/2 + (2*Math.PI*i)/N;
     const [x2,y2]=polarToCartesian(cx,cy,R,ang);
@@ -312,148 +334,46 @@ function renderRadar(organo) {
     const [lx,ly]=polarToCartesian(cx,cy,R+30,ang);
     svg.innerHTML += `<text x="${lx}" y="${ly}" class="radar-label">${cfg.labels[i]}</text>`;
   }
+  // polígono + puntos
   const poly=[];
   for (let i=0;i<N;i++){
-    const v=values[i], r=(v-min)/(max-min)*R, ang=-Math.PI/2 + (2*Math.PI*i)/N;
+    const v=Number(values[i] ?? 0), r=(v-min)/(max-min)*R, ang=-Math.PI/2 + (2*Math.PI*i)/N;
     poly.push(polarToCartesian(cx,cy,r,ang));
   }
   svg.innerHTML += `<polygon points="${poly.map(p=>p.join(',')).join(' ')}" fill="rgba(128,0,0,0.17)" stroke="#800000" stroke-width="3"/>`;
   for (let i=0;i<N;i++){
-    const v=values[i], r=(v-min)/(max-min)*R, ang=-Math.PI/2 + (2*Math.PI*i)/N;
+    const v=Number(values[i] ?? 0), r=(v-min)/(max-min)*R, ang=-Math.PI/2 + (2*Math.PI*i)/N;
     const [px,py]=polarToCartesian(cx,cy,r,ang);
     svg.innerHTML += `<circle cx="${px}" cy="${py}" r="8" fill="#800000" stroke="white" stroke-width="2"/>`;
   }
 }
 
-/* ========= VALORACIONES / COMENTARIOS (webhooks) ========= */
-function sessionId(){
-  let sid = localStorage.getItem('user_id');
-  if (!sid){ sid = `user_${Math.random().toString(36).slice(2,10)}`; localStorage.setItem('user_id', sid); }
-  return sid;
-}
-async function cargarValoraciones(vino_id){
-  try{
-    const url = `${N8N_BASE}/consultar-valoraciones?vino_id=${encodeURIComponent(vino_id)}`;
-    const res = await fetch(url, { cache: 'no-store' });
-    const data = await res.json();
-    const nota = Number(data.nota_media || data.media || 0);
-    const total = Number(data.total_valoraciones || data.total || 0);
-
-    document.getElementById("media-nota").innerText = nota ? nota.toFixed(1) : "-";
-    const est = document.getElementById("estrellas-nota"); est.innerHTML="";
-    const estrellas = Math.floor(nota), media = nota - estrellas;
-    for (let i=1;i<=5;i++){
-      if (i<=estrellas) est.innerHTML += "★";
-      else if (i===estrellas+1 && media>=0.25 && media<0.75) est.innerHTML += "⯪";
-      else est.innerHTML += "☆";
-    }
-    document.getElementById("total-valoraciones").innerText = total ? `(${total} valoraciones)` : "";
-    const fill = document.getElementById("score-fill");
-    const pct  = nota ? Math.round((nota/5)*100) : 0;
-    fill.style.width = pct + "%";
-    fill.innerText = nota ? `${nota.toFixed(1)} / 5` : "0 / 5";
-  }catch(e){ console.error("Valoraciones:", e); }
-}
-async function cargarComentarios(vino_id){
-  try{
-    const res = await fetch(`${N8N_BASE}/consultar-comentarios?vino_id=${encodeURIComponent(vino_id)}`, { cache: 'no-store' });
-    const data = await res.json();
-    const lista = document.getElementById("lista-comentarios");
-    const comentarios = Array.isArray(data.comentarios) ? data.comentarios : (Array.isArray(data) ? data : []);
-    lista.innerHTML = "";
-    if (!comentarios.length){
-      lista.innerHTML = '<p style="padding:1rem 0;">No hay comentarios aún. ¡Sé el primero!</p>';
-    } else {
-      comentarios.slice(0,10).forEach(c=>{
-        const div = document.createElement("div");
-        div.className = "comentario";
-        div.innerHTML = `<strong style="color:#800000;">${c.ciudad || "Usuario"}</strong> · <span style="color:#666;">${(c.fecha||"").slice(0,10)}</span> <em>“${c.comentario}”</em>`;
-        lista.appendChild(div);
-      });
-    }
-    if (lista.style.maxHeight && lista.style.maxHeight !== "0px") {
-      lista.style.maxHeight = lista.scrollHeight + "px";
-    }
-  }catch(e){
-    console.error("Comentarios:", e);
-    document.getElementById("lista-comentarios").innerHTML = "<p>No se pudieron cargar los comentarios.</p>";
-  }
-}
-function wireEnviarValoracion(vino_id){
-  let puntuacionSeleccionada = 0;
-  document.querySelectorAll(".estrella").forEach(e=>{
-    e.addEventListener("click", ()=>{
-      puntuacionSeleccionada = parseInt(e.dataset.value);
-      document.querySelectorAll(".estrella").forEach(star=>{
-        star.classList.toggle("seleccionada", parseInt(star.dataset.value) <= puntuacionSeleccionada);
-      });
-    });
-  });
-  document.getElementById("enviar-valoracion").addEventListener("click", async()=>{
-    const comentario = document.getElementById("comentario").value || "";
-    const msg = document.getElementById("mensaje-valoracion");
-    if (!puntuacionSeleccionada){
-      msg.innerText = "Selecciona una puntuación (1–5)."; msg.style.color="red"; return;
-    }
-    try{
-      await fetch(`${N8N_BASE}/comentar-vino`, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({
-          vino_id, puntuacion: puntuacionSeleccionada, comentario,
-          user_id: sessionId(), idioma: (new URLSearchParams(location.search).get('lang')||'es').slice(0,2),
-          ua: navigator.userAgent || "", src: new URLSearchParams(location.search).get('src')||""
-        })
-      });
-      msg.innerText = "¡Gracias por tu valoración!"; msg.style.color="green";
-      document.querySelectorAll(".estrella").forEach(star=>star.classList.remove("seleccionada"));
-      document.getElementById("comentario").value = "";
-      cargarValoraciones(vino_id); cargarComentarios(vino_id);
-    }catch(e){
-      msg.innerText = "Error al enviar tu valoración."; msg.style.color="red";
-    }
-  });
-}
-window.toggleComentarios = function(){
-  const el = document.getElementById("lista-comentarios");
-  if (el.style.maxHeight === "0px" || !el.style.maxHeight) el.style.maxHeight = el.scrollHeight + "px";
-  else el.style.maxHeight = "0px";
-};
-
-/* ========= TRACKING (scan) ========= */
-function trackScan(vino_id){
-  const lang = (new URLSearchParams(location.search).get('lang') || (navigator.language||'es')).slice(0,2).toLowerCase();
-  const src  = new URLSearchParams(location.search).get('src') || "";
-  fetch(`${N8N_BASE}/qr/scan?vino_id=${encodeURIComponent(vino_id)}&lang=${encodeURIComponent(lang)}&src=${encodeURIComponent(src)}`).catch(()=>{});
-}
-
-/* ========= BOOT ========= */
+/* 7) Boot: solo CDN */
 document.addEventListener("DOMContentLoaded", async function(){
   try{
     const CTX = resolveCtx();
-    if (!CTX.vino_id){ document.getElementById("respuesta").innerText = "No se especificó ningún vino."; return; }
-
+    // Forzar ?lang en URL sin recargar
     const params = new URLSearchParams(location.search);
     if (!params.has('lang')) { params.set('lang', CTX.lang); history.replaceState({}, '', `${location.pathname}?${params.toString()}`); }
 
-    const fichaUrl = currentFichaUrl(CTX);
-    const data = await loadFicha(fichaUrl);
-    if (!data) throw new Error("No se pudo cargar la ficha publicada.");
-    window.__FICHA_DATA__ = data;
+    const url = currentFichaUrl(CTX);
+    const data = await loadFicha(url);
+    window.__FICHA_DATA__ = data;                 // por si quieres inspeccionar en consola
+    window.__ORGANO__     = data?.ficha?.organoleptico || {};
+
     paintBasics(data);
     paintNarrativa(data);
-    window.__ORGANO__ = data?.ficha?.organoleptico || {};
-    setRadarType('aromatico');
+    document.getElementById('btn-aromatico')?.classList.add('active');
+    renderRadar(window.__ORGANO__);
 
-    trackScan(CTX.vino_id);
-    await Promise.all([cargarValoraciones(CTX.vino_id), cargarComentarios(CTX.vino_id)]);
-    wireEnviarValoracion(CTX.vino_id);
-  }catch(err){
-    console.error(err);
-    document.getElementById("respuesta").innerText = "No se pudo cargar la ficha publicada de este vino.";
+  } catch (err) {
+    console.error("Error cargando ficha.json:", err);
+    const r = document.getElementById("respuesta");
+    if (r) r.innerText = "No se pudo cargar la ficha publicada de este vino.";
   }
 });
 </script>
+
  
 </body>
 </html>
