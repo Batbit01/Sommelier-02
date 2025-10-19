@@ -174,252 +174,179 @@
   <!-- JS LIB Plyr -->
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
-/* ========= SOLO CDN: leer tu ficha.json y pintar ========= */
+/* ========= SOLO CDN: leer ficha.json y pintar ========= */
 
-/* Resolver contexto */
-function parseFromPath() {
-  const segs = location.pathname.split('/').filter(Boolean);
-  const i = segs.findIndex(s => s.toLowerCase() === 'qr2');
-  if (i >= 0 && segs.length >= i + 4) {
-    return { vino_id: segs[i+1], anyada: segs[i+2], lang: segs[i+3] };
+/* --- Contexto e URL --- */
+function parseFromPath(){const s=location.pathname.split('/').filter(Boolean),i=s.findIndex(t=>t.toLowerCase()==='qr2');if(i>=0&&s.length>=i+4)return{vino_id:s[i+1],anyada:s[i+2],lang:s[i+3]};return{vino_id:null,anyada:null,lang:null}}
+function parseFromQuery(){const q=new URLSearchParams(location.search);let vino=(q.get('vino_id')||"").trim(),any=(q.get('anyada')||"").trim(),lang=(q.get('lang')||"").trim().slice(0,2).toLowerCase();if(vino&&/(^|\/)qr2\//i.test(vino)){const s=vino.replace(/^\/+/,'').split('/').filter(Boolean),i=Math.max(0,s.findIndex(t=>t.toLowerCase()==='qr2'));vino=s[i+1]||vino;any=s[i+2]||any;lang=(s[i+3]||lang||navigator.language||'es').slice(0,2).toLowerCase()}return{vino_id:vino||null,anyada:any||null,lang:lang||null}}
+function resolveCtx(){const p=parseFromPath(),q=parseFromQuery();return{vino_id:q.vino_id||p.vino_id||"",anyada:q.anyada||p.anyada||"",lang:(q.lang||p.lang||(navigator.language||'es')).slice(0,2).toLowerCase()}}
+function currentFichaUrl(ctx){
+  if(ctx.vino_id&&ctx.anyada&&ctx.lang){
+    const CDN="https://f005.backblazeb2.com/file/SommelierLab-media";
+    return `${CDN}/qr2/${ctx.vino_id}/${ctx.anyada}/${ctx.lang}/ficha.json`;
   }
-  return { vino_id: null, anyada: null, lang: null };
-}
-function parseFromQuery() {
-  const q = new URLSearchParams(location.search);
-  let vino = (q.get('vino_id') || "").trim();
-  let any  = (q.get('anyada')  || "").trim();
-  let lang = (q.get('lang')    || "").trim().slice(0,2).toLowerCase();
-  if (vino && /(^|\/)qr2\//i.test(vino)) {
-    const segs = vino.replace(/^\/+/, '').split('/').filter(Boolean);
-    const i = Math.max(0, segs.findIndex(s => s.toLowerCase()==='qr2'));
-    vino = segs[i+1] || vino;
-    any  = segs[i+2] || any;
-    lang = (segs[i+3] || lang || navigator.language || 'es').slice(0,2).toLowerCase();
-  }
-  return { vino_id: vino || null, anyada: any || null, lang: lang || null };
-}
-function resolveCtx() {
-  const p = parseFromPath();
-  const q = parseFromQuery();
-  return {
-    vino_id: q.vino_id || p.vino_id || "",
-    anyada:  q.anyada  || p.anyada  || "",
-    lang:    (q.lang || p.lang || (navigator.language||'es')).slice(0,2).toLowerCase()
-  };
-}
-
-/* URL Backblaze */
-function currentFichaUrl(ctx) {
-  if (ctx.vino_id && ctx.anyada && ctx.lang) {
-    const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
-    return `${CDN_BASE}/qr2/${ctx.vino_id}/${ctx.anyada}/${ctx.lang}/ficha.json`;
-  }
-  const segs = location.pathname.split('/').filter(Boolean);
-  const i = segs.findIndex(s => s.toLowerCase()==='qr2');
-  if (i >= 0 && segs.length >= i + 4) {
-    return new URL('./ficha.json', location.href).href;
-  }
+  const s=location.pathname.split('/').filter(Boolean),i=s.findIndex(t=>t.toLowerCase()==='qr2');
+  if(i>=0&&s.length>=i+4) return new URL('./ficha.json',location.href).href;
   return null;
 }
 
-/* Fetch JSON */
-async function loadFicha(url) {
-  if (!url) throw new Error("No se pudo construir la URL de ficha.json");
-  const res = await fetch(url, { cache: 'no-store' });
-  const ct  = (res.headers.get('content-type')||'').toLowerCase();
+/* --- Fetch JSON --- */
+async function loadFicha(url){
+  if(!url) throw new Error("No se pudo construir la URL de ficha.json");
+  const res=await fetch(url,{cache:'no-store'});
+  const ct=(res.headers.get('content-type')||'').toLowerCase();
   console.log('[ficha.json]', url, res.status, ct);
-  if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
-  if (!ct.includes('application/json')) throw new Error(`MIME inesperado: ${ct}`);
+  if(!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
+  if(!ct.includes('application/json')) throw new Error(`MIME inesperado: ${ct}`);
   return await res.json();
 }
 
-/* Pintar básicos según TU esquema */
-function paintBasics(data) {
-  const title = data?.title || data?.ficha?.title || "Ficha del Vino";
-  const image = data?.assets?.image_url || data?.ficha?.assets?.image_url || "";
-  document.title = document.getElementById("vinoTitulo").innerText = title;
-  if (image) document.getElementById("vinoImagen").src = image;
+/* --- Pintado básicos (con tus claves) --- */
+function paintBasics(d){
+  const title=d?.title||d?.ficha?.title||"Ficha del Vino";
+  const img  =d?.assets?.image_url||d?.ficha?.assets?.image_url||"";
+  document.title=document.getElementById("vinoTitulo").innerText=title;
+  if(img) document.getElementById("vinoImagen").src=img;
 
-  document.getElementById("vinoTipo").innerText   = data?.tipo || data?.ficha?.tipo || "-";
-  document.getElementById("vinoUva").innerText    = data?.variedad || data?.ficha?.variedad || "-";
-  document.getElementById("vinoOrigen").innerText = data?.do || data?.ficha?.do || "-";
-  document.getElementById("bodegaNombre").innerText = data?.bodega || data?.ficha?.bodega || "-";
+  document.getElementById("vinoTipo").innerText   = d?.tipo||d?.ficha?.tipo||"-";
+  document.getElementById("vinoUva").innerText    = d?.variedad||d?.ficha?.variedad||"-";
+  document.getElementById("vinoOrigen").innerText = d?.do||d?.ficha?.do||"-";
+  document.getElementById("bodegaNombre").innerText = d?.bodega||d?.ficha?.bodega||"-";
 }
 
-/* Narrativa + audio según TU esquema */
-function paintNarrativa(data) {
-  const texto = data?.narrative_text || "";                 // <- tu clave real
-  let   audio = data?.assets?.audio_url || "";              // <- tu clave real
-  const respuestaEl = document.getElementById("respuesta");
-  const bloqueAudio = document.getElementById("bloque-audio-narrativa");
-  const playerEl    = document.getElementById("player");
+/* --- Narrativa + audio robusto --- */
+function guessMime(url){
+  const u=(url||"").toLowerCase();
+  if(u.endsWith('.mp3')) return 'audio/mpeg';
+  if(u.endsWith('.m4a')||u.endsWith('.mp4')) return 'audio/mp4';
+  if(u.endsWith('.ogg')||u.endsWith('.oga')) return 'audio/ogg';
+  if(u.endsWith('.wav')) return 'audio/wav';
+  return 'audio/mpeg';
+}
+function paintNarrativa(d){
+  const texto = d?.narrative_text || d?.ficha?.narrativa?.texto || "";
+  let   audio = d?.assets?.audio_url || d?.ficha?.narrativa?.audio_url || "";
+  const respuestaEl=document.getElementById("respuesta");
+  const bloqueAudio=document.getElementById("bloque-audio-narrativa");
+  const player=document.getElementById("player");
 
   respuestaEl.innerText = texto || "—";
 
-  if (audio && /^http:\/\//i.test(audio)) audio = audio.replace(/^http:\/\//i, "https://");
-  if (audio) {
-    playerEl.innerHTML = "";
-    const src = document.createElement("source");
-    src.src  = audio;
-    src.type = "audio/mpeg";
-    playerEl.appendChild(src);
-    playerEl.load();
-    try { if (playerEl._plyr) playerEl._plyr.destroy(); } catch(_) {}
-    playerEl._plyr = new Plyr(playerEl, { speed: { selected: 1, options: [0.75,1,1.25,1.5,2] } });
-    bloqueAudio.style.display = "block";
-  } else {
-    bloqueAudio.style.display = "none";
+  if(audio && /^http:\/\//i.test(audio)) audio = audio.replace(/^http:\/\//i,'https://');
+  if(audio){
+    player.setAttribute('crossorigin','anonymous'); // ayuda con CORS media
+    player.setAttribute('preload','metadata');
+    player.innerHTML="";
+    const src=document.createElement('source');
+    src.src=audio;
+    src.type=guessMime(audio);
+    player.appendChild(src);
+    player.load();
+    player.oncanplay = ()=>{ /* OK */ };
+    player.onerror = (e)=>{
+      console.error('Audio error', {src:audio, type:src.type, code:player.error?.code, mediaError:player.error});
+      console.warn('Revisa CORS y MIME en Backblaze para el audio: Access-Control-Allow-Origin y Content-Type correctos.');
+    };
+    try{ if(player._plyr) player._plyr.destroy(); }catch{}
+    player._plyr=new Plyr(player,{speed:{selected:1,options:[0.75,1,1.25,1.5,2]}});
+    bloqueAudio.style.display="block";
+  }else{
+    bloqueAudio.style.display="none";
   }
-
-  // Curiosidad / Maridaje si los quieres mostrar (opcionales)
-  const curiosidad = data?.modules?.curiosidad;
-  const maridaje   = Array.isArray(data?.modules?.maridaje) ? data.modules.maridaje : [];
-  if (curiosidad) console.log('[curiosidad]', curiosidad);
-  if (maridaje.length) console.log('[maridaje]', maridaje);
 }
 
-/* Organoléptico: TU JSON trae ARRAYS de texto → pintamos chips. 
-   Si algún día publicas números (0–10) en lugar de arrays, el radar se activará automáticamente. */
-function ensureOrganoUI() {
-  // contenedor de chips bajo los botones (si no existe, lo creamos)
-  let chips = document.getElementById('organo-chips');
-  if (!chips) {
-    chips = document.createElement('div');
-    chips.id = 'organo-chips';
-    chips.style.margin = '0.8rem auto 0';
-    chips.style.display = 'flex';
-    chips.style.flexWrap = 'wrap';
-    chips.style.gap = '0.5rem';
-    chips.style.maxWidth = '520px';
-    const radarBox = document.getElementById('radar-svg-container');
-    radarBox.insertBefore(chips, document.getElementById('radarSVG'));
-  }
-  return chips;
-}
-function paintChips(items) {
-  const chips = ensureOrganoUI();
-  chips.innerHTML = '';
-  (items || []).forEach(t => {
-    const span = document.createElement('span');
-    span.textContent = String(t);
-    span.style.padding = '0.35rem 0.7rem';
-    span.style.border = '1px solid #e0c9c9';
-    span.style.borderRadius = '999px';
-    span.style.background = '#fff';
-    span.style.color = '#800000';
-    span.style.fontSize = '0.95rem';
-    span.style.boxShadow = '0 2px 8px #80000014';
-    chips.appendChild(span);
-  });
-}
-
-/* Radar (solo si hay números) */
-const perfilesRadar = {
-  aromatico: { labels:["Fruta","Floral","Cítrico","Herbáceo","Especiado","Tostado"], keys:["fruta","floral","citrico","herbaceo","especiado","tostado"] },
-  gustativo: { labels:["Cuerpo","Acidez","Dulzor","Taninos","Persistencia","Equilibrio"], keys:["cuerpo","acidez","dulzor","taninos","persistencia","equilibrio"] },
-  sensorial: { labels:["Frescura","Mineralidad","Alcohol","Complejidad","Armonía","Intensidad"], keys:["frescura","mineralidad","alcohol_percibido","complejidad","armonia","intensidad"] }
+/* --- Organoléptico: soporta números (radar) o arrays de texto (chips) --- */
+const perfilesRadar={
+  aromatico:{labels:["Fruta","Floral","Cítrico","Herbáceo","Especiado","Tostado"],keys:["fruta","floral","citrico","herbaceo","especiado","tostado"]},
+  gustativo:{labels:["Cuerpo","Acidez","Dulzor","Taninos","Persistencia","Equilibrio"],keys:["cuerpo","acidez","dulzor","taninos","persistencia","equilibrio"]},
+  sensorial:{labels:["Frescura","Mineralidad","Alcohol","Complejidad","Armonía","Intensidad"],keys:["frescura","mineralidad","alcohol_percibido","complejidad","armonia","intensidad"]}
 };
-let radarType = "aromatico";
-window.setRadarType = function(tipo){
-  radarType = tipo;
+let radarType="aromatico";
+window.setRadarType=function(t){
+  radarType=t;
   document.querySelectorAll('.switch-buttons button').forEach(b=>b.classList.remove('active'));
-  document.getElementById(`btn-${tipo}`)?.classList.add('active');
+  document.getElementById(`btn-${t}`)?.classList.add('active');
   renderOrgano(window.__ORGANO__||{});
 };
 
-function polarToCartesian(cx,cy,r,a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
-function drawRadar(values, cfg) {
-  const svg = document.getElementById("radarSVG");
-  svg.innerHTML = `<rect x="0" y="0" width="430" height="430" fill="#f8f4f2"/>`;
-  const N = cfg.labels.length, R=155, cx=215, cy=215, min=0, max=10;
-  for (let c=1;c<=5;c++){
-    const r=(R*c)/5, mesh=[];
-    for (let i=0;i<N;i++){ const ang=-Math.PI/2 + (2*Math.PI*i)/N; mesh.push(polarToCartesian(cx,cy,r,ang)); }
-    svg.innerHTML += `<polygon points="${mesh.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#d7bebe" stroke-width="1"/>`;
+function ensureChipsBox(){
+  let el=document.getElementById('organo-chips');
+  if(!el){
+    el=document.createElement('div');
+    el.id='organo-chips';
+    Object.assign(el.style,{margin:'0.8rem auto 0',display:'flex',flexWrap:'wrap',gap:'0.5rem',maxWidth:'520px'});
+    document.getElementById('radar-svg-container').insertBefore(el, document.getElementById('radarSVG'));
   }
-  for (let i=0;i<N;i++){
-    const ang=-Math.PI/2 + (2*Math.PI*i)/N;
-    const [x2,y2]=polarToCartesian(cx,cy,R,ang);
-    svg.innerHTML += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#bfa1a1" stroke-width="1"/>`;
-    const [lx,ly]=polarToCartesian(cx,cy,R+30,ang);
-    svg.innerHTML += `<text x="${lx}" y="${ly}" class="radar-label">${cfg.labels[i]}</text>`;
-  }
-  const poly=[];
-  for (let i=0;i<N;i++){
-    const v=Number(values[i] ?? 0), r=(v-min)/(max-min)*R, ang=-Math.PI/2 + (2*Math.PI*i)/N;
-    poly.push(polarToCartesian(cx,cy,r,ang));
-  }
-  svg.innerHTML += `<polygon points="${poly.map(p=>p.join(',')).join(' ')}" fill="rgba(128,0,0,0.17)" stroke="#800000" stroke-width="3"/>`;
-  for (let i=0;i<N;i++){
-    const v=Number(values[i] ?? 0), r=(v-min)/(max-min)*R, ang=-Math.PI/2 + (2*Math.PI*i)/N;
-    const [px,py]=polarToCartesian(cx,cy,r,ang);
-    svg.innerHTML += `<circle cx="${px}" cy="${py}" r="8" fill="#800000" stroke="white" stroke-width="2"/>`;
-  }
+  return el;
 }
-function renderOrgano(organoRaw) {
-  const chipsBox = ensureOrganoUI();
-  const svg = document.getElementById("radarSVG");
-
-  // Tu JSON: modules.organoleptico.{aromatico|gustativo|sensorial} = arrays de texto
-  const mod = (organoRaw && organoRaw.modules && organoRaw.modules.organoleptico) ? organoRaw.modules.organoleptico : organoRaw.organoleptico || {};
-  const block = mod?.[radarType];
-
-  // Si es array de textos -> mostramos chips y ocultamos radar
-  if (Array.isArray(block) && block.length && typeof block[0] === 'string') {
-    svg.style.display = 'none';
-    chipsBox.style.display = 'flex';
-    paintChips(block);
-    return;
-  }
-
-  // Si es objeto con números -> radar
-  const cfg = perfilesRadar[radarType];
-  const values = cfg.keys.map(k => Number((mod?.[radarType]||{})[k] ?? (mod||{})[k] ?? 0));
-  const hasNumbers = values.some(v => !isNaN(v) && v>0);
-
-  if (hasNumbers) {
-    chipsBox.style.display = 'none';
-    svg.style.display = 'block';
-    drawRadar(values, cfg);
-  } else {
-    // Nada que mostrar
-    svg.style.display = 'none';
-    chipsBox.style.display = 'none';
-  }
+function paintChips(arr){
+  const box=ensureChipsBox();
+  box.innerHTML="";
+  (arr||[]).forEach(t=>{
+    const s=document.createElement('span');
+    s.textContent=String(t);
+    Object.assign(s.style,{padding:'0.35rem 0.7rem',border:'1px solid #e0c9c9',borderRadius:'999px',background:'#fff',color:'#800000',fontSize:'0.95rem',boxShadow:'0 2px 8px #80000014'});
+    box.appendChild(s);
+  });
 }
 
-/* Boot */
+function polarToCartesian(cx,cy,r,a){return[cx+r*Math.cos(a),cy+r*Math.sin(a)]}
+function drawRadar(values,cfg){
+  const svg=document.getElementById("radarSVG");
+  svg.innerHTML=`<rect x="0" y="0" width="430" height="430" fill="#f8f4f2"/>`;
+  const N=cfg.labels.length,R=155,cx=215,cy=215,min=0,max=10;
+  for(let c=1;c<=5;c++){const r=(R*c)/5,mesh=[];for(let i=0;i<N;i++){const ang=-Math.PI/2+(2*Math.PI*i)/N;mesh.push(polarToCartesian(cx,cy,r,ang))}svg.innerHTML+=`<polygon points="${mesh.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#d7bebe" stroke-width="1"/>`}
+  for(let i=0;i<N;i++){const ang=-Math.PI/2+(2*Math.PI*i)/N;const[x2,y2]=polarToCartesian(cx,cy,R,ang);svg.innerHTML+=`<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#bfa1a1" stroke-width="1"/>`;const[lx,ly]=polarToCartesian(cx,cy,R+30,ang);svg.innerHTML+=`<text x="${lx}" y="${ly}" class="radar-label">${cfg.labels[i]}</text>`}
+  const poly=[];for(let i=0;i<N;i++){const v=Number(values[i]??0),r=(v-min)/(max-min)*R,ang=-Math.PI/2+(2*Math.PI*i)/N;poly.push(polarToCartesian(cx,cy,r,ang))}
+  svg.innerHTML+=`<polygon points="${poly.map(p=>p.join(',')).join(' ')}" fill="rgba(128,0,0,0.17)" stroke="#800000" stroke-width="3"/>`;
+  for(let i=0;i<N;i++){const v=Number(values[i]??0),r=(v-min)/(max-min)*R,ang=-Math.PI/2+(2*Math.PI*i)/N;const[px,py]=polarToCartesian(cx,cy,r,ang);svg.innerHTML+=`<circle cx="${px}" cy="${py}" r="8" fill="#800000" stroke="white" stroke-width="2"/>`}
+}
+
+function renderOrgano(organo){
+  // aceptar cualquiera de estas rutas
+  const o = organo?.ficha?.organoleptico || organo?.modules?.organoleptico || organo?.organoleptico || {};
+  const block = o?.[radarType];
+
+  const svg=document.getElementById('radarSVG');
+  const chipsBox=ensureChipsBox();
+
+  if(Array.isArray(block) && block.length && typeof block[0]==='string'){
+    svg.style.display='none'; chipsBox.style.display='flex'; paintChips(block); return;
+  }
+  const cfg=perfilesRadar[radarType];
+  const values=cfg.keys.map(k=>Number((block||{})[k] ?? o[k] ?? 0));
+  const hasNums=values.some(v=>!isNaN(v)&&v>0);
+  if(hasNums){ chipsBox.style.display='none'; svg.style.display='block'; drawRadar(values,cfg); }
+  else { svg.style.display='none'; chipsBox.style.display='none'; }
+}
+
+/* --- BOOT --- */
 document.addEventListener("DOMContentLoaded", async function(){
   try{
-    const CTX = resolveCtx();
-    const params = new URLSearchParams(location.search);
-    if (!params.has('lang')) { params.set('lang', CTX.lang); history.replaceState({}, '', `${location.pathname}?${params.toString()}`); }
+    const CTX=resolveCtx();
+    const params=new URLSearchParams(location.search);
+    if(!params.has('lang')){ params.set('lang', CTX.lang); history.replaceState({},'',`${location.pathname}?${params.toString()}`); }
 
-    const url = currentFichaUrl(CTX);
-    const data = await loadFicha(url);
-    window.__FICHA_DATA__ = data;
+    const fichaUrl=currentFichaUrl(CTX);
+    const data=await loadFicha(fichaUrl);
+    window.__FICHA_DATA__=data;
 
     paintBasics(data);
     paintNarrativa(data);
 
-    // Guardamos organoléptico tal como viene en TU JSON para que el renderer decida
-    window.__ORGANO__ = {
-      modules: { organoleptico: data?.modules?.organoleptico || {} },
-      organoleptico: data?.organoleptico || null
-    };
-
-    // Estado inicial Aromático
+    // Guardamos el organoléptico en las tres formas posibles
+    window.__ORGANO__={ ficha:{organoleptico:data?.ficha?.organoleptico}, modules:{organoleptico:data?.modules?.organoleptico}, organoleptico:data?.organoleptico };
     document.getElementById('btn-aromatico')?.classList.add('active');
     renderOrgano(window.__ORGANO__);
 
-  } catch (err) {
+    console.log('[lang]', CTX.lang, '[url]', fichaUrl);
+  }catch(err){
     console.error("Error cargando ficha.json:", err);
-    const r = document.getElementById("respuesta");
-    if (r) r.innerText = "No se pudo cargar la ficha publicada de este vino.";
+    const r=document.getElementById("respuesta"); if(r) r.innerText="No se pudo cargar la ficha publicada de este vino.";
   }
 });
 </script>
+
  
 </body>
 </html>
