@@ -251,6 +251,35 @@
       <hr class="border-neutral-800">
     `;
   }
+/* === PREMIOS / AWARDS === */
+function renderAwards(d){
+  const awards = d.ficha?.awards || [];
+  if(!awards.length) return "";
+
+  // define animación flotante si no existe
+  const style = document.createElement("style");
+  style.textContent = `
+    @keyframes floatPulse {
+      0%,100% { transform: translateY(0) scale(1); opacity: .95; }
+      50% { transform: translateY(-4px) scale(1.04); opacity: 1; }
+    }
+    .award-badge-anim { animation: floatPulse 3s ease-in-out infinite; }
+  `;
+  document.head.appendChild(style);
+
+  const badgeShape = (d.theme?.award_badge_style === 'circle') ? 'badge-circle' : 'badge-plain';
+
+  return `
+    <div class="flex flex-wrap justify-center gap-4 py-4 fade-in">
+      ${awards.map(a => `
+        <div class="award-badge-anim relative ${badgeShape} bg-neutral-900 border border-neutral-700 shadow-md w-16 h-16 flex flex-col items-center justify-center">
+          <img src="${a.image_url}" alt="${a.label}" class="object-contain w-12 h-12 opacity-90">
+          ${a.score ? `<div class="absolute bottom-0 right-0 bg-amber-500 text-neutral-900 text-[10px] font-bold rounded-full px-1.5 py-[1px]">${a.score}</div>` : ""}
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
 
   function chipsBlock(title, arr){
     if(!arr||!arr.length) return '';
@@ -406,6 +435,7 @@
     const html = [
       renderHeader(d),
       renderHero(d),
+      renderAwards (d),
       renderNarrativa(d),
       renderOrganoleptico(d),
       renderTech(d),
