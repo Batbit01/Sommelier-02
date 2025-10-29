@@ -1,242 +1,463 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta charset="utf-8">
   <title>SommelierLab · Ficha del vino</title>
-
-  <!-- Tailwind CDN para prototipo -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Tailwind CDN solo para MVP; en prod compila con PostCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    @keyframes floatPulse { 0%{transform:translateY(0) scale(1);opacity:1} 50%{transform:translateY(-4px) scale(1.03);opacity:.9} 100%{transform:translateY(0) scale(1);opacity:1}}
-    .award-badge-anim{animation:floatPulse 3s ease-in-out infinite}
-    .modal-bg{background-color:rgba(0,0,0,.6);backdrop-filter:blur(4px)}
+    :root{ --accent-color:#c79a5a; }
+    /* Animaciones */
+    .fade-in{ animation:fadeIn .35s ease-out both }
+    @keyframes fadeIn{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+    .grow-x{ transform-origin:left; animation:growX .6s ease-out both }
+    @keyframes growX{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
+    /* Frames y texturas */
+    .frame-soft{ box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04); }
+    .frame-bold{ box-shadow:0 12px 40px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.06); }
+    .badge-plain{ border-radius:.75rem; }
+    .badge-circle{ border-radius:9999px; }
+    .tex-bg{ background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size:8px 8px; }
+    /* Quirks fix hint: este archivo incluye <!doctype html> ya correcto */
   </style>
 </head>
-
-<body class="min-h-screen text-white bg-neutral-900 flex flex-col font-sans">
-  <div id="app" class="flex-1 flex flex-col max-w-[1100px] w-full mx-auto px-4 pb-24"></div>
-
-  <!-- FAB Sommelier -->
-  <button id="sommelier-fab" class="hidden fixed bottom-4 right-4 z-40 rounded-full shadow-xl px-4 py-3 text-sm font-medium flex items-center gap-2 bg-amber-500 text-neutral-900 hover:bg-amber-400 active:scale-[0.98] transition">
-    <span class="text-lg">🍷</span>
-    <span class="leading-none">Sommelier</span>
-  </button>
-
-  <!-- Modal Sommelier -->
-  <div id="sommelier-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-    <div class="modal-bg absolute inset-0"></div>
-    <div class="relative bg-neutral-900 text-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden border border-neutral-700">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-700">
-        <div class="flex items-center gap-2">
-          <span class="text-xl">🍷</span>
-          <div class="text-sm font-semibold leading-tight">
-            Sommelier virtual
-            <div id="sommelier-status" class="text-[10px] text-neutral-400 font-normal">Pregúntame sobre este vino</div>
-          </div>
-        </div>
-        <button id="sommelier-close" class="text-neutral-400 hover:text-white text-xl leading-none">✕</button>
-      </div>
-      <div id="sommelier-chat" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm leading-relaxed"></div>
-      <form id="sommelier-form" class="border-t border-neutral-700 p-3 flex gap-2">
-        <input id="sommelier-input" class="flex-1 bg-neutral-800 text-white text-sm rounded-lg px-3 py-2 border border-neutral-700 outline-none focus:ring-2 focus:ring-amber-500" placeholder="¿Con qué lo marido?" />
-        <button class="bg-amber-500 text-neutral-900 text-sm font-medium rounded-lg px-3 py-2 hover:bg-amber-400 active:scale-[0.98] transition">▶</button>
-      </form>
-    </div>
-  </div>
+<body class="bg-neutral-950 text-neutral-50 min-h-screen selection:bg-amber-500/30">
+  <div id="app" class="max-w-[1100px] mx-auto px-4 sm:px-6 pb-28 sm:pb-12"></div>
 
   <script>
-    // Error overlay para detectar fallos de sintaxis en producción
-    window.addEventListener('error', (e)=>{
-      try{
-        const div=document.createElement('div');
-        div.style.position='fixed';div.style.top='0';div.style.left='0';div.style.right='0';
-        div.style.background='rgba(180,0,0,.9)';div.style.color='#fff';div.style.zIndex='99999';
-        div.style.font='12px/1.4 monospace';div.style.padding='8px 10px';
-        div.textContent = 'JS error: '+ (e?.message||'Unknown');
-        document.body.appendChild(div);
-        console.error('[SommelierLab] JS error', e);
-      }catch(_){/* noop */}
-    });
-    /********************************************************************
-     * CONFIG
-     ********************************************************************/
-    // Si dejas BASE_API vacío o con "PLACEHOLDER", el front usará el fallback CDN (Backblaze)
-    const BASE_API = "https://n8n-production-cb18.up.railway.app/webhook"; // Prod Railway n8n
-    const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
+  /********************************************************************
+   * CONFIG
+   ********************************************************************/
+  // Para probar por CDN fija PLACEHOLDER; para API quita PLACEHOLDER
+  const BASE_API = "PLACEHOLDER"; // "https://n8n-production-cb18.up.railway.app/webhook"
 
-    /********************************************************************
-     * UI COPY
-     ********************************************************************/
-    const UI_COPY = { es:{ winery:"Bodega", variety:"Variedad", appellation:"Denominación", tasting_notes:"Notas de cata", tech_sheet:"Ficha técnica", fermentation:"Vinificación y crianza", production:"Producción", harvest_origin:"Origen y vendimia", curiosity:"Curiosidad", ask_sommelier:"Preguntar al sommelier", avg_rating:"Puntuación media", based_on:"Basado en", opinions:"opiniones", leave_review:"Deja tu reseña", your_review:"¿A qué te sabe este vino?", send_review:"Enviar reseña", aromas:"Aromas", palate:"En boca", finish:"Sensación final", buy:"Comprar", visit:"Visitar la bodega", contact:"Solicitar información", other_wines:"Otros vinos que puedes probar", gallery_title:"Dentro de la bodega", responsibility:"Bebe con responsabilidad", sommelier_unavailable:"El sommelier virtual no está disponible ahora mismo.", sommelier_placeholder:"Pregúntame lo que quieras sobre este vino", thanks_review:"Gracias. Tu reseña entrará en moderación.", location_block:"Ubicación / contexto" }, en:{ winery:"Winery", variety:"Variety", appellation:"Appellation", tasting_notes:"Tasting notes", tech_sheet:"Technical sheet", fermentation:"Vinification & ageing", production:"Production", harvest_origin:"Origin & harvest", curiosity:"Curiosity", ask_sommelier:"Ask the sommelier", avg_rating:"Average rating", based_on:"Based on", opinions:"reviews", leave_review:"Leave your review", your_review:"What does this wine taste like?", send_review:"Send", aromas:"Aromas", palate:"On the palate", finish:"Finish", buy:"Buy", visit:"Visit the winery", contact:"Request info", other_wines:"Other wines you may like", gallery_title:"Inside the winery", responsibility:"Drink responsibly", sommelier_unavailable:"Sommelier is not available right now.", sommelier_placeholder:"Ask anything about this wine", thanks_review:"Thanks. Your review is pending moderation.", location_block:"Location / context" } };
+  // Overlay de errores visible
+  window.addEventListener('error',(e)=>{ try{
+    const div=document.createElement('div');
+    Object.assign(div.style,{position:'fixed',top:'0',left:'0',right:'0',background:'rgba(180,0,0,.9)',color:'#fff',zIndex:'99999',font:'12px/1.4 monospace',padding:'8px 10px'});
+    div.textContent='JS error: '+(e?.message||'Unknown');
+    document.body.appendChild(div);
+    console.error('[SommelierLab] JS error',e);
+  }catch(_){}});
 
-    /********************************************************************
-     * STATE
-     ********************************************************************/
-    const appState = { query:{}, fichaData:null, t:null, chatHistory:[], sommelierAvailable:false, sommelierLocked:false };
-
-    /********************************************************************
-     * UTILS
-     ********************************************************************/
-    function getQueryParams(){
-      const p=new URLSearchParams(window.location.search);
-      // alias por retrocompatibilidad: idioma→lang, contect→context
-      const langRaw = (p.get("lang") || p.get("idioma") || "").slice(0,2).toLowerCase();
-      const ctxRaw  = p.get("context") || p.get("contect") || "";
-      return {
-        vino_id: p.get("vino_id")||"",
-        anyada:  p.get("anyada")||"",
-        lang:    langRaw,
-        context: ctxRaw
-      };
+  /********************************************************************
+   * I18N
+   ********************************************************************/
+  const UI_COPY = {
+    es:{
+      share:"Compartir", ask:"Preguntar al sommelier",
+      avg_rating:"Valoración media", based_on:"basada en", opinions:"opiniones",
+      your_review:"Escribe tu reseña…", send_review:"Enviar reseña",
+      allergens:"Alérgenos / Información legal", drink_responsibly:"Bebe con responsabilidad",
+      indicators:{ aroma:"Aroma", cuerpo:"Cuerpo", acidez:"Acidez", dulzor:"Dulzor", tanino:"Tanino" }
+    },
+    en:{
+      share:"Share", ask:"Ask the sommelier",
+      avg_rating:"Average rating", based_on:"based on", opinions:"reviews",
+      your_review:"Write your review…", send_review:"Send",
+      allergens:"Allergens / Legal", drink_responsibly:"Drink responsibly",
+      indicators:{ aroma:"Aroma", cuerpo:"Body", acidez:"Acidity", dulzor:"Sweetness", tanino:"Tannin" }
     }
+  };
 
-    function pickLangFallback(requested, available){ if(available && available.length){ if(requested && available.includes(requested)) return requested; return available[0]; } return requested || "en"; }
+  /********************************************************************
+   * STATE
+   ********************************************************************/
+  const appState = {
+    query: {}, fichaData:null, t:UI_COPY.es
+  };
 
-    function postJSON(url, body){ return fetch(url,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }).then(r=>r.json()).catch(e=>({ok:false,error:e?.message||"network_error"})); }
+  function getQueryParams(){
+    const p = new URLSearchParams(window.location.search);
+    const langRaw = (p.get("lang") || p.get("idioma") || "").slice(0,2).toLowerCase();
+    const ctxRaw  = p.get("context") || p.get("contect") || "";
+    return {
+      vino_id: p.get("vino_id")||"",
+      anyada:  p.get("anyada")||"",
+      lang:    langRaw || "es",
+      context: ctxRaw,
+      cdn:     p.get("cdn")==="1"
+    };
+  }
 
-    function buildCdnFichaUrl(vino_id, anyada, lang){ if(!vino_id||!anyada||!lang) return null; return `${CDN_BASE}/qr2/${vino_id}/${anyada}/${lang}/ficha.json`; }
+  function applyTheme(theme){
+    const body=document.body; const t=theme||{};
+    const dark = (t.background_mode !== 'light');
+    body.style.backgroundColor = dark ? (t.primary_color || '#0f0a0a') : (t.primary_color || '#faf7ef');
+    body.style.color = dark ? '#fff' : '#000';
+    body.style.setProperty('--accent-color', t.accent_color || '#c79a5a');
+    body.classList.toggle('tex-bg', !!t.use_texture);
+  }
 
-    /********************************************************************
-     * RENDER HELPERS
-     ********************************************************************/
-    function applyTheme(theme){ const body=document.body; if(!theme){ body.style.backgroundColor="#0f0a0a"; body.style.color="#fff"; return; } if(theme.background_mode==="light"){ body.style.backgroundColor=theme.primary_color||"#f5f2e8"; body.style.color="#000"; } else { body.style.backgroundColor=theme.primary_color||"#1a0c0c"; body.style.color="#fff"; } body.style.setProperty("--accent-color", theme.accent_color||"#c79a5a"); }
+  function prettyContext(c){
+    const map={ botella:'Botella', feria:'Feria', restaurante:'Restaurante', carta:'Carta digital' };
+    return map[c] || '';
+  }
 
-    function renderHeader(){ const d=appState.fichaData; const langs=d.available_langs||[]; const currentLang=d.lang_final; let fallbackNote=""; if(d.lang_requested && d.lang_requested!==d.lang_final){ fallbackNote = `<div class="text-[10px] text-neutral-400 mt-1">Mostrando en ${d.lang_final.toUpperCase()} (no disponible aún en ${d.lang_requested.toUpperCase()}).</div>`; }
-      let langSelector = ""; if(langs.length>1){ langSelector = `<label class="text-[11px] text-neutral-400">${currentLang.toUpperCase()}</label><select id="lang-select" class="bg-neutral-800 border border-neutral-700 text-white text-xs rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[var(--accent-color)]">${langs.map(l=>`<option value="${l}" ${l===currentLang?"selected":""}>${l.toUpperCase()}</option>`).join("")}</select>`; }
-      return `<header class="pt-4 pb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between border-b border-neutral-800"><div class="flex items-start gap-3">${ d.ficha.bodega_logo_url ? `<img src="${d.ficha.bodega_logo_url}" alt="${d.ficha.bodega||''}" class="h-10 w-10 object-contain bg-neutral-800 rounded-lg border border-neutral-700 p-1"/>` : `<div class="h-10 w-10 flex items-center justify-center rounded-lg bg-neutral-800 border border-neutral-700 text-[10px] leading-none text-center p-1">${(d.ficha.bodega||"Bodega").slice(0,4)}</div>` }<div class="text-sm leading-tight"><div class="font-semibold">${d.ficha.bodega||""}</div><div class="text-[11px] text-neutral-400">${d.ficha.nombre||""} ${d.ficha.year||""}</div>${fallbackNote}</div></div><div class="flex items-start gap-4 text-xs mt-2 sm:mt-0"><div class="flex flex-col items-end gap-1 text-right">${langSelector}<button id="share-btn" class="text-[11px] text-amber-400 underline underline-offset-2 hover:text-amber-300">Compartir</button></div></div></header>`; }
+  /********************************************************************
+   * DATA LOADERS
+   ********************************************************************/
+  function cdnFichaUrl(vino_id,anyada,lang){
+    return `https://f005.backblazeb2.com/file/SommelierLab-media/qr2/${encodeURIComponent(vino_id)}/${encodeURIComponent(anyada)}/${encodeURIComponent(lang)}/ficha.json`;
+  }
 
-    function renderContext(){ const d=appState.fichaData; const t=appState.t; const f=d.ficha || {}; const ctx = (appState.query.context||f.context||f.tipo||"").toLowerCase(); const ubic = f.ubicacion || {}; // puede ser string u objeto
-      const chips = [];
-      if(ctx){ chips.push(`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${ctx}</span>`); }
-      const locParts = [];
-      if(typeof ubic === 'string' && ubic) locParts.push(ubic);
-      if(typeof ubic === 'object' && ubic){ if(ubic.lugar) locParts.push(ubic.lugar); if(ubic.ciudad) locParts.push(ubic.ciudad); if(ubic.pais) locParts.push(ubic.pais); }
-      const locStr = locParts.filter(Boolean).join(" · ");
-      const geo = (ubic.lat && ubic.lng) ? `${Number(ubic.lat).toFixed(4)}, ${Number(ubic.lng).toFixed(4)}` : "";
-      if(locStr) chips.push(`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${locStr}</span>`);
-      if(geo) chips.push(`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${geo}</span>`);
-      if(!chips.length) return "";
-      return `<section class="py-3 border-b border-neutral-800"><div class="text-[11px] uppercase tracking-wide text-neutral-400 mb-2">${t.location_block}</div><div class="flex flex-wrap gap-2">${chips.join("")}</div></section>`; }
+  async function fetchFromCDN(vino_id,anyada,lang){
+    const url = cdnFichaUrl(vino_id,anyada,lang);
+    const r = await fetch(url,{cache:'no-cache'});
+    if(!r.ok) throw new Error('CDN '+r.status);
+    return r.json();
+  }
 
-    function renderHero(){ const d=appState.fichaData; const f=d.ficha; const awards=f.awards||[]; let mediaBlock=""; if(f.bottle_media && f.bottle_media.video_url){ mediaBlock = `<video class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800" src="${f.bottle_media.video_url}" autoplay muted loop playsinline></video>`; } else if(f.bottle_media && f.bottle_media.image_url){ mediaBlock = `<img src="${f.bottle_media.image_url}" alt="${f.nombre||''}" class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800"/>`; }
-      let awardsBlock = ""; if(awards.length>0){ awardsBlock = `<div class="flex flex-wrap justify-center gap-3 mt-4">${awards.map(a=>`<div class="award-badge-anim bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2 text-center text-[11px] leading-tight shadow-md flex flex-col items-center">${a.image_url?`<img src="${a.image_url}" class="h-8 w-auto mb-1 object-contain" alt="${a.label||''}"/>`:""}<div class="text-amber-400 font-semibold">${a.label||""}</div>${a.year?`<div class="text-[10px] text-neutral-400">${a.year}</div>`:""}</div>`).join("")}</div>`; }
-      const tipo = f.tipo || appState.query.context || "";
-      return `<section class="py-6 border-b border-neutral-800"><div class="flex flex-col items-center text-center">${mediaBlock}<div class="mt-4 text-sm leading-tight"><div class="text-[13px] uppercase tracking-wide text-neutral-400">${f.do||""}</div><div class="text-xl font-semibold">${f.nombre||""} ${f.year||""}</div><div class="text-[13px] text-neutral-400">${f.variedad||""}</div><div class="mt-1 flex flex-wrap gap-2 justify-center text-[11px] text-neutral-300">${ f.do?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${f.do}</span>`:"" }${ f.variedad?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${f.variedad}</span>`:"" }${ f.year?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${f.year}</span>`:"" }${ tipo?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${tipo}</span>`:"" }</div></div>${awardsBlock}</div></section>`; }
+  async function fetchFromResolve(vino_id,anyada,lang){
+    const u = `${BASE_API}/qr2/resolve?vino_id=${encodeURIComponent(vino_id)}&anyada=${encodeURIComponent(anyada)}&lang=${encodeURIComponent(lang)}`;
+    const r = await fetch(u,{credentials:'omit'});
+    if(!r.ok) throw new Error('/qr2/resolve '+r.status);
+    return r.json();
+  }
 
-    function renderSommelierBlock(){ const d=appState.fichaData; const t=appState.t; const narrativa=d.ficha.narrativa||{}; const sommelierEnabled=d.sommelier && d.sommelier.enabled===true; const audio=narrativa.audio_url;
-      return `<section class="py-6 border-b border-neutral-800 space-y-4"><div class="text-base font-semibold">${t.ask_sommelier}</div><div class="text-sm text-neutral-200 leading-relaxed whitespace-pre-line">${narrativa.texto?narrativa.texto:""}</div>${ audio?`<div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 flex flex-col gap-2"><div class="text-[11px] text-neutral-400 uppercase tracking-wide">Audio Sommelier</div><audio controls class="w-full" src="${audio}"></audio></div>`:"" }${ sommelierEnabled?`<button id="open-sommelier-btn" class="w-full bg-amber-500 text-neutral-900 text-sm font-medium rounded-xl px-4 py-3 text-center hover:bg-amber-400 active:scale-[0.98] transition">${t.ask_sommelier}</button>`:"" }</section>`; }
+  // Normaliza tu JSON antiguo (header/bodega/vino/for_front) a ficha.*
+  function normalizeToFicha(data){
+    if(!data) return data;
+    if(data.ficha) return data;
 
-    function renderOrganoleptico(){ const d=appState.fichaData; const t=appState.t; const o=d.ficha.organoleptico||{}; function chipsBlock(label, arr){ if(!arr||!arr.length) return ""; return `<div class="mb-4"><div class="text-[11px] uppercase tracking-wide text-neutral-400 mb-2">${label}</div><div class="flex flex-wrap gap-2">${arr.map(x=>`<span class="text-[12px] bg-neutral-800 border border-neutral-700 rounded-full px-3 py-1 text-neutral-200">${x}</span>`).join("")}</div></div>`; } function barsBlock(barras){ if(!barras) return ""; const keys=Object.keys(barras); if(!keys.length) return ""; return `<div class="mb-4">${keys.map(k=>{ const val=barras[k]; const pct=Math.min(10, Number(val||0))*10; return `<div class="mb-2"><div class="text-[11px] text-neutral-400 flex justify-between"><span>${k}</span><span>${val}/10</span></div><div class="w-full h-2 bg-neutral-800 rounded-full border border-neutral-700 overflow-hidden"><div class="h-2 bg-amber-500" style="width:${pct}%"></div></div></div>`; }).join("")}</div>`; } function radarBlock(radar){ if(!radar) return ""; const list=Object.entries(radar).map(([k,v])=>`${k}: ${v}/10`).join(" • "); return `<div class="mb-4 bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[12px] text-neutral-300"><div class="text-[11px] uppercase tracking-wide text-neutral-400 mb-1">Radar sensorial</div><div class="text-neutral-200">${list}</div><div class="text-[10px] text-neutral-500 mt-1">(renderizar gráfico spider/radar aquí)</div></div>`; }
-      const hasContent = (o.aromatico&&o.aromatico.length)||(o.gustativo&&o.gustativo.length)||(o.sensorial&&o.sensorial.length)||(o.barras&&Object.keys(o.barras||{}).length)||(o.radar&&Object.keys(o.radar||{}).length); if(!hasContent) return "";
-      return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">Perfil sensorial</div>${radarBlock(o.radar)}${barsBlock(o.barras)}${chipsBlock(t.aromas,o.aromatico)}${chipsBlock(t.palate,o.gustativo)}${chipsBlock(t.finish,o.sensorial)}</section>`; }
+    const h = data.header || (data.for_front && data.for_front.header) || {};
+    const b = data.bodega || {};
+    const v = data.vino || {};
+    const ff = data.for_front || {};
+    const contacto = ff.contacto || {};
+    const enot = ff.enoturismo || {};
+    const narrativaTxt = data.narrative_text || ff.narrativa_es || v["Notas de cata"] || "";
 
-    function renderFichaTecnica(){ const d=appState.fichaData; const t=appState.t; const tech=d.ficha.tech_info||{}; const blocks=[ {key:"vinificacion_y_crianza",label:t.fermentation}, {key:"origen_y_vendimia",label:t.harvest_origin}, {key:"produccion",label:t.production}, {key:"notas_de_cata",label:t.tasting_notes}, {key:"curiosidad",label:t.curiosity}, ]; const valid=blocks.filter(b=>Array.isArray(tech[b.key]) && tech[b.key].length); if(!valid.length) return ""; const accordionsHTML = valid.map((b)=>`<details class="border border-neutral-700 rounded-xl bg-neutral-800 mb-3 overflow-hidden"><summary class="cursor-pointer select-none flex justify-between items-center px-4 py-3 text-sm text-neutral-200 font-medium"><span>${b.label}</span><span class="text-neutral-400 text-xs">▼</span></summary><div class="px-4 pb-4 text-[13px] leading-relaxed text-neutral-300">${tech[b.key].map(p=>`<p class="mb-3">${p}</p>`).join("")}</div></details>`).join(""); return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">${t.tech_sheet}</div>${accordionsHTML}</section>`; }
+    const logo = (Array.isArray(b["Logo de la Bodega"]) && b["Logo de la Bodega"][0]?.url) || "";
+    const imageUrl = h.imagen || (data.assets && data.assets.image_url) || v.imagen || "";
 
-    function renderReviews(){
-      const d=appState.fichaData; const t=appState.t;
-      if(!d.reviews_enabled) return "";
-      const avg = d.reviews_avg; const count = d.reviews_count; const recent=d.reviews_recent||[];
-      const h = `
-        <section class="py-6 border-b border-neutral-800">
-          <div class="mb-4 flex flex-col sm:flex-row sm:items-baseline sm:justify-between">
-            <div class="text-base font-semibold flex items-end gap-2">
-              <span>${t.avg_rating}${avg?` ${avg}/5`:''}</span>
-              ${ count!=null?`<span class="text-[11px] text-neutral-400">${t.based_on} ${count} ${t.opinions}</span>`:'' }
+    return {
+      schema_version:"qr2-ficha-1",
+      lang_requested: data.lang || appState.query.lang || "es",
+      lang_final:     data.lang || appState.query.lang || "es",
+      available_langs:[data.lang || appState.query.lang || "es"],
+      theme: { background_mode:'dark', primary_color:'#0f0a0a', accent_color:'#c79a5a' },
+      ficha:{
+        bodega: h.bodega || b["Bodega"] || "",
+        bodega_logo_url: logo,
+        nombre: h.titulo || v["Nombre del vino"] || data.title || "",
+        year:   h.anyada || data.anyada || "",
+        do:     h.do || data.do || v["Origen/DO"] || "",
+        variedad: h.variedad || v["Variedad de uva"] || "",
+        tipo:"", context: appState.query.context || "",
+        ubicacion:{},
+        bottle_media:{ image_url:imageUrl, video_url:"" },
+        narrativa:{ texto:narrativaTxt, audio_url:"" },
+        organoleptico:{
+          aromatico:(ff.organoleptico && ff.organoleptico.aromatico) || [],
+          gustativo:(ff.organoleptico && ff.organoleptico.gustativo) || [],
+          sensorial:(ff.organoleptico && ff.organoleptico.sensorial) || [],
+          barras:(ff.organoleptico && ff.organoleptico.indicadores) || {},
+          radar:{}
+        },
+        tech_info:{
+          vinificacion_y_crianza: v["Proceso de crianza"] ? [String(v["Proceso de crianza"])] : [],
+          origen_y_vendimia:      v["Fecha de cosecha"] ? [String(v["Fecha de cosecha"])] : [],
+          produccion:             v["Número de botellas"] ? [String(v["Número de botellas"])] : [],
+          notas_de_cata:          v["Notas de cata"] ? [String(v["Notas de cata"])] : [],
+          curiosidad:             (data.modules && data.modules.curiosidad) ? [String(data.modules.curiosidad)] : []
+        },
+        cta:{
+          comprar_url:"",
+          visita_url: enot.reserva_url || b["Reservas_URL_Base"] || "",
+          contacto_url: contacto.email ? `mailto:${contacto.email}` : ""
+        },
+        gallery:[]
+      },
+      reviews_enabled:false, reviews_avg:0, reviews_count:0, reviews_recent:[],
+      related_wines:[],
+      social:{ instagram:contacto.instagram||"", website:contacto.web||"", email:contacto.email||"", phone:"" },
+      sommelier:{enabled:false},
+      source_hash:data.source_hash||""
+    };
+  }
+
+  async function fetchFicha(){
+    const {vino_id,anyada,lang,cdn} = appState.query;
+    let data=null;
+    if(!cdn && BASE_API && BASE_API!=="PLACEHOLDER"){
+      try{ data = await fetchFromResolve(vino_id,anyada,lang); }
+      catch(e){ console.warn('API falló, uso CDN',e); }
+    }
+    if(!data){
+      const cdnData = await fetchFromCDN(vino_id,anyada,lang);
+      data = normalizeToFicha(cdnData);
+    }else{
+      data = normalizeToFicha(data);
+    }
+    return data;
+  }
+
+  /********************************************************************
+   * RENDER
+   ********************************************************************/
+  const el = sel => document.querySelector(sel);
+
+  function renderHeader(d){
+    const langs = (d.available_langs && d.available_langs.length) ? d.available_langs : [appState.query.lang||'es'];
+    const warning = d.lang_requested && d.lang_final && d.lang_requested!==d.lang_final
+      ? `<div class="text-[11px] text-amber-400 mt-1">Mostrando en ${d.lang_final.toUpperCase()} · pedido ${d.lang_requested.toUpperCase()}</div>` : '';
+
+    const ctx = prettyContext(appState.query.context || d.ficha.context || '');
+    const ctxChip = ctx ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${ctx}</span>` : '';
+
+    return `
+      <header class="py-4 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          ${ d.ficha.bodega_logo_url ? `<img src="${d.ficha.bodega_logo_url}" class="w-10 h-10 rounded-lg border border-neutral-700 object-cover">` : '' }
+          <div>
+            <div class="text-sm text-neutral-300">${d.ficha.bodega||''}</div>
+            <div class="text-2xl font-semibold">${d.ficha.nombre||''} <span class="text-neutral-400">${d.ficha.year||''}</span></div>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+              ${ d.ficha.do ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.do}</span>` : '' }
+              ${ d.ficha.variedad ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.variedad}</span>` : '' }
+              ${ ctxChip }
             </div>
+            ${warning}
           </div>
-          ${ recent.length ? (`<div class="space-y-3 mb-6">` + recent.map(r=>`
-            <div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[13px] leading-relaxed text-neutral-200">
-              <div class="flex justify-between text-[11px] text-neutral-400 mb-1">
-                <span>${r.name||'Anónimo'}</span><span>${r.date||''}</span>
-              </div>
-              <div class="text-neutral-100 mb-2">${r.text||''}</div>
-              <div class="text-[11px] text-amber-400 font-medium">★ ${r.rating||''}/5</div>
-            </div>`).join('') + `</div>`) : '' }
-          <form id="review-form" class="bg-neutral-800 border border-neutral-700 rounded-xl p-4 space-y-3">
-            <div class="text-sm font-medium">${t.leave_review}</div>
-            <div class="flex items-center gap-2 text-amber-400 text-xl" id="review-stars">
-              ${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="star-btn text-neutral-600 hover:text-amber-400 transition">★</button>`).join('')}
-            </div>
-            <input type="hidden" id="review-rating" value="0" />
-            <textarea id="review-comment" class="w-full bg-neutral-900 text-white text-[13px] rounded-lg px-3 py-2 border border-neutral-700 outline-none focus:ring-2 focus:ring-[var(--accent-color)]" rows="3" placeholder="${t.your_review}"></textarea>
-            <button class="w-full bg-amber-500 text-neutral-900 text-sm font-medium rounded-lg px-4 py-2 hover:bg-amber-400 active:scale-[0.98] transition">${t.send_review}</button>
-            <div id="review-msg" class="text-[11px] text-neutral-400"></div>
-          </form>
-        </section>`;
-      return h;
+        </div>
+
+        <div class="flex items-center gap-3">
+          <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-sm">
+            ${ langs.map(l=>`<option value="${l}" ${l===d.lang_final?'selected':''}>${l.toUpperCase()}</option>`).join('') }
+          </select>
+          <button id="shareBtn" class="text-amber-400 underline">${appState.t.share}</button>
+        </div>
+      </header>
+      <hr class="border-neutral-800">
+    `;
+  }
+
+  function renderHero(d){
+    const f=d.ficha||{}; const frame = (d.theme?.bottle_frame==='bold')?'frame-bold':'frame-soft';
+    let mediaBlock='';
+    if(f.bottle_media?.video_url){
+      mediaBlock = `
+        <video data-bottle data-fallback="${f.bottle_media.image_url||''}"
+          class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 ${frame}"
+          src="${f.bottle_media.video_url}" autoplay muted loop playsinline></video>`;
+    }else if(f.bottle_media?.image_url){
+      mediaBlock = `<img src="${f.bottle_media.image_url}" alt="bottle"
+        class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 ${frame}">`;
     }
+    return `
+      <section class="py-6">${mediaBlock}</section>
+      <hr class="border-neutral-800">
+    `;
+  }
 
-    function renderCTASection(){ const d=appState.fichaData; const t=appState.t; const cta=d.ficha.cta||{}; const social=d.social||{}; const btns=[]; if(cta.comprar_url){ btns.push(`<button class="cta-btn flex-1 bg-amber-500 text-neutral-900 text-sm font-medium rounded-xl px-4 py-3 text-center hover:bg-amber-400 active:scale-[0.98] transition" data-action="comprar" data-url="${cta.comprar_url}">${t.buy}</button>`);} if(cta.visita_url){ btns.push(`<button class="cta-btn flex-1 bg-neutral-800 text-white text-sm font-medium rounded-xl px-4 py-3 text-center border border-neutral-700 hover:border-amber-500 hover:text-amber-400 active:scale-[0.98] transition" data-action="visita" data-url="${cta.visita_url}">${t.visit}</button>`);} if(cta.contacto_url){ btns.push(`<button class="cta-btn flex-1 bg-neutral-800 text-white text-sm font-medium rounded-xl px-4 py-3 text-center border border-neutral-700 hover:border-amber-500 hover:text-amber-400 active:scale-[0.98] transition" data-action="contacto" data-url="${cta.contacto_url}">${t.contact}</button>`);} const socialBlock=(()=>{ const rows=[]; if(social.instagram){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="${social.instagram}" target="_blank" rel="noopener">Instagram</a>`);} if(social.website){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="${social.website}" target="_blank" rel="noopener">Web</a>`);} if(social.email){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="mailto:${social.email}">Email</a>`);} if(social.phone){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="tel:${social.phone}">${social.phone}</a>`);} if(!rows.length) return ""; return `<div class="mt-4 text-[13px] text-neutral-300 flex flex-col gap-1">${rows.join("")}</div>`; })(); if(!btns.length && !socialBlock) return ""; return `<section class="py-6 border-b border-neutral-800"><div class="flex flex-col gap-3 sm:flex-row sm:gap-4">${btns.join("")}</div>${socialBlock}</section>`; }
+  function chipsBlock(title, arr){
+    if(!arr||!arr.length) return '';
+    return `
+      <div class="fade-in">
+        <div class="text-sm mb-2 text-neutral-300">${title}</div>
+        <div class="flex flex-wrap gap-2">
+          ${arr.map(x=>`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${x}</span>`).join('')}
+        </div>
+      </div>`;
+  }
 
-    function renderGallery(){ const d=appState.fichaData; const t=appState.t; const g=d.ficha.gallery||[]; if(!g.length) return ""; const items=g.map(item=>`<div class="min-w-[200px] max-w-[200px] h-[260px] rounded-xl bg-neutral-800 border border-neutral-700 overflow-hidden flex items-center justify-center">${ item.type==="video"?`<video src="${item.url}" class="w-full h-full object-cover" autoplay muted loop playsinline></video>`:`<img src="${item.url}" class="w-full h-full object-cover" alt="media"/>` }</div>`).join(""); return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">${t.gallery_title}</div><div class="flex gap-4 overflow-x-auto pb-2">${items}</div></section>`; }
+  function barsBlock(map){
+    if(!map || !Object.keys(map).length) return '';
+    const t=appState.t;
+    const rows = Object.entries(map).map(([k,val])=>{
+      const pct = Math.max(0, Math.min(10, Number(val||0)))*10;
+      const label = (t.indicators && t.indicators[k]) || k;
+      return `
+        <div class="flex items-center gap-3">
+          <div class="w-28 text-[12px] text-neutral-300">${label}</div>
+          <div class="flex-1 h-2 bg-neutral-800 rounded">
+            <div class="h-2 bg-amber-500 grow-x rounded" style="width:${pct}%"></div>
+          </div>
+          <div class="w-10 text-right text-[12px] text-neutral-400">${val||0}/10</div>
+        </div>`;
+    }).join('');
+    return `<div class="space-y-2 fade-in">${rows}</div>`;
+  }
 
-    function renderRelatedWines(){ const d=appState.fichaData; const t=appState.t; const rel=d.related_wines||[]; if(!rel.length) return ""; const cards = rel.map(r=>`<button class="related-card min-w-[160px] max-w-[160px] bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-left text-[13px] flex flex-col gap-2 active:scale-[0.98] transition" data-vino="${r.vino_id}" data-anyada="${r.anyada}" data-lang="${r.lang||d.lang_final}"><div class="w-full h-[160px] rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-center overflow-hidden"><img src="${r.image_url||''}" alt="${r.nombre||''}" class="object-contain max-h-[140px]"/></div><div class="font-semibold text-neutral-100 leading-snug">${r.nombre||""} ${r.anyada||""}</div><div class="text-[11px] text-neutral-400 leading-snug">${r.do||""}</div><div class="text-[11px] text-neutral-300 leading-snug">${r.short_desc||""}</div><div class="text-[11px] text-amber-400 leading-snug font-medium">${r.award||""}</div><div class="text-[11px] text-amber-400 underline underline-offset-2">${t.other_wines}</div></button>`).join(""); return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">${t.other_wines}</div><div class="flex gap-4 overflow-x-auto pb-2">${cards}</div></section>`; }
+  function renderNarrativa(d){
+    const n = d.ficha?.narrativa?.texto || "";
+    const audio = d.ficha?.narrativa?.audio_url || "";
+    if(!n && !audio) return '';
+    return `
+      <section class="py-6">
+        <h2 class="text-xl font-semibold mb-2">${appState.t.ask}</h2>
+        ${ n ? `<p class="text-neutral-200 leading-relaxed mb-3">${n.replace(/\n/g,'<br>')}</p>` : '' }
+        ${ audio ? `<audio controls class="w-full"><source src="${audio}" type="audio/mpeg"></audio>`:'' }
+      </section>
+      <hr class="border-neutral-800">`;
+  }
 
-    function renderFooter(){ const d=appState.fichaData; const t=appState.t; const f=d.ficha; const social=d.social||{}; const socialIcons=[]; if(social.instagram){ socialIcons.push(`<a href="${social.instagram}" class="underline text-[11px] hover:text-amber-400" target="_blank">Instagram</a>`);} if(social.website){ socialIcons.push(`<a href="${social.website}" class="underline text-[11px] hover:text-amber-400" target="_blank">Web</a>`);} return `<footer class="py-10 text-center text-[11px] text-neutral-500"><div class="text-neutral-300 font-medium mb-1">${f.bodega||""}</div><div class="mb-2 text-neutral-400">Powered by SommelierLab</div><div class="flex justify-center gap-3 text-neutral-400 mb-4 flex-wrap">${socialIcons.join("")}</div><div class="text-neutral-600 mb-1">${t.responsibility}</div><div class="text-neutral-600">Alérgenos / Información legal</div></footer>`; }
+  function renderOrganoleptico(d){
+    const o = d.ficha?.organoleptico || {};
+    if(!(o.aromatico?.length||o.gustativo?.length||o.sensorial?.length||Object.keys(o.barras||{}).length)) return '';
+    return `
+      <section class="py-6 space-y-5">
+        ${barsBlock(o.barras)}
+        ${chipsBlock('Aromas', o.aromatico)}
+        ${chipsBlock('Boca', o.gustativo)}
+        ${chipsBlock('Sensorial', o.sensorial)}
+      </section>
+      <hr class="border-neutral-800">`;
+  }
 
-    /********************************************************************
-     * MASTER RENDER
-     ********************************************************************/
-    function renderApp(){ const root=document.getElementById("app"); const sectionsHTML=[ renderHeader(), renderContext(), renderHero(), renderSommelierBlock(), renderOrganoleptico(), renderFichaTecnica(), renderReviews(), renderCTASection(), renderGallery(), renderRelatedWines(), renderFooter(), ].join(""); root.innerHTML=sectionsHTML; wireInteractionsAfterRender(); }
+  function renderTech(d){
+    const t=d.ficha?.tech_info||{}; const entries=[
+      ['Vinificación y crianza', t.vinificacion_y_crianza],
+      ['Origen y vendimia', t.origen_y_vendimia],
+      ['Producción', t.produccion],
+      ['Notas de cata', t.notas_de_cata],
+      ['Curiosidad', t.curiosidad],
+    ].filter(([,arr])=>arr&&arr.length);
+    if(!entries.length) return '';
+    return `
+      <section class="py-6">
+        <div class="space-y-4">
+          ${entries.map(([title,arr])=>`
+           <details class="group border border-neutral-800 rounded-xl p-3">
+             <summary class="cursor-pointer font-medium text-neutral-100">${title}</summary>
+             <div class="mt-2 text-neutral-300">${arr.map(x=>`<p class="mb-2">${x}</p>`).join('')}</div>
+           </details>`).join('')}
+        </div>
+      </section>
+      <hr class="border-neutral-800">`;
+  }
 
-    /********************************************************************
-     * INTERACCIONES
-     ********************************************************************/
-    function wireInteractionsAfterRender(){ const d=appState.fichaData; const t=appState.t; const langSel=document.getElementById("lang-select"); if(langSel){ langSel.addEventListener("change",(e)=>{const newLang=e.target.value; const url=new URL(window.location.href); url.searchParams.set("lang", newLang); history.pushState({},"",url.toString()); bootstrap(); }); }
-      const shareBtn=document.getElementById("share-btn"); if(shareBtn){ shareBtn.addEventListener("click",async()=>{ try{ if(navigator.share){ await navigator.share({title:document.title,url:window.location.href}); } else { await navigator.clipboard.writeText(window.location.href); alert("Enlace copiado"); } }catch(e){ console.warn("Share failed", e); } }); }
-      document.querySelectorAll(".cta-btn").forEach(btn=>{ btn.addEventListener("click", async()=>{ const action=btn.getAttribute("data-action"); const targetUrl=btn.getAttribute("data-url"); await trackCTA(action); window.location.href=targetUrl; }); });
-      const starBtns=document.querySelectorAll(".star-btn"); const ratingInput=document.getElementById("review-rating"); if(starBtns.length && ratingInput){ starBtns.forEach(btn=>{ btn.addEventListener("click",()=>{ const val=btn.getAttribute("data-star"); ratingInput.value=val; starBtns.forEach(b=>{ const bv=b.getAttribute("data-star"); b.classList.toggle("text-amber-400", Number(bv)<=Number(val)); b.classList.toggle("text-neutral-600", Number(bv)>Number(val)); }); }); }); }
-      const reviewForm=document.getElementById("review-form"); if(reviewForm){ reviewForm.addEventListener("submit", async(e)=>{ e.preventDefault(); const rating=Number(document.getElementById("review-rating").value||0); const comment=document.getElementById("review-comment").value.trim(); const msgBox=document.getElementById("review-msg"); if(!rating||!comment){ msgBox.textContent="⭐ + comentario, por favor."; return; } const body={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", rating, comment }; const resp = await postJSON(`${BASE_API}/qr/leave-review`, body); if(resp && resp.ok!==false){ msgBox.textContent=t.thanks_review; document.getElementById("review-comment").value=""; document.getElementById("review-rating").value="0"; } else { msgBox.textContent="Error. Intenta más tarde."; } }); }
-      document.querySelectorAll(".related-card").forEach(card=>{ card.addEventListener("click",()=>{ const v=card.getAttribute("data-vino"); const a=card.getAttribute("data-anyada"); const l=card.getAttribute("data-lang")||appState.fichaData.lang_final; const url=new URL(window.location.href); url.searchParams.set("vino_id", v); url.searchParams.set("anyada", a); url.searchParams.set("lang", l); history.pushState({},"",url.toString()); bootstrap(); }); });
-      const openSommelierBtn=document.getElementById("open-sommelier-btn"); const fab=document.getElementById("sommelier-fab"); if(appState.sommelierAvailable){ if(fab) fab.classList.remove("hidden"); if(openSommelierBtn){ openSommelierBtn.addEventListener("click", openSommelierModal); } if(fab){ fab.addEventListener("click", openSommelierModal); } } else { if(fab) fab.classList.add("hidden"); }
-      const closeBtn=document.getElementById("sommelier-close"); if(closeBtn){ closeBtn.addEventListener("click", closeSommelierModal); }
-      const sommelierForm=document.getElementById("sommelier-form"); if(sommelierForm){ sommelierForm.addEventListener("submit", handleSommelierSubmit); }
-      const input=document.getElementById("sommelier-input"); if(input){ input.setAttribute("placeholder", appState.t.sommelier_placeholder); }
+  function renderCTASection(d){
+    const c=d.ficha?.cta||{};
+    if(!c.comprar_url && !c.visita_url && !c.contacto_url) return '';
+    return `
+      <section class="py-6 flex flex-wrap gap-3">
+        ${ c.comprar_url ? `<a href="${c.comprar_url}" class="bg-amber-500 text-neutral-900 rounded-xl px-4 py-2">Comprar</a>`:'' }
+        ${ c.visita_url ? `<a href="${c.visita_url}" class="bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2">Visitar bodega</a>`:'' }
+        ${ c.contacto_url ? `<a href="${c.contacto_url}" class="underline text-amber-400">Contacto</a>`:'' }
+      </section>
+      <hr class="border-neutral-800">`;
+  }
+
+  function renderReviews(d){
+    if(!d.reviews_enabled) return '';
+    const t=appState.t, avg=d.reviews_avg, count=d.reviews_count||0, recent=d.reviews_recent||[];
+    return `
+      <section class="py-6">
+        <div class="mb-4 flex items-baseline gap-2">
+          <div class="text-base font-semibold">${t.avg_rating}${avg?` ${avg}/5`:''}</div>
+          <div class="text-[11px] text-neutral-400">${t.based_on} ${count} ${t.opinions}</div>
+        </div>
+        ${ recent.length ? `<div class="space-y-3 mb-6">${recent.map(r=>`
+          <div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[13px] text-neutral-200">
+            <div class="flex justify-between text-[11px] text-neutral-400 mb-1"><span>${r.name||'Anónimo'}</span><span>${r.date||''}</span></div>
+            <div class="text-neutral-100 mb-2">${r.text||''}</div>
+            <div class="text-[11px] text-amber-400 font-medium">★ ${r.rating||''}/5</div>
+          </div>`).join('')}</div>`:''}
+      </section>
+      <hr class="border-neutral-800">`;
+  }
+
+  function renderFooter(){
+    return `
+      <footer class="py-10 text-center text-neutral-400">
+        <div class="text-neutral-300"><a href="https://sommelierlab.com" class="underline">Powered by SommelierLab</a></div>
+        <div class="mt-4">${UI_COPY.es.drink_responsibly}</div>
+        <div class="mt-1"><a class="underline" href="#">${UI_COPY.es.allergens}</a></div>
+      </footer>`;
+  }
+
+  // Sticky CTA móvil
+  function renderStickyCTA(){
+    const c = appState.fichaData?.ficha?.cta || {};
+    const btns = [];
+    if(c.comprar_url) btns.push(`<button data-action="comprar" data-url="${c.comprar_url}" class="cta-btn flex-1 bg-amber-500 text-neutral-900 rounded-xl px-3 py-2">Comprar</button>`);
+    if(c.visita_url)  btns.push(`<button data-action="visita"  data-url="${c.visita_url}"  class="cta-btn flex-1 bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2">Visitar</button>`);
+    if(!btns.length) return;
+    const bar=document.createElement('div');
+    bar.id='cta-sticky';
+    bar.innerHTML = `<div class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-neutral-900/95 backdrop-blur border-t border-neutral-700 px-4 py-3"><div class="max-w-[1100px] mx-auto flex gap-3">${btns.join('')}</div></div>`;
+    document.body.appendChild(bar);
+    bar.querySelectorAll('.cta-btn').forEach(b=>{
+      b.addEventListener('click',()=>{ location.href=b.getAttribute('data-url'); });
+    });
+  }
+
+  function attachMediaFallback(){
+    const v=document.querySelector('video[data-bottle]'); if(!v) return;
+    const imgUrl=v.getAttribute('data-fallback');
+    const toImg=()=>{
+      const img=document.createElement('img');
+      img.src=imgUrl||''; img.alt=appState?.fichaData?.ficha?.nombre||'bottle'; img.className=v.className;
+      v.replaceWith(img);
+    };
+    v.addEventListener('error',toImg,{once:true});
+    v.addEventListener('stalled',toImg,{once:true});
+    v.addEventListener('abort',toImg,{once:true});
+  }
+
+  // RENDER MASTER
+  function renderApp(){
+    const d = appState.fichaData;
+    appState.t = UI_COPY[(d.lang_final||'es')] || UI_COPY.es;
+    applyTheme(d.theme);
+    const html = [
+      renderHeader(d),
+      renderHero(d),
+      renderNarrativa(d),
+      renderOrganoleptico(d),
+      renderTech(d),
+      renderCTASection(d),
+      renderReviews(d),
+      renderFooter()
+    ].join('');
+    el('#app').innerHTML = html;
+    wireInteractionsAfterRender();
+  }
+
+  function wireInteractionsAfterRender(){
+    // selector idioma
+    const sel=el('#langSel');
+    if(sel){
+      sel.addEventListener('change',()=>{
+        const url=new URL(location.href);
+        url.searchParams.set('lang', sel.value.toLowerCase());
+        location.href=url.toString();
+      });
     }
-
-    /********************************************************************
-     * SOMMELIER CHAT
-     ********************************************************************/
-    function openSommelierModal(){ if(appState.sommelierLocked){ const status=document.getElementById("sommelier-status"); if(status) status.textContent=appState.t.sommelier_unavailable; } document.getElementById("sommelier-modal").classList.remove("hidden"); renderChatMessages(); }
-    function closeSommelierModal(){ document.getElementById("sommelier-modal").classList.add("hidden"); }
-    function renderChatMessages(){ const box=document.getElementById("sommelier-chat"); if(!box) return; box.innerHTML=appState.chatHistory.map(m=>{ const align=m.role==='user'?"items-end":"items-start"; const bubbleColor=m.role==='user'?"bg-amber-500 text-neutral-900":"bg-neutral-800 text-neutral-100 border border-neutral-700"; const label=m.role==='user'?"Tú":"Sommelier"; return `<div class="flex flex-col ${align} max-w-[90%]"><div class="text-[10px] text-neutral-500 mb-1">${label}</div><div class="rounded-xl px-3 py-2 text-[13px] leading-relaxed ${bubbleColor}">${m.text}</div></div>`; }).join(""); box.scrollTop=box.scrollHeight; }
-    async function handleSommelierSubmit(e){ e.preventDefault(); if(appState.sommelierLocked) return; const input=document.getElementById("sommelier-input"); const q=(input.value||"").trim(); if(!q) return; appState.chatHistory.push({role:"user", text:q}); renderChatMessages(); input.value=""; const body={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", question:q }; const resp = await postJSON(`${BASE_API}/sommelier/ask`, body); if(resp && resp.ok!==false && resp.answer){ appState.chatHistory.push({role:"sommelier", text:resp.answer}); renderChatMessages(); } else if(resp && resp.reason==="limit_reached"){ appState.sommelierLocked=true; const msg=resp.message||appState.t.sommelier_unavailable; appState.chatHistory.push({role:"sommelier", text:msg}); renderChatMessages(); document.getElementById("sommelier-input").disabled=true; } else { appState.chatHistory.push({role:"sommelier", text:"(No disponible ahora mismo)"}); renderChatMessages(); } }
-
-    /********************************************************************
-     * TRACKING
-     ********************************************************************/
-    async function trackScan(){ if(!BASE_API || BASE_API==="PLACEHOLDER") return; const payload={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", userAgent:navigator.userAgent||"", referrer:document.referrer||"" }; await postJSON(`${BASE_API}/qr/scan`, payload); }
-    async function trackCTA(actionName){ if(!BASE_API || BASE_API==="PLACEHOLDER") return; const payload={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", action:actionName }; await postJSON(`${BASE_API}/qr/cta`, payload); }
-
-    /********************************************************************
-     * DATA FETCH (API con fallback CDN)
-     ********************************************************************/
-    async function fetchFromResolve(vino_id, anyada, lang){ const url=new URL(`${BASE_API}/qr2/resolve`); url.searchParams.set("vino_id", vino_id); url.searchParams.set("anyada", anyada); url.searchParams.set("lang", lang); const r = await fetch(url.toString()); if(!r.ok) throw new Error("resolve_failed"); return await r.json(); }
-
-    async function fetchFromCDN(vino_id, anyada, lang){ const url = buildCdnFichaUrl(vino_id, anyada, lang); const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error("cdn_failed" ); return await r.json(); }
-
-    async function fetchFicha(){ let desiredLang = appState.query.lang || (navigator.language||"es").slice(0,2).toLowerCase(); const {vino_id, anyada} = appState.query; const forceCDN = new URLSearchParams(location.search).get('cdn') === '1';
-      // 1) Prefer API resolve si BASE_API está configurado y no forzamos CDN
-      if(!forceCDN && BASE_API && BASE_API!=="PLACEHOLDER"){ try{ const data = await fetchFromResolve(vino_id, anyada, desiredLang); return data; } catch(e){ console.warn("/qr2/resolve falló, usando CDN", e); }
-      }
-      // 2) Fallback CDN (ficha.json ya publicado en Backblaze)
-      const data = await fetchFromCDN(vino_id, anyada, desiredLang);
-      // Normalizamos mínimos para que el front no reviente
-      data.lang_requested = desiredLang;
-      data.lang_final = data.lang_final || desiredLang;
-      data.available_langs = data.available_langs || [desiredLang];
-      data.ficha = data.ficha || {};
-      return data;
+    // compartir
+    const sb=el('#shareBtn');
+    if(sb){
+      sb.addEventListener('click', async ()=>{
+        try{
+          const u=location.href;
+          if(navigator.share){ await navigator.share({title:document.title,url:u}); }
+          else{ await navigator.clipboard.writeText(u); sb.textContent='Copiado'; setTimeout(()=>sb.textContent=UI_COPY.es.share,1200); }
+        }catch(e){ console.warn('share',e); }
+      });
     }
+    attachMediaFallback();
+  }
 
-    /********************************************************************
-     * BOOTSTRAP
-     ********************************************************************/
-    async function bootstrap(){ appState.query = getQueryParams(); const data = await fetchFicha(); appState.fichaData = data; const langFinal = data.lang_final || "en"; appState.t = UI_COPY[langFinal] || UI_COPY["en"]; applyTheme(data.theme); appState.sommelierAvailable = data.sommelier && data.sommelier.enabled===true; appState.sommelierLocked=false; appState.chatHistory=[]; renderApp(); await trackScan(); }
+  /********************************************************************
+   * BOOT
+   ********************************************************************/
+  async function bootstrap(){
+    appState.query = getQueryParams();
+    try{
+      const data = await fetchFicha();
+      appState.fichaData = data;
+      renderApp();
+      renderStickyCTA();
+    }catch(e){
+      console.error(e);
+      el('#app').innerHTML = `<div class="p-6 text-red-400">Error cargando la ficha.</div>`;
+    }
+  }
 
-    document.addEventListener("DOMContentLoaded", bootstrap);
+  bootstrap();
   </script>
 </body>
 </html>
