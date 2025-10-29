@@ -246,10 +246,13 @@
       mediaBlock = `<img src="${f.bottle_media.image_url}" alt="bottle"
         class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 ${frame}">`;
     }
-    return `
-      <section class="py-6">${mediaBlock}</section>
-      <hr class="border-neutral-800">
-    `;
+   return `
+  <section class="py-6">
+    ${mediaBlock}
+    ${renderAwards(d)}
+  </section>
+  <hr class="border-neutral-800">
+`;
   }
 /* === PREMIOS / AWARDS === */
 function renderAwards(d){
