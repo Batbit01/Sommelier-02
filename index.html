@@ -90,7 +90,7 @@
         lang:    langRaw,
         context: ctxRaw
       };
-    }; }
+    }
 
     function pickLangFallback(requested, available){ if(available && available.length){ if(requested && available.includes(requested)) return requested; return available[0]; } return requested || "en"; }
 
