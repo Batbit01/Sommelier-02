@@ -47,6 +47,18 @@
   </div>
 
   <script>
+    // Error overlay para detectar fallos de sintaxis en producción
+    window.addEventListener('error', (e)=>{
+      try{
+        const div=document.createElement('div');
+        div.style.position='fixed';div.style.top='0';div.style.left='0';div.style.right='0';
+        div.style.background='rgba(180,0,0,.9)';div.style.color='#fff';div.style.zIndex='99999';
+        div.style.font='12px/1.4 monospace';div.style.padding='8px 10px';
+        div.textContent = 'JS error: '+ (e?.message||'Unknown');
+        document.body.appendChild(div);
+        console.error('[SommelierLab] JS error', e);
+      }catch(_){/* noop */}
+    });
     /********************************************************************
      * CONFIG
      ********************************************************************/
@@ -122,8 +134,39 @@
 
     function renderFichaTecnica(){ const d=appState.fichaData; const t=appState.t; const tech=d.ficha.tech_info||{}; const blocks=[ {key:"vinificacion_y_crianza",label:t.fermentation}, {key:"origen_y_vendimia",label:t.harvest_origin}, {key:"produccion",label:t.production}, {key:"notas_de_cata",label:t.tasting_notes}, {key:"curiosidad",label:t.curiosity}, ]; const valid=blocks.filter(b=>Array.isArray(tech[b.key]) && tech[b.key].length); if(!valid.length) return ""; const accordionsHTML = valid.map((b)=>`<details class="border border-neutral-700 rounded-xl bg-neutral-800 mb-3 overflow-hidden"><summary class="cursor-pointer select-none flex justify-between items-center px-4 py-3 text-sm text-neutral-200 font-medium"><span>${b.label}</span><span class="text-neutral-400 text-xs">▼</span></summary><div class="px-4 pb-4 text-[13px] leading-relaxed text-neutral-300">${tech[b.key].map(p=>`<p class="mb-3">${p}</p>`).join("")}</div></details>`).join(""); return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">${t.tech_sheet}</div>${accordionsHTML}</section>`; }
 
-    function renderReviews(){ const d=appState.fichaData; const t=appState.t; if(!d.reviews_enabled) return ""; const avgScore=d.reviews_avg||null; const totalCount=d.reviews_count||null; const recent=d.reviews_recent||[]; const headerStats = `<div class=\"mb-4 flex flex-col sm:flex-row sm:items-baseline sm:justify-between\"><div class=\"text-base font-semibold flex items-end gap-2\"><span>${t.avg_rating}${avgScore?` ${avgScore}/5`:""}</span>${ totalCount!==null?`<span class=\"text-[11px] text-neutral-400\">${t.based_on} ${totalCount} ${t.opinions}</span>`:"" }</div></div>`; const recentBlock = recent.length?`<div class="space-y-3 mb-6">${recent.map(r=>`<div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[13px] leading-relaxed text-neutral-200"><div class="flex justify-between text-[11px] text-neutral-400 mb-1"><span>${r.name||"Anónimo"}</span><span>${r.date||""}</span></div><div class="text-neutral-100 mb-2">${r.text||""}</div><div class="text-[11px] text-amber-400 font-medium">★ ${r.rating||""}/5</div></div>`).join("")}</div>`:"";
-      return `<section class="py-6 border-b border-neutral-800">${headerStats}${recentBlock}<form id="review-form" class="bg-neutral-800 border border-neutral-700 rounded-xl p-4 space-y-3"><div class="text-sm font-medium">${t.leave_review}</div><div class="flex items-center gap-2 text-amber-400 text-xl" id="review-stars">${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="star-btn text-neutral-600 hover:text-amber-400 transition">★</button>`).join("")}</div><input type="hidden" id="review-rating" value="0" /><textarea id="review-comment" class="w-full bg-neutral-900 text-white text-[13px] rounded-lg px-3 py-2 border border-neutral-700 outline-none focus:ring-2 focus:ring-[var(--accent-color)]" rows="3" placeholder="${t.your_review}"></textarea><button class="w-full bg-amber-500 text-neutral-900 text-sm font-medium rounded-lg px-4 py-2 hover:bg-amber-400 active:scale-[0.98] transition">${t.send_review}</button><div id="review-msg" class="text-[11px] text-neutral-400"></div></form></section>`; }
+    function renderReviews(){
+      const d=appState.fichaData; const t=appState.t;
+      if(!d.reviews_enabled) return "";
+      const avg = d.reviews_avg; const count = d.reviews_count; const recent=d.reviews_recent||[];
+      const h = `
+        <section class="py-6 border-b border-neutral-800">
+          <div class="mb-4 flex flex-col sm:flex-row sm:items-baseline sm:justify-between">
+            <div class="text-base font-semibold flex items-end gap-2">
+              <span>${t.avg_rating}${avg?` ${avg}/5`:''}</span>
+              ${ count!=null?`<span class="text-[11px] text-neutral-400">${t.based_on} ${count} ${t.opinions}</span>`:'' }
+            </div>
+          </div>
+          ${ recent.length ? (`<div class="space-y-3 mb-6">` + recent.map(r=>`
+            <div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[13px] leading-relaxed text-neutral-200">
+              <div class="flex justify-between text-[11px] text-neutral-400 mb-1">
+                <span>${r.name||'Anónimo'}</span><span>${r.date||''}</span>
+              </div>
+              <div class="text-neutral-100 mb-2">${r.text||''}</div>
+              <div class="text-[11px] text-amber-400 font-medium">★ ${r.rating||''}/5</div>
+            </div>`).join('') + `</div>`) : '' }
+          <form id="review-form" class="bg-neutral-800 border border-neutral-700 rounded-xl p-4 space-y-3">
+            <div class="text-sm font-medium">${t.leave_review}</div>
+            <div class="flex items-center gap-2 text-amber-400 text-xl" id="review-stars">
+              ${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="star-btn text-neutral-600 hover:text-amber-400 transition">★</button>`).join('')}
+            </div>
+            <input type="hidden" id="review-rating" value="0" />
+            <textarea id="review-comment" class="w-full bg-neutral-900 text-white text-[13px] rounded-lg px-3 py-2 border border-neutral-700 outline-none focus:ring-2 focus:ring-[var(--accent-color)]" rows="3" placeholder="${t.your_review}"></textarea>
+            <button class="w-full bg-amber-500 text-neutral-900 text-sm font-medium rounded-lg px-4 py-2 hover:bg-amber-400 active:scale-[0.98] transition">${t.send_review}</button>
+            <div id="review-msg" class="text-[11px] text-neutral-400"></div>
+          </form>
+        </section>`;
+      return h;
+    }
 
     function renderCTASection(){ const d=appState.fichaData; const t=appState.t; const cta=d.ficha.cta||{}; const social=d.social||{}; const btns=[]; if(cta.comprar_url){ btns.push(`<button class="cta-btn flex-1 bg-amber-500 text-neutral-900 text-sm font-medium rounded-xl px-4 py-3 text-center hover:bg-amber-400 active:scale-[0.98] transition" data-action="comprar" data-url="${cta.comprar_url}">${t.buy}</button>`);} if(cta.visita_url){ btns.push(`<button class="cta-btn flex-1 bg-neutral-800 text-white text-sm font-medium rounded-xl px-4 py-3 text-center border border-neutral-700 hover:border-amber-500 hover:text-amber-400 active:scale-[0.98] transition" data-action="visita" data-url="${cta.visita_url}">${t.visit}</button>`);} if(cta.contacto_url){ btns.push(`<button class="cta-btn flex-1 bg-neutral-800 text-white text-sm font-medium rounded-xl px-4 py-3 text-center border border-neutral-700 hover:border-amber-500 hover:text-amber-400 active:scale-[0.98] transition" data-action="contacto" data-url="${cta.contacto_url}">${t.contact}</button>`);} const socialBlock=(()=>{ const rows=[]; if(social.instagram){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="${social.instagram}" target="_blank" rel="noopener">Instagram</a>`);} if(social.website){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="${social.website}" target="_blank" rel="noopener">Web</a>`);} if(social.email){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="mailto:${social.email}">Email</a>`);} if(social.phone){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="tel:${social.phone}">${social.phone}</a>`);} if(!rows.length) return ""; return `<div class="mt-4 text-[13px] text-neutral-300 flex flex-col gap-1">${rows.join("")}</div>`; })(); if(!btns.length && !socialBlock) return ""; return `<section class="py-6 border-b border-neutral-800"><div class="flex flex-col gap-3 sm:flex-row sm:gap-4">${btns.join("")}</div>${socialBlock}</section>`; }
 
