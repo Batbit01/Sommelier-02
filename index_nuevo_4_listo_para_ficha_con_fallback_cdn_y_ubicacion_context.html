@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SommelierLab · Ficha del vino</title>
+
+  <!-- Tailwind CDN para prototipo -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @keyframes floatPulse { 0%{transform:translateY(0) scale(1);opacity:1} 50%{transform:translateY(-4px) scale(1.03);opacity:.9} 100%{transform:translateY(0) scale(1);opacity:1}}
+    .award-badge-anim{animation:floatPulse 3s ease-in-out infinite}
+    .modal-bg{background-color:rgba(0,0,0,.6);backdrop-filter:blur(4px)}
+  </style>
+</head>
+
+<body class="min-h-screen text-white bg-neutral-900 flex flex-col font-sans">
+  <div id="app" class="flex-1 flex flex-col max-w-[1100px] w-full mx-auto px-4 pb-24"></div>
+
+  <!-- FAB Sommelier -->
+  <button id="sommelier-fab" class="hidden fixed bottom-4 right-4 z-40 rounded-full shadow-xl px-4 py-3 text-sm font-medium flex items-center gap-2 bg-amber-500 text-neutral-900 hover:bg-amber-400 active:scale-[0.98] transition">
+    <span class="text-lg">🍷</span>
+    <span class="leading-none">Sommelier</span>
+  </button>
+
+  <!-- Modal Sommelier -->
+  <div id="sommelier-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div class="modal-bg absolute inset-0"></div>
+    <div class="relative bg-neutral-900 text-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden border border-neutral-700">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-700">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🍷</span>
+          <div class="text-sm font-semibold leading-tight">
+            Sommelier virtual
+            <div id="sommelier-status" class="text-[10px] text-neutral-400 font-normal">Pregúntame sobre este vino</div>
+          </div>
+        </div>
+        <button id="sommelier-close" class="text-neutral-400 hover:text-white text-xl leading-none">✕</button>
+      </div>
+      <div id="sommelier-chat" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm leading-relaxed"></div>
+      <form id="sommelier-form" class="border-t border-neutral-700 p-3 flex gap-2">
+        <input id="sommelier-input" class="flex-1 bg-neutral-800 text-white text-sm rounded-lg px-3 py-2 border border-neutral-700 outline-none focus:ring-2 focus:ring-amber-500" placeholder="¿Con qué lo marido?" />
+        <button class="bg-amber-500 text-neutral-900 text-sm font-medium rounded-lg px-3 py-2 hover:bg-amber-400 active:scale-[0.98] transition">▶</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /********************************************************************
+     * CONFIG
+     ********************************************************************/
+    // Si dejas BASE_API vacío o con "PLACEHOLDER", el front usará el fallback CDN (Backblaze)
+    const BASE_API = "https://n8n-production-cb18.up.railway.app/webhook"; // Prod Railway n8n
+    const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
+
+    /********************************************************************
+     * UI COPY
+     ********************************************************************/
+    const UI_COPY = { es:{ winery:"Bodega", variety:"Variedad", appellation:"Denominación", tasting_notes:"Notas de cata", tech_sheet:"Ficha técnica", fermentation:"Vinificación y crianza", production:"Producción", harvest_origin:"Origen y vendimia", curiosity:"Curiosidad", ask_sommelier:"Preguntar al sommelier", avg_rating:"Puntuación media", based_on:"Basado en", opinions:"opiniones", leave_review:"Deja tu reseña", your_review:"¿A qué te sabe este vino?", send_review:"Enviar reseña", aromas:"Aromas", palate:"En boca", finish:"Sensación final", buy:"Comprar", visit:"Visitar la bodega", contact:"Solicitar información", other_wines:"Otros vinos que puedes probar", gallery_title:"Dentro de la bodega", responsibility:"Bebe con responsabilidad", sommelier_unavailable:"El sommelier virtual no está disponible ahora mismo.", sommelier_placeholder:"Pregúntame lo que quieras sobre este vino", thanks_review:"Gracias. Tu reseña entrará en moderación.", location_block:"Ubicación / contexto" }, en:{ winery:"Winery", variety:"Variety", appellation:"Appellation", tasting_notes:"Tasting notes", tech_sheet:"Technical sheet", fermentation:"Vinification & ageing", production:"Production", harvest_origin:"Origin & harvest", curiosity:"Curiosity", ask_sommelier:"Ask the sommelier", avg_rating:"Average rating", based_on:"Based on", opinions:"reviews", leave_review:"Leave your review", your_review:"What does this wine taste like?", send_review:"Send", aromas:"Aromas", palate:"On the palate", finish:"Finish", buy:"Buy", visit:"Visit the winery", contact:"Request info", other_wines:"Other wines you may like", gallery_title:"Inside the winery", responsibility:"Drink responsibly", sommelier_unavailable:"Sommelier is not available right now.", sommelier_placeholder:"Ask anything about this wine", thanks_review:"Thanks. Your review is pending moderation.", location_block:"Location / context" } };
+
+    /********************************************************************
+     * STATE
+     ********************************************************************/
+    const appState = { query:{}, fichaData:null, t:null, chatHistory:[], sommelierAvailable:false, sommelierLocked:false };
+
+    /********************************************************************
+     * UTILS
+     ********************************************************************/
+    function getQueryParams(){
+      const p=new URLSearchParams(window.location.search);
+      // alias por retrocompatibilidad: idioma→lang, contect→context
+      const langRaw = (p.get("lang") || p.get("idioma") || "").slice(0,2).toLowerCase();
+      const ctxRaw  = p.get("context") || p.get("contect") || "";
+      return {
+        vino_id: p.get("vino_id")||"",
+        anyada:  p.get("anyada")||"",
+        lang:    langRaw,
+        context: ctxRaw
+      };
+    }; }
+
+    function pickLangFallback(requested, available){ if(available && available.length){ if(requested && available.includes(requested)) return requested; return available[0]; } return requested || "en"; }
+
+    function postJSON(url, body){ return fetch(url,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }).then(r=>r.json()).catch(e=>({ok:false,error:e?.message||"network_error"})); }
+
+    function buildCdnFichaUrl(vino_id, anyada, lang){ if(!vino_id||!anyada||!lang) return null; return `${CDN_BASE}/qr2/${vino_id}/${anyada}/${lang}/ficha.json`; }
+
+    /********************************************************************
+     * RENDER HELPERS
+     ********************************************************************/
+    function applyTheme(theme){ const body=document.body; if(!theme){ body.style.backgroundColor="#0f0a0a"; body.style.color="#fff"; return; } if(theme.background_mode==="light"){ body.style.backgroundColor=theme.primary_color||"#f5f2e8"; body.style.color="#000"; } else { body.style.backgroundColor=theme.primary_color||"#1a0c0c"; body.style.color="#fff"; } body.style.setProperty("--accent-color", theme.accent_color||"#c79a5a"); }
+
+    function renderHeader(){ const d=appState.fichaData; const langs=d.available_langs||[]; const currentLang=d.lang_final; let fallbackNote=""; if(d.lang_requested && d.lang_requested!==d.lang_final){ fallbackNote = `<div class="text-[10px] text-neutral-400 mt-1">Mostrando en ${d.lang_final.toUpperCase()} (no disponible aún en ${d.lang_requested.toUpperCase()}).</div>`; }
+      let langSelector = ""; if(langs.length>1){ langSelector = `<label class="text-[11px] text-neutral-400">${currentLang.toUpperCase()}</label><select id="lang-select" class="bg-neutral-800 border border-neutral-700 text-white text-xs rounded px-2 py-1 outline-none focus:ring-2 focus:ring-[var(--accent-color)]">${langs.map(l=>`<option value="${l}" ${l===currentLang?"selected":""}>${l.toUpperCase()}</option>`).join("")}</select>`; }
+      return `<header class="pt-4 pb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between border-b border-neutral-800"><div class="flex items-start gap-3">${ d.ficha.bodega_logo_url ? `<img src="${d.ficha.bodega_logo_url}" alt="${d.ficha.bodega||''}" class="h-10 w-10 object-contain bg-neutral-800 rounded-lg border border-neutral-700 p-1"/>` : `<div class="h-10 w-10 flex items-center justify-center rounded-lg bg-neutral-800 border border-neutral-700 text-[10px] leading-none text-center p-1">${(d.ficha.bodega||"Bodega").slice(0,4)}</div>` }<div class="text-sm leading-tight"><div class="font-semibold">${d.ficha.bodega||""}</div><div class="text-[11px] text-neutral-400">${d.ficha.nombre||""} ${d.ficha.year||""}</div>${fallbackNote}</div></div><div class="flex items-start gap-4 text-xs mt-2 sm:mt-0"><div class="flex flex-col items-end gap-1 text-right">${langSelector}<button id="share-btn" class="text-[11px] text-amber-400 underline underline-offset-2 hover:text-amber-300">Compartir</button></div></div></header>`; }
+
+    function renderContext(){ const d=appState.fichaData; const t=appState.t; const f=d.ficha || {}; const ctx = (appState.query.context||f.context||f.tipo||"").toLowerCase(); const ubic = f.ubicacion || {}; // puede ser string u objeto
+      const chips = [];
+      if(ctx){ chips.push(`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${ctx}</span>`); }
+      const locParts = [];
+      if(typeof ubic === 'string' && ubic) locParts.push(ubic);
+      if(typeof ubic === 'object' && ubic){ if(ubic.lugar) locParts.push(ubic.lugar); if(ubic.ciudad) locParts.push(ubic.ciudad); if(ubic.pais) locParts.push(ubic.pais); }
+      const locStr = locParts.filter(Boolean).join(" · ");
+      const geo = (ubic.lat && ubic.lng) ? `${Number(ubic.lat).toFixed(4)}, ${Number(ubic.lng).toFixed(4)}` : "";
+      if(locStr) chips.push(`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${locStr}</span>`);
+      if(geo) chips.push(`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${geo}</span>`);
+      if(!chips.length) return "";
+      return `<section class="py-3 border-b border-neutral-800"><div class="text-[11px] uppercase tracking-wide text-neutral-400 mb-2">${t.location_block}</div><div class="flex flex-wrap gap-2">${chips.join("")}</div></section>`; }
+
+    function renderHero(){ const d=appState.fichaData; const f=d.ficha; const awards=f.awards||[]; let mediaBlock=""; if(f.bottle_media && f.bottle_media.video_url){ mediaBlock = `<video class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800" src="${f.bottle_media.video_url}" autoplay muted loop playsinline></video>`; } else if(f.bottle_media && f.bottle_media.image_url){ mediaBlock = `<img src="${f.bottle_media.image_url}" alt="${f.nombre||''}" class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800"/>`; }
+      let awardsBlock = ""; if(awards.length>0){ awardsBlock = `<div class="flex flex-wrap justify-center gap-3 mt-4">${awards.map(a=>`<div class="award-badge-anim bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2 text-center text-[11px] leading-tight shadow-md flex flex-col items-center">${a.image_url?`<img src="${a.image_url}" class="h-8 w-auto mb-1 object-contain" alt="${a.label||''}"/>`:""}<div class="text-amber-400 font-semibold">${a.label||""}</div>${a.year?`<div class="text-[10px] text-neutral-400">${a.year}</div>`:""}</div>`).join("")}</div>`; }
+      const tipo = f.tipo || appState.query.context || "";
+      return `<section class="py-6 border-b border-neutral-800"><div class="flex flex-col items-center text-center">${mediaBlock}<div class="mt-4 text-sm leading-tight"><div class="text-[13px] uppercase tracking-wide text-neutral-400">${f.do||""}</div><div class="text-xl font-semibold">${f.nombre||""} ${f.year||""}</div><div class="text-[13px] text-neutral-400">${f.variedad||""}</div><div class="mt-1 flex flex-wrap gap-2 justify-center text-[11px] text-neutral-300">${ f.do?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${f.do}</span>`:"" }${ f.variedad?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${f.variedad}</span>`:"" }${ f.year?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${f.year}</span>`:"" }${ tipo?`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${tipo}</span>`:"" }</div></div>${awardsBlock}</div></section>`; }
+
+    function renderSommelierBlock(){ const d=appState.fichaData; const t=appState.t; const narrativa=d.ficha.narrativa||{}; const sommelierEnabled=d.sommelier && d.sommelier.enabled===true; const audio=narrativa.audio_url;
+      return `<section class="py-6 border-b border-neutral-800 space-y-4"><div class="text-base font-semibold">${t.ask_sommelier}</div><div class="text-sm text-neutral-200 leading-relaxed whitespace-pre-line">${narrativa.texto?narrativa.texto:""}</div>${ audio?`<div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 flex flex-col gap-2"><div class="text-[11px] text-neutral-400 uppercase tracking-wide">Audio Sommelier</div><audio controls class="w-full" src="${audio}"></audio></div>`:"" }${ sommelierEnabled?`<button id="open-sommelier-btn" class="w-full bg-amber-500 text-neutral-900 text-sm font-medium rounded-xl px-4 py-3 text-center hover:bg-amber-400 active:scale-[0.98] transition">${t.ask_sommelier}</button>`:"" }</section>`; }
+
+    function renderOrganoleptico(){ const d=appState.fichaData; const t=appState.t; const o=d.ficha.organoleptico||{}; function chipsBlock(label, arr){ if(!arr||!arr.length) return ""; return `<div class="mb-4"><div class="text-[11px] uppercase tracking-wide text-neutral-400 mb-2">${label}</div><div class="flex flex-wrap gap-2">${arr.map(x=>`<span class="text-[12px] bg-neutral-800 border border-neutral-700 rounded-full px-3 py-1 text-neutral-200">${x}</span>`).join("")}</div></div>`; } function barsBlock(barras){ if(!barras) return ""; const keys=Object.keys(barras); if(!keys.length) return ""; return `<div class="mb-4">${keys.map(k=>{ const val=barras[k]; const pct=Math.min(10, Number(val||0))*10; return `<div class="mb-2"><div class="text-[11px] text-neutral-400 flex justify-between"><span>${k}</span><span>${val}/10</span></div><div class="w-full h-2 bg-neutral-800 rounded-full border border-neutral-700 overflow-hidden"><div class="h-2 bg-amber-500" style="width:${pct}%"></div></div></div>`; }).join("")}</div>`; } function radarBlock(radar){ if(!radar) return ""; const list=Object.entries(radar).map(([k,v])=>`${k}: ${v}/10`).join(" • "); return `<div class="mb-4 bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[12px] text-neutral-300"><div class="text-[11px] uppercase tracking-wide text-neutral-400 mb-1">Radar sensorial</div><div class="text-neutral-200">${list}</div><div class="text-[10px] text-neutral-500 mt-1">(renderizar gráfico spider/radar aquí)</div></div>`; }
+      const hasContent = (o.aromatico&&o.aromatico.length)||(o.gustativo&&o.gustativo.length)||(o.sensorial&&o.sensorial.length)||(o.barras&&Object.keys(o.barras||{}).length)||(o.radar&&Object.keys(o.radar||{}).length); if(!hasContent) return "";
+      return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">Perfil sensorial</div>${radarBlock(o.radar)}${barsBlock(o.barras)}${chipsBlock(t.aromas,o.aromatico)}${chipsBlock(t.palate,o.gustativo)}${chipsBlock(t.finish,o.sensorial)}</section>`; }
+
+    function renderFichaTecnica(){ const d=appState.fichaData; const t=appState.t; const tech=d.ficha.tech_info||{}; const blocks=[ {key:"vinificacion_y_crianza",label:t.fermentation}, {key:"origen_y_vendimia",label:t.harvest_origin}, {key:"produccion",label:t.production}, {key:"notas_de_cata",label:t.tasting_notes}, {key:"curiosidad",label:t.curiosity}, ]; const valid=blocks.filter(b=>Array.isArray(tech[b.key]) && tech[b.key].length); if(!valid.length) return ""; const accordionsHTML = valid.map((b)=>`<details class="border border-neutral-700 rounded-xl bg-neutral-800 mb-3 overflow-hidden"><summary class="cursor-pointer select-none flex justify-between items-center px-4 py-3 text-sm text-neutral-200 font-medium"><span>${b.label}</span><span class="text-neutral-400 text-xs">▼</span></summary><div class="px-4 pb-4 text-[13px] leading-relaxed text-neutral-300">${tech[b.key].map(p=>`<p class="mb-3">${p}</p>`).join("")}</div></details>`).join(""); return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">${t.tech_sheet}</div>${accordionsHTML}</section>`; }
+
+    function renderReviews(){ const d=appState.fichaData; const t=appState.t; if(!d.reviews_enabled) return ""; const avgScore=d.reviews_avg||null; const totalCount=d.reviews_count||null; const recent=d.reviews_recent||[]; const headerStats = `<div class=\"mb-4 flex flex-col sm:flex-row sm:items-baseline sm:justify-between\"><div class=\"text-base font-semibold flex items-end gap-2\"><span>${t.avg_rating}${avgScore?` ${avgScore}/5`:""}</span>${ totalCount!==null?`<span class=\"text-[11px] text-neutral-400\">${t.based_on} ${totalCount} ${t.opinions}</span>`:"" }</div></div>`; const recentBlock = recent.length?`<div class="space-y-3 mb-6">${recent.map(r=>`<div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[13px] leading-relaxed text-neutral-200"><div class="flex justify-between text-[11px] text-neutral-400 mb-1"><span>${r.name||"Anónimo"}</span><span>${r.date||""}</span></div><div class="text-neutral-100 mb-2">${r.text||""}</div><div class="text-[11px] text-amber-400 font-medium">★ ${r.rating||""}/5</div></div>`).join("")}</div>`:"";
+      return `<section class="py-6 border-b border-neutral-800">${headerStats}${recentBlock}<form id="review-form" class="bg-neutral-800 border border-neutral-700 rounded-xl p-4 space-y-3"><div class="text-sm font-medium">${t.leave_review}</div><div class="flex items-center gap-2 text-amber-400 text-xl" id="review-stars">${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="star-btn text-neutral-600 hover:text-amber-400 transition">★</button>`).join("")}</div><input type="hidden" id="review-rating" value="0" /><textarea id="review-comment" class="w-full bg-neutral-900 text-white text-[13px] rounded-lg px-3 py-2 border border-neutral-700 outline-none focus:ring-2 focus:ring-[var(--accent-color)]" rows="3" placeholder="${t.your_review}"></textarea><button class="w-full bg-amber-500 text-neutral-900 text-sm font-medium rounded-lg px-4 py-2 hover:bg-amber-400 active:scale-[0.98] transition">${t.send_review}</button><div id="review-msg" class="text-[11px] text-neutral-400"></div></form></section>`; }
+
+    function renderCTASection(){ const d=appState.fichaData; const t=appState.t; const cta=d.ficha.cta||{}; const social=d.social||{}; const btns=[]; if(cta.comprar_url){ btns.push(`<button class="cta-btn flex-1 bg-amber-500 text-neutral-900 text-sm font-medium rounded-xl px-4 py-3 text-center hover:bg-amber-400 active:scale-[0.98] transition" data-action="comprar" data-url="${cta.comprar_url}">${t.buy}</button>`);} if(cta.visita_url){ btns.push(`<button class="cta-btn flex-1 bg-neutral-800 text-white text-sm font-medium rounded-xl px-4 py-3 text-center border border-neutral-700 hover:border-amber-500 hover:text-amber-400 active:scale-[0.98] transition" data-action="visita" data-url="${cta.visita_url}">${t.visit}</button>`);} if(cta.contacto_url){ btns.push(`<button class="cta-btn flex-1 bg-neutral-800 text-white text-sm font-medium rounded-xl px-4 py-3 text-center border border-neutral-700 hover:border-amber-500 hover:text-amber-400 active:scale-[0.98] transition" data-action="contacto" data-url="${cta.contacto_url}">${t.contact}</button>`);} const socialBlock=(()=>{ const rows=[]; if(social.instagram){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="${social.instagram}" target="_blank" rel="noopener">Instagram</a>`);} if(social.website){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="${social.website}" target="_blank" rel="noopener">Web</a>`);} if(social.email){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="mailto:${social.email}">Email</a>`);} if(social.phone){ rows.push(`<a class="underline underline-offset-2 text-[13px] text-neutral-200 hover:text-amber-400 break-all" href="tel:${social.phone}">${social.phone}</a>`);} if(!rows.length) return ""; return `<div class="mt-4 text-[13px] text-neutral-300 flex flex-col gap-1">${rows.join("")}</div>`; })(); if(!btns.length && !socialBlock) return ""; return `<section class="py-6 border-b border-neutral-800"><div class="flex flex-col gap-3 sm:flex-row sm:gap-4">${btns.join("")}</div>${socialBlock}</section>`; }
+
+    function renderGallery(){ const d=appState.fichaData; const t=appState.t; const g=d.ficha.gallery||[]; if(!g.length) return ""; const items=g.map(item=>`<div class="min-w-[200px] max-w-[200px] h-[260px] rounded-xl bg-neutral-800 border border-neutral-700 overflow-hidden flex items-center justify-center">${ item.type==="video"?`<video src="${item.url}" class="w-full h-full object-cover" autoplay muted loop playsinline></video>`:`<img src="${item.url}" class="w-full h-full object-cover" alt="media"/>` }</div>`).join(""); return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">${t.gallery_title}</div><div class="flex gap-4 overflow-x-auto pb-2">${items}</div></section>`; }
+
+    function renderRelatedWines(){ const d=appState.fichaData; const t=appState.t; const rel=d.related_wines||[]; if(!rel.length) return ""; const cards = rel.map(r=>`<button class="related-card min-w-[160px] max-w-[160px] bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-left text-[13px] flex flex-col gap-2 active:scale-[0.98] transition" data-vino="${r.vino_id}" data-anyada="${r.anyada}" data-lang="${r.lang||d.lang_final}"><div class="w-full h-[160px] rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-center overflow-hidden"><img src="${r.image_url||''}" alt="${r.nombre||''}" class="object-contain max-h-[140px]"/></div><div class="font-semibold text-neutral-100 leading-snug">${r.nombre||""} ${r.anyada||""}</div><div class="text-[11px] text-neutral-400 leading-snug">${r.do||""}</div><div class="text-[11px] text-neutral-300 leading-snug">${r.short_desc||""}</div><div class="text-[11px] text-amber-400 leading-snug font-medium">${r.award||""}</div><div class="text-[11px] text-amber-400 underline underline-offset-2">${t.other_wines}</div></button>`).join(""); return `<section class="py-6 border-b border-neutral-800"><div class="text-base font-semibold mb-4">${t.other_wines}</div><div class="flex gap-4 overflow-x-auto pb-2">${cards}</div></section>`; }
+
+    function renderFooter(){ const d=appState.fichaData; const t=appState.t; const f=d.ficha; const social=d.social||{}; const socialIcons=[]; if(social.instagram){ socialIcons.push(`<a href="${social.instagram}" class="underline text-[11px] hover:text-amber-400" target="_blank">Instagram</a>`);} if(social.website){ socialIcons.push(`<a href="${social.website}" class="underline text-[11px] hover:text-amber-400" target="_blank">Web</a>`);} return `<footer class="py-10 text-center text-[11px] text-neutral-500"><div class="text-neutral-300 font-medium mb-1">${f.bodega||""}</div><div class="mb-2 text-neutral-400">Powered by SommelierLab</div><div class="flex justify-center gap-3 text-neutral-400 mb-4 flex-wrap">${socialIcons.join("")}</div><div class="text-neutral-600 mb-1">${t.responsibility}</div><div class="text-neutral-600">Alérgenos / Información legal</div></footer>`; }
+
+    /********************************************************************
+     * MASTER RENDER
+     ********************************************************************/
+    function renderApp(){ const root=document.getElementById("app"); const sectionsHTML=[ renderHeader(), renderContext(), renderHero(), renderSommelierBlock(), renderOrganoleptico(), renderFichaTecnica(), renderReviews(), renderCTASection(), renderGallery(), renderRelatedWines(), renderFooter(), ].join(""); root.innerHTML=sectionsHTML; wireInteractionsAfterRender(); }
+
+    /********************************************************************
+     * INTERACCIONES
+     ********************************************************************/
+    function wireInteractionsAfterRender(){ const d=appState.fichaData; const t=appState.t; const langSel=document.getElementById("lang-select"); if(langSel){ langSel.addEventListener("change",(e)=>{const newLang=e.target.value; const url=new URL(window.location.href); url.searchParams.set("lang", newLang); history.pushState({},"",url.toString()); bootstrap(); }); }
+      const shareBtn=document.getElementById("share-btn"); if(shareBtn){ shareBtn.addEventListener("click",async()=>{ try{ if(navigator.share){ await navigator.share({title:document.title,url:window.location.href}); } else { await navigator.clipboard.writeText(window.location.href); alert("Enlace copiado"); } }catch(e){ console.warn("Share failed", e); } }); }
+      document.querySelectorAll(".cta-btn").forEach(btn=>{ btn.addEventListener("click", async()=>{ const action=btn.getAttribute("data-action"); const targetUrl=btn.getAttribute("data-url"); await trackCTA(action); window.location.href=targetUrl; }); });
+      const starBtns=document.querySelectorAll(".star-btn"); const ratingInput=document.getElementById("review-rating"); if(starBtns.length && ratingInput){ starBtns.forEach(btn=>{ btn.addEventListener("click",()=>{ const val=btn.getAttribute("data-star"); ratingInput.value=val; starBtns.forEach(b=>{ const bv=b.getAttribute("data-star"); b.classList.toggle("text-amber-400", Number(bv)<=Number(val)); b.classList.toggle("text-neutral-600", Number(bv)>Number(val)); }); }); }); }
+      const reviewForm=document.getElementById("review-form"); if(reviewForm){ reviewForm.addEventListener("submit", async(e)=>{ e.preventDefault(); const rating=Number(document.getElementById("review-rating").value||0); const comment=document.getElementById("review-comment").value.trim(); const msgBox=document.getElementById("review-msg"); if(!rating||!comment){ msgBox.textContent="⭐ + comentario, por favor."; return; } const body={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", rating, comment }; const resp = await postJSON(`${BASE_API}/qr/leave-review`, body); if(resp && resp.ok!==false){ msgBox.textContent=t.thanks_review; document.getElementById("review-comment").value=""; document.getElementById("review-rating").value="0"; } else { msgBox.textContent="Error. Intenta más tarde."; } }); }
+      document.querySelectorAll(".related-card").forEach(card=>{ card.addEventListener("click",()=>{ const v=card.getAttribute("data-vino"); const a=card.getAttribute("data-anyada"); const l=card.getAttribute("data-lang")||appState.fichaData.lang_final; const url=new URL(window.location.href); url.searchParams.set("vino_id", v); url.searchParams.set("anyada", a); url.searchParams.set("lang", l); history.pushState({},"",url.toString()); bootstrap(); }); });
+      const openSommelierBtn=document.getElementById("open-sommelier-btn"); const fab=document.getElementById("sommelier-fab"); if(appState.sommelierAvailable){ if(fab) fab.classList.remove("hidden"); if(openSommelierBtn){ openSommelierBtn.addEventListener("click", openSommelierModal); } if(fab){ fab.addEventListener("click", openSommelierModal); } } else { if(fab) fab.classList.add("hidden"); }
+      const closeBtn=document.getElementById("sommelier-close"); if(closeBtn){ closeBtn.addEventListener("click", closeSommelierModal); }
+      const sommelierForm=document.getElementById("sommelier-form"); if(sommelierForm){ sommelierForm.addEventListener("submit", handleSommelierSubmit); }
+      const input=document.getElementById("sommelier-input"); if(input){ input.setAttribute("placeholder", appState.t.sommelier_placeholder); }
+    }
+
+    /********************************************************************
+     * SOMMELIER CHAT
+     ********************************************************************/
+    function openSommelierModal(){ if(appState.sommelierLocked){ const status=document.getElementById("sommelier-status"); if(status) status.textContent=appState.t.sommelier_unavailable; } document.getElementById("sommelier-modal").classList.remove("hidden"); renderChatMessages(); }
+    function closeSommelierModal(){ document.getElementById("sommelier-modal").classList.add("hidden"); }
+    function renderChatMessages(){ const box=document.getElementById("sommelier-chat"); if(!box) return; box.innerHTML=appState.chatHistory.map(m=>{ const align=m.role==='user'?"items-end":"items-start"; const bubbleColor=m.role==='user'?"bg-amber-500 text-neutral-900":"bg-neutral-800 text-neutral-100 border border-neutral-700"; const label=m.role==='user'?"Tú":"Sommelier"; return `<div class="flex flex-col ${align} max-w-[90%]"><div class="text-[10px] text-neutral-500 mb-1">${label}</div><div class="rounded-xl px-3 py-2 text-[13px] leading-relaxed ${bubbleColor}">${m.text}</div></div>`; }).join(""); box.scrollTop=box.scrollHeight; }
+    async function handleSommelierSubmit(e){ e.preventDefault(); if(appState.sommelierLocked) return; const input=document.getElementById("sommelier-input"); const q=(input.value||"").trim(); if(!q) return; appState.chatHistory.push({role:"user", text:q}); renderChatMessages(); input.value=""; const body={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", question:q }; const resp = await postJSON(`${BASE_API}/sommelier/ask`, body); if(resp && resp.ok!==false && resp.answer){ appState.chatHistory.push({role:"sommelier", text:resp.answer}); renderChatMessages(); } else if(resp && resp.reason==="limit_reached"){ appState.sommelierLocked=true; const msg=resp.message||appState.t.sommelier_unavailable; appState.chatHistory.push({role:"sommelier", text:msg}); renderChatMessages(); document.getElementById("sommelier-input").disabled=true; } else { appState.chatHistory.push({role:"sommelier", text:"(No disponible ahora mismo)"}); renderChatMessages(); } }
+
+    /********************************************************************
+     * TRACKING
+     ********************************************************************/
+    async function trackScan(){ if(!BASE_API || BASE_API==="PLACEHOLDER") return; const payload={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", userAgent:navigator.userAgent||"", referrer:document.referrer||"" }; await postJSON(`${BASE_API}/qr/scan`, payload); }
+    async function trackCTA(actionName){ if(!BASE_API || BASE_API==="PLACEHOLDER") return; const payload={ vino_id:appState.query.vino_id, anyada:appState.query.anyada, lang:appState.fichaData.lang_final, context:appState.query.context||"", action:actionName }; await postJSON(`${BASE_API}/qr/cta`, payload); }
+
+    /********************************************************************
+     * DATA FETCH (API con fallback CDN)
+     ********************************************************************/
+    async function fetchFromResolve(vino_id, anyada, lang){ const url=new URL(`${BASE_API}/qr2/resolve`); url.searchParams.set("vino_id", vino_id); url.searchParams.set("anyada", anyada); url.searchParams.set("lang", lang); const r = await fetch(url.toString()); if(!r.ok) throw new Error("resolve_failed"); return await r.json(); }
+
+    async function fetchFromCDN(vino_id, anyada, lang){ const url = buildCdnFichaUrl(vino_id, anyada, lang); const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error("cdn_failed" ); return await r.json(); }
+
+    async function fetchFicha(){ let desiredLang = appState.query.lang || (navigator.language||"es").slice(0,2).toLowerCase(); const {vino_id, anyada} = appState.query; const forceCDN = new URLSearchParams(location.search).get('cdn') === '1';
+      // 1) Prefer API resolve si BASE_API está configurado y no forzamos CDN
+      if(!forceCDN && BASE_API && BASE_API!=="PLACEHOLDER"){ try{ const data = await fetchFromResolve(vino_id, anyada, desiredLang); return data; } catch(e){ console.warn("/qr2/resolve falló, usando CDN", e); }
+      }
+      // 2) Fallback CDN (ficha.json ya publicado en Backblaze)
+      const data = await fetchFromCDN(vino_id, anyada, desiredLang);
+      // Normalizamos mínimos para que el front no reviente
+      data.lang_requested = desiredLang;
+      data.lang_final = data.lang_final || desiredLang;
+      data.available_langs = data.available_langs || [desiredLang];
+      data.ficha = data.ficha || {};
+      return data;
+    }
+
+    /********************************************************************
+     * BOOTSTRAP
+     ********************************************************************/
+    async function bootstrap(){ appState.query = getQueryParams(); const data = await fetchFicha(); appState.fichaData = data; const langFinal = data.lang_final || "en"; appState.t = UI_COPY[langFinal] || UI_COPY["en"]; applyTheme(data.theme); appState.sommelierAvailable = data.sommelier && data.sommelier.enabled===true; appState.sommelierLocked=false; appState.chatHistory=[]; renderApp(); await trackScan(); }
+
+    document.addEventListener("DOMContentLoaded", bootstrap);
+  </script>
+</body>
+</html>
