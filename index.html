@@ -468,13 +468,25 @@
     `;
   }
 
-  /* NUEVO: SOMMELIER */
+  /* NUEVO: SOMMELIER (con botón de voz) */
   function renderSommelierBtn(d){
-    if (!d.sommelier?.enabled) return "";
-    const url = d.sommelier.entrypoint_url || "#";
+    // lo mostramos siempre, o si quieres solo cuando venga enabled:
+    // if (!d.sommelier?.enabled) return "";
     return `
       <section class="py-6">
-        <button onclick="location.href='${url}'" class="bg-amber-500 text-neutral-900 px-4 py-2 rounded-xl">${appState.t.sommelier}</button>
+        <button id="sommelier-btn"
+          class="w-full sm:w-auto flex items-center gap-3 bg-amber-500/90 hover:bg-amber-400 text-neutral-950 px-4 py-2 rounded-2xl shadow-lg transition">
+          <span class="relative flex h-8 w-8">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-8 w-8 bg-neutral-950 text-amber-200 items-center justify-center text-sm">
+              🎙
+            </span>
+          </span>
+          <div class="text-left">
+            <div class="text-[13px] leading-4 font-semibold">${appState.t.sommelier}</div>
+            <div class="text-[11px] leading-3 text-neutral-800">Habla y te responde</div>
+          </div>
+        </button>
       </section>
       <hr class="border-neutral-800">
     `;
@@ -595,5 +607,99 @@
 
   bootstrap();
   </script>
+<!-- Sommelier conversacional -->
+<div id="sommelier-voice-widget"></div>
+<script>
+  // 1. tu n8n
+  const CHECK_SOMM_URL = "https://https://n8n-production-cb18.up.railway.app/webhook/check-voz";
+  // 2. script elevenlabs
+  const ELEVEN_WIDGET_SRC = "https://elevenlabs.io/convai.js";
+  // 3. tu agent
+  const ELEVEN_AGENT_ID = "agent_01jy4198vjepzb9yz3jwz3b93c";
+
+  async function ensureElevenLabs() {
+    if (window.ElevenLabs && window.ElevenLabs.renderAgent) return;
+    await new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = ELEVEN_WIDGET_SRC;
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = () => reject("no carga elevenlabs");
+      document.head.appendChild(s);
+    });
+  }
+
+  async function openSommelierConversacional() {
+    // datos ya cargados en tu app
+    const d = (window.appState && window.appState.fichaData) || {};
+    const vino_id   = d?.ficha?.id || d.vino_id || window.appState?.query?.vino_id || "";
+    const anyada    = d?.ficha?.year || d.anyada || window.appState?.query?.anyada || "";
+    const bodega_id = d?.ficha?.bodega_id || d.bodega_id || window.appState?.query?.bodega_id || "";
+    const lang      = d.lang_final || window.appState?.query?.lang || "es";
+    const context   = window.appState?.query?.context || "botella";
+
+    // id de dispositivo
+    let device_id = localStorage.getItem("sl_device");
+    if (!device_id) {
+      device_id = crypto.randomUUID();
+      localStorage.setItem("sl_device", device_id);
+    }
+
+    // pedir permiso a n8n (si n8n no responde, seguimos en modo test)
+    let allowData = { allow: true };
+    try {
+      const qs = new URLSearchParams({ vino_id, anyada, bodega_id, lang, context, device_id }).toString();
+      const r = await fetch(`${CHECK_SOMM_URL}?${qs}`);
+      allowData = await r.json();
+    } catch (e) {
+      console.warn("no se pudo llamar a check-voz, modo test", e);
+    }
+
+    if (allowData.allow === false) {
+      alert(allowData.message || "Sommelier no disponible.");
+      return;
+    }
+
+    // cargar widget
+    await ensureElevenLabs();
+
+    if (window.ElevenLabs && typeof window.ElevenLabs.renderAgent === "function") {
+      window.ElevenLabs.renderAgent({
+        agentId: ELEVEN_AGENT_ID,
+        container: "#sommelier-voice-widget",
+        open: true,
+        variables: {
+          vino_id,
+          anyada,
+          bodega_id,
+          lang,
+          context,
+          device_id,
+          voice_id: allowData.voice_id || "",
+          allowed_turns: allowData.allowed_turns || 3,
+          max_duration: allowData.max_duration || 90
+        }
+      });
+    } else {
+      alert("No se pudo iniciar el sommelier de voz.");
+    }
+  }
+
+  // enganchar después de renderizar la ficha
+  document.addEventListener("DOMContentLoaded", () => {
+    // cuidado: tu render se ejecuta en bootstrap → renderApp()
+    // por eso esperamos un poco para que exista el botón
+    setTimeout(() => {
+      const btn = document.getElementById("sommelier-btn");
+      if (btn) {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          openSommelierConversacional();
+        });
+      }
+    }, 500);
+  });
+</script>
+
 </body>
 </html>
