@@ -8,31 +8,24 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{ --accent-color:#c79a5a; }
-    /* Animaciones */
     .fade-in{ animation:fadeIn .35s ease-out both }
     @keyframes fadeIn{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
     .grow-x{ transform-origin:left; animation:growX .6s ease-out both }
     @keyframes growX{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
-    /* Frames y texturas */
     .frame-soft{ box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04); }
     .frame-bold{ box-shadow:0 12px 40px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.06); }
     .badge-plain{ border-radius:.75rem; }
     .badge-circle{ border-radius:9999px; }
     .tex-bg{ background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size:8px 8px; }
-    /* Quirks fix hint: este archivo incluye <!doctype html> ya correcto */
   </style>
 </head>
 <body class="bg-neutral-950 text-neutral-50 min-h-screen selection:bg-amber-500/30">
   <div id="app" class="max-w-[1100px] mx-auto px-4 sm:px-6 pb-28 sm:pb-12"></div>
 
   <script>
-  /********************************************************************
-   * CONFIG
-   ********************************************************************/
-  // Para probar por CDN fija PLACEHOLDER; para API quita PLACEHOLDER
-  const BASE_API = "PLACEHOLDER"; // "https://n8n-production-cb18.up.railway.app/webhook"
+  /******** CONFIG ********/
+  const BASE_API = "PLACEHOLDER"; // para probar desde B2
 
-  // Overlay de errores visible
   window.addEventListener('error',(e)=>{ try{
     const div=document.createElement('div');
     Object.assign(div.style,{position:'fixed',top:'0',left:'0',right:'0',background:'rgba(180,0,0,.9)',color:'#fff',zIndex:'99999',font:'12px/1.4 monospace',padding:'8px 10px'});
@@ -41,32 +34,44 @@
     console.error('[SommelierLab] JS error',e);
   }catch(_){}});
 
-  /********************************************************************
-   * I18N
-   ********************************************************************/
+  /******** I18N ********/
   const UI_COPY = {
     es:{
-      share:"Compartir", ask:"Preguntar al sommelier",
-      avg_rating:"Valoración media", based_on:"basada en", opinions:"opiniones",
-      your_review:"Escribe tu reseña…", send_review:"Enviar reseña",
-      allergens:"Alérgenos / Información legal", drink_responsibly:"Bebe con responsabilidad",
+      share:"Compartir",
+      ask:"Preguntar al sommelier",
+      avg_rating:"Valoración media",
+      based_on:"basada en",
+      opinions:"opiniones",
+      your_review:"Escribe tu reseña…",
+      send_review:"Enviar reseña",
+      allergens:"Alérgenos / Información legal",
+      drink_responsibly:"Bebe con responsabilidad",
+      gallery:"Galería",
+      related:"Otros vinos",
+      social:"Redes y contacto",
+      sommelier:"Hablar con el sommelier",
       indicators:{ aroma:"Aroma", cuerpo:"Cuerpo", acidez:"Acidez", dulzor:"Dulzor", tanino:"Tanino" }
     },
     en:{
-      share:"Share", ask:"Ask the sommelier",
-      avg_rating:"Average rating", based_on:"based on", opinions:"reviews",
-      your_review:"Write your review…", send_review:"Send",
-      allergens:"Allergens / Legal", drink_responsibly:"Drink responsibly",
+      share:"Share",
+      ask:"Ask the sommelier",
+      avg_rating:"Average rating",
+      based_on:"based on",
+      opinions:"reviews",
+      your_review:"Write your review…",
+      send_review:"Send",
+      allergens:"Allergens / Legal",
+      drink_responsibly:"Drink responsibly",
+      gallery:"Gallery",
+      related:"Other wines",
+      social:"Social & contact",
+      sommelier:"Talk to the sommelier",
       indicators:{ aroma:"Aroma", cuerpo:"Body", acidez:"Acidity", dulzor:"Sweetness", tanino:"Tannin" }
     }
   };
 
-  /********************************************************************
-   * STATE
-   ********************************************************************/
-  const appState = {
-    query: {}, fichaData:null, t:UI_COPY.es
-  };
+  /******** STATE ********/
+  const appState = { query:{}, fichaData:null, t:UI_COPY.es };
 
   function getQueryParams(){
     const p = new URLSearchParams(window.location.search);
@@ -95,9 +100,7 @@
     return map[c] || '';
   }
 
-  /********************************************************************
-   * DATA LOADERS
-   ********************************************************************/
+  /******** DATA ********/
   function cdnFichaUrl(vino_id,anyada,lang){
     return `https://f005.backblazeb2.com/file/SommelierLab-media/qr2/${encodeURIComponent(vino_id)}/${encodeURIComponent(anyada)}/${encodeURIComponent(lang)}/ficha.json`;
   }
@@ -116,7 +119,6 @@
     return r.json();
   }
 
-  // Normaliza tu JSON antiguo (header/bodega/vino/for_front) a ficha.*
   function normalizeToFicha(data){
     if(!data) return data;
     if(data.ficha) return data;
@@ -145,7 +147,8 @@
         year:   h.anyada || data.anyada || "",
         do:     h.do || data.do || v["Origen/DO"] || "",
         variedad: h.variedad || v["Variedad de uva"] || "",
-        tipo:"", context: appState.query.context || "",
+        tipo:"",
+        context: appState.query.context || "",
         ubicacion:{},
         bottle_media:{ image_url:imageUrl, video_url:"" },
         narrativa:{ texto:narrativaTxt, audio_url:"" },
@@ -157,7 +160,9 @@
           radar:{}
         },
         tech_info:{
-          vinificacion_y_crianza: v["Proceso de crianza"] ? [String(v["Proceso de crianza"])] : [],
+          vinificacion_y_crianza: v["Proceso de crianz
+
+aise"] ? [String(v["Proceso de crianza"])] : [],
           origen_y_vendimia:      v["Fecha de cosecha"] ? [String(v["Fecha de cosecha"])] : [],
           produccion:             v["Número de botellas"] ? [String(v["Número de botellas"])] : [],
           notas_de_cata:          v["Notas de cata"] ? [String(v["Notas de cata"])] : [],
@@ -194,16 +199,13 @@
     return data;
   }
 
-  /********************************************************************
-   * RENDER
-   ********************************************************************/
+  /******** RENDER ********/
   const el = sel => document.querySelector(sel);
 
   function renderHeader(d){
     const langs = (d.available_langs && d.available_langs.length) ? d.available_langs : [appState.query.lang||'es'];
     const warning = d.lang_requested && d.lang_final && d.lang_requested!==d.lang_final
       ? `<div class="text-[11px] text-amber-400 mt-1">Mostrando en ${d.lang_final.toUpperCase()} · pedido ${d.lang_requested.toUpperCase()}</div>` : '';
-
     const ctx = prettyContext(appState.query.context || d.ficha.context || '');
     const ctxChip = ctx ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${ctx}</span>` : '';
 
@@ -222,7 +224,6 @@
             ${warning}
           </div>
         </div>
-
         <div class="flex items-center gap-3">
           <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-sm">
             ${ langs.map(l=>`<option value="${l}" ${l===d.lang_final?'selected':''}>${l.toUpperCase()}</option>`).join('') }
@@ -231,6 +232,35 @@
         </div>
       </header>
       <hr class="border-neutral-800">
+    `;
+  }
+
+  /* PREMIOS */
+  function renderAwards(d){
+    const awards = d.ficha?.awards || [];
+    if(!awards.length) return "";
+    if(!document.getElementById('awards-style')){
+      const style = document.createElement("style");
+      style.id = "awards-style";
+      style.textContent = `
+        @keyframes floatPulse {
+          0%,100% { transform: translateY(0) scale(1); opacity: .95; }
+          50% { transform: translateY(-4px) scale(1.04); opacity: 1; }
+        }
+        .award-badge-anim { animation: floatPulse 3s ease-in-out infinite; }
+      `;
+      document.head.appendChild(style);
+    }
+    const badgeShape = (d.theme?.award_badge_style === 'circle') ? 'badge-circle' : 'badge-plain';
+    return `
+      <div class="flex flex-wrap justify-center gap-4 py-4 fade-in">
+        ${awards.map(a => `
+          <div class="award-badge-anim relative ${badgeShape} bg-neutral-900 border border-neutral-700 shadow-md w-16 h-16 flex flex-col items-center justify-center">
+            <img src="${a.image_url}" alt="${a.label}" class="object-contain w-12 h-12 opacity-90">
+            ${a.score ? `<div class="absolute bottom-0 right-0 bg-amber-500 text-neutral-900 text-[10px] font-bold rounded-full px-1.5 py-[1px]">${a.score}</div>` : ""}
+          </div>
+        `).join("")}
+      </div>
     `;
   }
 
@@ -246,43 +276,14 @@
       mediaBlock = `<img src="${f.bottle_media.image_url}" alt="bottle"
         class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 ${frame}">`;
     }
-   return `
-  <section class="py-6">
-    ${mediaBlock}
-    ${renderAwards(d)}
-  </section>
-  <hr class="border-neutral-800">
-`;
+    return `
+      <section class="py-6">
+        ${mediaBlock}
+        ${renderAwards(d)}
+      </section>
+      <hr class="border-neutral-800">
+    `;
   }
-/* === PREMIOS / AWARDS === */
-function renderAwards(d){
-  const awards = d.ficha?.awards || [];
-  if(!awards.length) return "";
-
-  // define animación flotante si no existe
-  const style = document.createElement("style");
-  style.textContent = `
-    @keyframes floatPulse {
-      0%,100% { transform: translateY(0) scale(1); opacity: .95; }
-      50% { transform: translateY(-4px) scale(1.04); opacity: 1; }
-    }
-    .award-badge-anim { animation: floatPulse 3s ease-in-out infinite; }
-  `;
-  document.head.appendChild(style);
-
-  const badgeShape = (d.theme?.award_badge_style === 'circle') ? 'badge-circle' : 'badge-plain';
-
-  return `
-    <div class="flex flex-wrap justify-center gap-4 py-4 fade-in">
-      ${awards.map(a => `
-        <div class="award-badge-anim relative ${badgeShape} bg-neutral-900 border border-neutral-700 shadow-md w-16 h-16 flex flex-col items-center justify-center">
-          <img src="${a.image_url}" alt="${a.label}" class="object-contain w-12 h-12 opacity-90">
-          ${a.score ? `<div class="absolute bottom-0 right-0 bg-amber-500 text-neutral-900 text-[10px] font-bold rounded-full px-1.5 py-[1px]">${a.score}</div>` : ""}
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
 
   function chipsBlock(title, arr){
     if(!arr||!arr.length) return '';
@@ -373,6 +374,73 @@ function renderAwards(d){
       <hr class="border-neutral-800">`;
   }
 
+  /* NUEVO: GALERÍA */
+  function renderGallery(d){
+    const g = d.ficha?.gallery || [];
+    if (!g.length) return "";
+    return `
+      <section class="py-6">
+        <h2 class="text-lg mb-3 text-neutral-100">${appState.t.gallery}</h2>
+        <div class="flex gap-4 overflow-x-auto pb-2">
+          ${g.map(url => `
+            <img src="${url}" class="w-36 h-24 rounded-lg object-cover border border-neutral-800" alt="gallery">
+          `).join("")}
+        </div>
+      </section>
+      <hr class="border-neutral-800">
+    `;
+  }
+
+  /* NUEVO: RELACIONADOS */
+  function renderRelated(d){
+    const r = d.related_wines || [];
+    if (!r.length) return "";
+    return `
+      <section class="py-6">
+        <h2 class="text-lg mb-3 text-neutral-100">${appState.t.related}</h2>
+        <div class="flex gap-4 overflow-x-auto pb-2">
+          ${r.map(v => `
+            <div class="min-w-[140px] bg-neutral-900/40 border border-neutral-800 rounded-xl p-3">
+              <div class="text-sm font-semibold mb-1">${v.nombre || "Vino"}</div>
+              <div class="text-xs text-neutral-400 mb-2">${v.year || ""}</div>
+              ${v.image_url ? `<img src="${v.image_url}" class="w-full h-24 object-cover rounded-lg border border-neutral-800">` : ""}
+            </div>
+          `).join("")}
+        </div>
+      </section>
+      <hr class="border-neutral-800">
+    `;
+  }
+
+  /* NUEVO: SOCIAL */
+  function renderSocial(d){
+    const s = d.social || {};
+    if (!(s.instagram || s.website || s.email)) return "";
+    return `
+      <section class="py-6">
+        <h2 class="text-lg mb-3 text-neutral-100">${appState.t.social}</h2>
+        <div class="flex flex-wrap gap-3 text-sm">
+          ${s.website ? `<a href="${s.website}" class="underline text-amber-400" target="_blank">Web</a>` : ""}
+          ${s.instagram ? `<a href="${s.instagram}" class="underline text-amber-400" target="_blank">Instagram</a>` : ""}
+          ${s.email ? `<a href="mailto:${s.email}" class="underline text-amber-400">Email</a>` : ""}
+        </div>
+      </section>
+      <hr class="border-neutral-800">
+    `;
+  }
+
+  /* NUEVO: SOMMELIER */
+  function renderSommelierBtn(d){
+    if (!d.sommelier?.enabled) return "";
+    const url = d.sommelier.entrypoint_url || "#";
+    return `
+      <section class="py-6">
+        <button onclick="location.href='${url}'" class="bg-amber-500 text-neutral-900 px-4 py-2 rounded-xl">${appState.t.sommelier}</button>
+      </section>
+      <hr class="border-neutral-800">
+    `;
+  }
+
   function renderReviews(d){
     if(!d.reviews_enabled) return '';
     const t=appState.t, avg=d.reviews_avg, count=d.reviews_count||0, recent=d.reviews_recent||[];
@@ -401,7 +469,6 @@ function renderAwards(d){
       </footer>`;
   }
 
-  // Sticky CTA móvil
   function renderStickyCTA(){
     const c = appState.fichaData?.ficha?.cta || {};
     const btns = [];
@@ -430,7 +497,6 @@ function renderAwards(d){
     v.addEventListener('abort',toImg,{once:true});
   }
 
-  // RENDER MASTER
   function renderApp(){
     const d = appState.fichaData;
     appState.t = UI_COPY[(d.lang_final||'es')] || UI_COPY.es;
@@ -438,11 +504,14 @@ function renderAwards(d){
     const html = [
       renderHeader(d),
       renderHero(d),
-      renderAwards (d),
       renderNarrativa(d),
       renderOrganoleptico(d),
       renderTech(d),
       renderCTASection(d),
+      renderGallery(d),
+      renderRelated(d),
+      renderSocial(d),
+      renderSommelierBtn(d),
       renderReviews(d),
       renderFooter()
     ].join('');
@@ -451,7 +520,6 @@ function renderAwards(d){
   }
 
   function wireInteractionsAfterRender(){
-    // selector idioma
     const sel=el('#langSel');
     if(sel){
       sel.addEventListener('change',()=>{
@@ -460,7 +528,6 @@ function renderAwards(d){
         location.href=url.toString();
       });
     }
-    // compartir
     const sb=el('#shareBtn');
     if(sb){
       sb.addEventListener('click', async ()=>{
@@ -474,9 +541,6 @@ function renderAwards(d){
     attachMediaFallback();
   }
 
-  /********************************************************************
-   * BOOT
-   ********************************************************************/
   async function bootstrap(){
     appState.query = getQueryParams();
     try{
