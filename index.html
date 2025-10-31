@@ -670,6 +670,22 @@
     });
   });
 </script>
+<style>
+  /* anclar widget de elevenlabs abajo derecha */
+  elevenlabs-convai#sommelier-widget {
+    position: fixed !important;
+    bottom: 120px !important;  /* súbelo para no tapar COMPRAR/VISITAR */
+    right: 16px !important;
+    inset: auto !important;
+    z-index: 9999 !important;
+  }
+
+  /* si el widget crea un contenedor interno con position: fixed */
+  elevenlabs-convai#sommelier-widget *[style*="position: fixed"] {
+    bottom: 120px !important;
+    right: 16px !important;
+  }
+</style>
 
 
 </body>
