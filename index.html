@@ -638,6 +638,37 @@
     }
   }
 </style>
+  <style>
+  /* Evita que el widget quede recortado por contenedores */
+  #sommelier-widget,
+  elevenlabs-convai#sommelier-widget {
+    display: block !important;
+    position: fixed !important;
+    bottom: 120px !important;
+    right: 16px !important;
+    z-index: 99999 !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip-path: none !important;
+    transform: none !important;
+  }
+
+  /* Si algún contenedor padre tiene overflow hidden, lo anulamos */
+  section, div, main, body {
+    overflow: visible !important;
+  }
+
+  /* Ajuste en móvil */
+  @media (max-width: 768px) {
+    #sommelier-widget {
+      bottom: 160px !important;
+      right: 8px !important;
+      transform: scale(0.95);
+    }
+  }
+</style>
 
 <script>
   // Enganche del botón "Hablar con el sommelier"
