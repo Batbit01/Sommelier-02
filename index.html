@@ -607,10 +607,11 @@
 
   bootstrap();
   </script>
-  
+
+
 <!-- Sommelier conversacional (flotante controlado por nosotros) -->
 <div id="sommelier-floater"
-     style="position:fixed; bottom:130px; right:16px; z-index:9999; pointer-events:none;">
+     style="position:fixed; bottom:160px; right:16px; z-index:9999; pointer-events:none;">
   <elevenlabs-convai
     id="sommelier-widget"
     agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
@@ -621,7 +622,6 @@
   ></elevenlabs-convai>
 </div>
 
-<!-- script oficial de ElevenLabs -->
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 
 <script>
@@ -631,8 +631,9 @@
     const floater = document.getElementById("sommelier-floater");
     if (!btn || !widget || !floater) return;
 
-    // 👇 si tapa "Comprar / Visitar", cambia SOLO este número
-    floater.style.bottom = "120px";
+    // 👉 aquí sí manda
+    floater.style.bottom = "160px"; // súbelo o bájalo
+    floater.style.right  = "16px";
 
     btn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -650,15 +651,15 @@
       widget.setAttribute("data-lang", lang);
       widget.setAttribute("data-context", context);
 
-      if (typeof widget.show === "function") {
-        widget.show();
-      }
+      if (typeof widget.show === "function") widget.show();
     });
   });
 </script>
 
 </body>
 </html>
+
+
 
 </body>
 </html>
