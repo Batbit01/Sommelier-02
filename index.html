@@ -632,6 +632,38 @@
       }
     }
   </style>
+<script>
+  // forzar posición del widget cuando ya ha cargado el script de ElevenLabs
+  function fixSommelierPos() {
+    const w = document.getElementById("sommelier-widget");
+    if (!w) return;
+    w.style.position = "fixed";
+    w.style.right = "16px";
+    w.style.bottom = "140px"; // <-- sube o baja aquí
+    w.style.zIndex = "9999";
+  }
+
+  // 1) al cargar la página
+  document.addEventListener("DOMContentLoaded", () => {
+    // puede que el widget tarde en montarse, lo reintentamos unas veces
+    let tries = 0;
+    const int = setInterval(() => {
+      fixSommelierPos();
+      tries++;
+      if (tries > 10) clearInterval(int); // dejamos de intentar
+    }, 400);
+  });
+
+  // 2) cuando hagas clic en el botón, también lo recolocamos (por si el widget se re-renderiza)
+  document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("sommelier-btn");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        setTimeout(fixSommelierPos, 300);
+      });
+    }
+  });
+</script>
 
   <script>
     // enganchar el botón de la ficha
