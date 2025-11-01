@@ -650,23 +650,29 @@
   /* ❌ visible dentro del widget */
 #sommelier-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
   border: none;
-  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  background: rgba(0,0,0,0.65);
   color: #fff;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
+  line-height: 1;
   cursor: pointer;
-  z-index: 70;
-  transition: background 0.2s ease;
+  z-index: 9999 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 #sommelier-close:hover {
-  background: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.25);
+  transform: scale(1.1);
 }
+
 
   @media (max-width: 768px) {
     #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
@@ -681,7 +687,7 @@
 </div>
 
 <!-- wrapper + X + widget -->
-<div id="sommelier-wrapper">
+<div id="sommelier-wrapper" style="position: relative; z-index: 9990;">
   <div style="position: relative; display: inline-block;">
     <button id="sommelier-close">✕</button>
     <elevenlabs-convai
