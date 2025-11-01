@@ -612,36 +612,53 @@
 
   bootstrap();
   </script>
-<!-- Sommelier conversacional flotante fijo -->
+<!-- Sommelier conversacional flotante fijo mejorado -->
 <style>
   #sommelier-float {
     position: fixed;
     right: 18px;
     bottom: 100px; /* Ajusta altura si tapa botones */
     z-index: 60;
-    width: 74px;
-    height: 74px;
-    border-radius: 50%;
     background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
     box-shadow: 0 0 18px rgba(0,0,0,0.4);
+    border-radius: 50px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: transform 0.25s ease;
+    gap: 10px;
+    padding: 10px 14px;
+    transition: transform 0.25s ease, background 0.3s ease;
   }
-  #sommelier-float:hover { transform: scale(1.07); }
-  #sommelier-float span { font-size: 32px; }
+  #sommelier-float:hover {
+    transform: scale(1.05);
+    background: radial-gradient(circle at 30% 30%, #fde047 0%, #b45309 90%);
+  }
+  #sommelier-float span.icon {
+    font-size: 30px;
+  }
+  #sommelier-float span.label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111;
+  }
   @media (max-width:768px){
-    #sommelier-float { width:64px; height:64px; bottom:90px; right:12px; }
-    #sommelier-float span { font-size:28px; }
+    #sommelier-float {
+      right: 12px;
+      bottom: 85px;
+      padding: 8px 12px;
+    }
+    #sommelier-float span.icon { font-size: 26px; }
+    #sommelier-float span.label { font-size: 12px; }
   }
 </style>
 
-<!-- Botón flotante -->
-<div id="sommelier-float"><span>🎙</span></div>
+<!-- Botón flotante con texto -->
+<div id="sommelier-float">
+  <span class="icon">🎙</span>
+  <span class="label">Preguntar al sommelier</span>
+</div>
 
-<!-- Widget oculto, se abre al pulsar -->
+<!-- Widget oculto -->
 <elevenlabs-convai
   id="sommelier-widget"
   agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
@@ -657,9 +674,24 @@
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("sommelier-float");
   const widget = document.getElementById("sommelier-widget");
+
+  // Mostrar widget al pulsar el botón
   btn.addEventListener("click", () => {
     widget.style.display = "block";
     if (typeof widget.show === "function") widget.show();
+  });
+
+  // Cerrar widget al hacer clic fuera o dentro
+  document.addEventListener("click", (e) => {
+    const isWidget = e.target.closest("elevenlabs-convai");
+    const isButton = e.target.closest("#sommelier-float");
+    if (!isWidget && !isButton && widget.style.display === "block") {
+      widget.style.display = "none";
+    }
+  });
+
+  widget.addEventListener("click", () => {
+    widget.style.display = "none";
   });
 });
 </script>
