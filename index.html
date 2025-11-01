@@ -607,32 +607,23 @@
 
   bootstrap();
   </script>
-<!-- Sommelier conversacional (flotante controlado por nosotros) -->
-<div id="sommelier-floater"
-     style="position:fixed; bottom:160px; right:16px; z-index:9999; pointer-events:none;">
-  <elevenlabs-convai
-    id="sommelier-widget"
-    agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-    position="inline"
-    behavior="expanded"
-    variant="compact"
-    style="pointer-events:auto; width:320px; max-width:90vw;"
-  ></elevenlabs-convai>
-</div>
+<!-- Sommelier conversacional (inline, fijo en la ficha) -->
+<elevenlabs-convai
+  id="sommelier-widget"
+  agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
+  position="inline"
+  behavior="expanded"
+  variant="compact"
+  style="width:100%;max-width:520px;margin:1.5rem auto;"
+></elevenlabs-convai>
 
-<!-- script oficial de ElevenLabs -->
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    const btn     = document.getElementById("sommelier-btn");
-    const widget  = document.getElementById("sommelier-widget");
-    const floater = document.getElementById("sommelier-floater");
-    if (!btn || !widget || !floater) return;
-
-    // 👇 AQUÍ SÍ MANDA
-    floater.style.bottom = "160px";  // súbelo/bájalo
-    floater.style.right  = "16px";
+    const btn = document.getElementById("sommelier-btn");
+    const widget = document.getElementById("sommelier-widget");
+    if (!btn || !widget) return;
 
     btn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -650,11 +641,13 @@
       widget.setAttribute("data-lang", lang);
       widget.setAttribute("data-context", context);
 
-      if (typeof widget.show === "function") {
-        widget.show();
-      }
+      if (typeof widget.show === "function") widget.show();
     });
   });
 </script>
+
+</body>
+</html>
+
 </body>
 </html>
