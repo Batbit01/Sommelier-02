@@ -119,108 +119,107 @@
     return r.json();
   }
 
- function normalizeToFicha(data){
-  if(!data) return data;
-  // si ya viene normalizado
-  if(data.ficha) return data;
+  function normalizeToFicha(data){
+    if(!data) return data;
+    if(data.ficha) return data;
 
-  const h  = data.header || (data.for_front && data.for_front.header) || {};
-  const b  = data.bodega || {};
-  const v  = data.vino || {};
-  const ff = data.for_front || {};
-  const contacto = ff.contacto || {};
-  const enot     = ff.enoturismo || {};
-  const narrativaTxt =
-    data.narrative_text ||
-    ff.narrativa_es ||
-    v["Notas de cata"] ||
-    "";
+    const h  = data.header || (data.for_front && data.for_front.header) || {};
+    const b  = data.bodega || {};
+    const v  = data.vino || {};
+    const ff = data.for_front || {};
+    const contacto = ff.contacto || {};
+    const enot     = ff.enoturismo || {};
+    const narrativaTxt =
+      data.narrative_text ||
+      ff.narrativa_es ||
+      v["Notas de cata"] ||
+      "";
 
-  const logo =
-    (Array.isArray(b["Logo de la Bodega"]) && b["Logo de la Bodega"][0]?.url) ||
-    "";
+    const logo =
+      (Array.isArray(b["Logo de la Bodega"]) && b["Logo de la Bodega"][0]?.url) ||
+      "";
 
-  const imageUrl =
-    h.imagen ||
-    (data.assets && data.assets.image_url) ||
-    v.imagen ||
-    "";
+    const imageUrl =
+      h.imagen ||
+      (data.assets && data.assets.image_url) ||
+      v.imagen ||
+      "";
 
-  return {
-    schema_version: "qr2-ficha-1",
-    lang_requested: data.lang || appState.query.lang || "es",
-    lang_final:     data.lang || appState.query.lang || "es",
-    available_langs: [data.lang || appState.query.lang || "es"],
-    theme: {
-      background_mode: "dark",
-      primary_color: "#0f0a0a",
-      accent_color: "#c79a5a",
-    },
-    ficha: {
-      bodega: h.bodega || b["Bodega"] || "",
-      bodega_logo_url: logo,
-      nombre: h.titulo || v["Nombre del vino"] || data.title || "",
-      year:   h.anyada || data.anyada || "",
-      do:     h.do || data.do || v["Origen/DO"] || "",
-      variedad: h.variedad || v["Variedad de uva"] || "",
-      tipo: "",
-      context: appState.query.context || "",
-      ubicacion: {},
-      bottle_media: {
-        image_url: imageUrl,
-        video_url: ""
+    return {
+      schema_version: "qr2-ficha-1",
+      lang_requested: data.lang || appState.query.lang || "es",
+      lang_final:     data.lang || appState.query.lang || "es",
+      available_langs: [data.lang || appState.query.lang || "es"],
+      theme: {
+        background_mode: "dark",
+        primary_color: "#0f0a0a",
+        accent_color: "#c79a5a",
       },
-      narrativa: {
-        texto: narrativaTxt,
-        audio_url: ""
+      ficha: {
+        bodega: h.bodega || b["Bodega"] || "",
+        bodega_logo_url: logo,
+        nombre: h.titulo || v["Nombre del vino"] || data.title || "",
+        year:   h.anyada || data.anyada || "",
+        do:     h.do || data.do || v["Origen/DO"] || "",
+        variedad: h.variedad || v["Variedad de uva"] || "",
+        tipo: "",
+        context: appState.query.context || "",
+        ubicacion: {},
+        bottle_media: {
+          image_url: imageUrl,
+          video_url: ""
+        },
+        narrativa: {
+          texto: narrativaTxt,
+          audio_url: ""
+        },
+        organoleptico: {
+          aromatico: (ff.organoleptico && ff.organoleptico.aromatico) || [],
+          gustativo: (ff.organoleptico && ff.organoleptico.gustativo) || [],
+          sensorial: (ff.organoleptico && ff.organoleptico.sensorial) || [],
+          barras:    (ff.organoleptico && ff.organoleptico.indicadores) || {},
+          radar: {}
+        },
+        tech_info: {
+          vinificacion_y_crianza: v["Proceso de crianza"]
+            ? [String(v["Proceso de crianza"])]
+            : [],
+          origen_y_vendimia: v["Fecha de cosecha"]
+            ? [String(v["Fecha de cosecha"])]
+            : [],
+          produccion: v["Número de botellas"]
+            ? [String(v["Número de botellas"])]
+            : [],
+          notas_de_cata: v["Notas de cata"]
+            ? [String(v["Notas de cata"])]
+            : [],
+          curiosidad:
+            (data.modules && data.modules.curiosidad)
+              ? [String(data.modules.curiosidad)]
+              : []
+        },
+        cta: {
+          comprar_url: "",
+          visita_url: enot.reserva_url || b["Reservas_URL_Base"] || "",
+          contacto_url: contacto.email ? `mailto:${contacto.email}` : ""
+        },
+        gallery: []
       },
-      organoleptico: {
-        aromatico: (ff.organoleptico && ff.organoleptico.aromatico) || [],
-        gustativo: (ff.organoleptico && ff.organoleptico.gustativo) || [],
-        sensorial: (ff.organoleptico && ff.organoleptico.sensorial) || [],
-        barras:    (ff.organoleptico && ff.organoleptico.indicadores) || {},
-        radar: {}
+      reviews_enabled: false,
+      reviews_avg: 0,
+      reviews_count: 0,
+      reviews_recent: [],
+      related_wines: [],
+      social: {
+        instagram: contacto.instagram || "",
+        website:   contacto.web || "",
+        email:     contacto.email || "",
+        phone:     ""
       },
-      tech_info: {
-        vinificacion_y_crianza: v["Proceso de crianza"]
-          ? [String(v["Proceso de crianza"])]
-          : [],
-        origen_y_vendimia: v["Fecha de cosecha"]
-          ? [String(v["Fecha de cosecha"])]
-          : [],
-        produccion: v["Número de botellas"]
-          ? [String(v["Número de botellas"])]
-          : [],
-        notas_de_cata: v["Notas de cata"]
-          ? [String(v["Notas de cata"])]
-          : [],
-        curiosidad:
-          (data.modules && data.modules.curiosidad)
-            ? [String(data.modules.curiosidad)]
-            : []
-      },
-      cta: {
-        comprar_url: "",
-        visita_url: enot.reserva_url || b["Reservas_URL_Base"] || "",
-        contacto_url: contacto.email ? `mailto:${contacto.email}` : ""
-      },
-      gallery: []
-    },
-    reviews_enabled: false,
-    reviews_avg: 0,
-    reviews_count: 0,
-    reviews_recent: [],
-    related_wines: [],
-    social: {
-      instagram: contacto.instagram || "",
-      website:   contacto.web || "",
-      email:     contacto.email || "",
-      phone:     ""
-    },
-    sommelier: { enabled: false },
-    source_hash: data.source_hash || ""
-  };
-}
+      sommelier: { enabled: false },
+      source_hash: data.source_hash || ""
+    };
+  }
 
   async function fetchFicha(){
     const {vino_id,anyada,lang,cdn} = appState.query;
@@ -468,10 +467,40 @@
     `;
   }
 
-  /* NUEVO: SOMMELIER (con botón de voz) */
+  // === BLOQUE DE ACCIONES QR2 (Curiosidad, Maridaje, +Bodega, Otro vino) ===
+  function renderActions(d) {
+    const actions = (d.modules && d.modules.actions_list) || [
+      { id: "curiosidad", label: "Curiosidad", icon: "✨" },
+      { id: "maridaje", label: "Sugerencia de maridaje", icon: "🍽️" },
+      { id: "bodega", label: "Más sobre la bodega", icon: "🏡" },
+      { id: "otro", label: "Ver otro vino", icon: "🍷" },
+    ];
+
+    return `
+      <section class="py-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          ${actions
+            .map(
+              (a) => `
+            <button
+              class="bg-neutral-900/40 border border-neutral-800 rounded-xl px-3 py-3 flex flex-col gap-1 items-start hover:border-amber-400 transition"
+              data-action-id="${a.id}"
+            >
+              <span class="text-lg">${a.icon || "•"}</span>
+              <span class="text-sm font-medium text-neutral-100">${a.label}</span>
+              <span class="text-[11px] text-neutral-500">Tap para ampliar</span>
+            </button>
+          `
+            )
+            .join("")}
+        </div>
+      </section>
+      <hr class="border-neutral-800">
+    `;
+  }
+
+  /* NUEVO: SOMMELIER (con botón de voz dentro de la ficha) */
   function renderSommelierBtn(d){
-    // lo mostramos siempre, o si quieres solo cuando venga enabled:
-    // if (!d.sommelier?.enabled) return "";
     return `
       <section class="py-6">
         <button id="sommelier-btn"
@@ -552,24 +581,45 @@
     const d = appState.fichaData;
     appState.t = UI_COPY[(d.lang_final||'es')] || UI_COPY.es;
     applyTheme(d.theme);
+
+    const m = d.modules || {};
+
     const html = [
-  renderHeader(d),
-  renderHero(d),
-  renderNarrativa(d),
-  renderOrganoleptico(d),
-  renderTech(d),
-  renderCTASection(d),
+      renderHeader(d),
+      renderHero(d),
 
-  // 👇 AQUI dejamos el hueco fijo para el widget
-  `<div id="sommelier-slot" class="py-4" style="min-height:420px"></div>`,
+      // narrativa
+      m.narrativa !== false ? renderNarrativa(d) : "",
 
-  renderGallery(d),
-  renderRelated(d),
-  renderSocial(d),
-  renderSommelierBtn(d),
-  renderReviews(d),
-  renderFooter()
-].join('');
+      // organoléptico
+      m.organoleptico !== false ? renderOrganoleptico(d) : "",
+
+      // ficha técnica
+      m.tech !== false ? renderTech(d) : "",
+
+      // CTA principal
+      m.cta !== false ? renderCTASection(d) : "",
+
+      // acciones QR2
+      m.actions !== false ? renderActions(d) : "",
+
+      // hueco para inline / futuros embeds
+      `<div id="sommelier-slot" class="py-4" style="min-height:420px"></div>`,
+
+      renderGallery(d),
+      renderRelated(d),
+
+      // redes
+      m.social !== false ? renderSocial(d) : "",
+
+      // botón sommelier interior
+      m.sommelier !== false ? renderSommelierBtn(d) : "",
+
+      // valoraciones
+      m.valoraciones !== false ? renderReviews(d) : "",
+
+      renderFooter()
+    ].join('');
 
     el('#app').innerHTML = html;
     wireInteractionsAfterRender();
@@ -594,6 +644,22 @@
         }catch(e){ console.warn('share',e); }
       });
     }
+
+    // 👇 enganchar acciones QR2
+    document.querySelectorAll("[data-action-id]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const actionId = btn.getAttribute("data-action-id");
+        const ctx = {
+          vino_id: appState?.query?.vino_id || appState?.fichaData?.vino_id || "",
+          anyada: appState?.query?.anyada || appState?.fichaData?.ficha?.year || "",
+          lang: appState?.fichaData?.lang_final || appState?.query?.lang || "es",
+          context: appState?.query?.context || "botella"
+        };
+        console.log("[SommelierLab][action]", actionId, ctx);
+        // aquí luego: fetch(`${BASE_API}/qr2/action?...`)
+      });
+    });
+
     attachMediaFallback();
   }
 
@@ -612,159 +678,152 @@
 
   bootstrap();
   </script>
-<!-- Sommelier conversacional flotante fijo v3 -->
-<style>
-  /* botón flotante */
-  #sommelier-float {
-    position: fixed;
-    right: 18px;
-    bottom: 100px;
-    z-index: 60;
-    background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
-    box-shadow: 0 0 18px rgba(0,0,0,0.4);
-    border-radius: 50px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    transition: transform 0.25s ease, background 0.3s ease;
-  }
-  #sommelier-float:hover { transform: scale(1.05); }
-  #sommelier-float .icon { font-size: 30px; }
-  #sommelier-float .label {
-    font-size: 13px;
-    font-weight: 600;
-    color: #111;
-  }
 
-  /* contenedor del widget */
-  #sommelier-wrapper {
-    position: fixed;
-    right: 18px;
-    bottom: 165px; /* súbelo/bájalo aquí */
-    z-index: 65;
-    display: none;
-  }
-
-  /* ❌ visible dentro del widget */
-#sommelier-close {
-  position: absolute;
-  top: -28px;     /* ⬆️ más arriba */
-  right: -14px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: #facc15;
-  color: #111;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  z-index: 99999;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-}
-#sommelier-close:hover {
-  background: #fde68a;
-}
-
-  @media (max-width: 768px) {
-    #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
-    #sommelier-wrapper { right: 12px; bottom: 150px; }
-  }
-</style>
-
-<!-- botón flotante -->
-<div id="sommelier-float">
-  <span class="icon">🎙</span>
-  <span class="label">Preguntar al sommelier</span>
-</div>
-
-<div id="sommelier-wrapper" style="position: fixed; right: 18px; bottom: 165px; z-index: 9990; display: none;">
-  <button id="sommelier-close">✕</button>
-  <elevenlabs-convai
-    id="sommelier-widget"
-    agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-    position="floating"
-    behavior="expanded"
-    variant="compact"
-  ></elevenlabs-convai>
-</div>
-<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("sommelier-float");
-  const wrapper = document.getElementById("sommelier-wrapper");
-  const widget = document.getElementById("sommelier-widget");
-  const btnClose = document.getElementById("sommelier-close");
-
-  function tryStartConversation() {
-    if (widget && typeof widget.startConversation === "function") {
-      try { widget.startConversation(); return; } catch (e) { console.warn(e); }
+  <!-- Sommelier conversacional flotante fijo v3 -->
+  <style>
+    /* botón flotante */
+    #sommelier-float {
+      position: fixed;
+      right: 18px;
+      bottom: 100px;
+      z-index: 60;
+      background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
+      box-shadow: 0 0 18px rgba(0,0,0,0.4);
+      border-radius: 50px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      transition: transform 0.25s ease, background 0.3s ease;
     }
-    if (widget && typeof widget.show === "function") {
-      try { widget.show(); } catch (e) { console.warn(e); }
+    #sommelier-float:hover { transform: scale(1.05); }
+    #sommelier-float .icon { font-size: 30px; }
+    #sommelier-float .label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111;
     }
-    setTimeout(() => {
-      try {
-        const sr = widget.shadowRoot;
-        if (!sr) return;
-        const btnMic = sr.querySelector("button, [role='button']");
-        if (btnMic) btnMic.click();
-      } catch (e) {
-        console.warn("no se pudo pulsar el botón interno", e);
+
+    /* contenedor del widget */
+    #sommelier-wrapper {
+      position: fixed;
+      right: 18px;
+      bottom: 165px;
+      z-index: 65;
+      display: none;
+    }
+
+    /* ❌ visible dentro del widget */
+    #sommelier-close {
+      position: absolute;
+      top: -28px;
+      right: -14px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: #facc15;
+      color: #111;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 99999;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    #sommelier-close:hover {
+      background: #fde68a;
+    }
+
+    @media (max-width: 768px) {
+      #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
+      #sommelier-wrapper { right: 12px; bottom: 150px; }
+    }
+  </style>
+
+  <!-- botón flotante -->
+  <div id="sommelier-float">
+    <span class="icon">🎙</span>
+    <span class="label">Preguntar al sommelier</span>
+  </div>
+
+  <div id="sommelier-wrapper" style="position: fixed; right: 18px; bottom: 165px; z-index: 9990; display: none;">
+    <button id="sommelier-close">✕</button>
+    <elevenlabs-convai
+      id="sommelier-widget"
+      agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
+      position="floating"
+      behavior="expanded"
+      variant="compact"
+    ></elevenlabs-convai>
+  </div>
+  <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("sommelier-float");
+    const wrapper = document.getElementById("sommelier-wrapper");
+    const widget = document.getElementById("sommelier-widget");
+    const btnClose = document.getElementById("sommelier-close");
+
+    function tryStartConversation() {
+      if (widget && typeof widget.startConversation === "function") {
+        try { widget.startConversation(); return; } catch (e) { console.warn(e); }
       }
-    }, 450);
-  }
+      if (widget && typeof widget.show === "function") {
+        try { widget.show(); } catch (e) { console.warn(e); }
+      }
+      setTimeout(() => {
+        try {
+          const sr = widget.shadowRoot;
+          if (!sr) return;
+          const btnMic = sr.querySelector("button, [role='button']");
+          if (btnMic) btnMic.click();
+        } catch (e) {
+          console.warn("no se pudo pulsar el botón interno", e);
+        }
+      }, 450);
+    }
 
-  // abrir
-  btn.addEventListener("click", () => {
-    wrapper.style.display = "block";
-    setTimeout(() => { tryStartConversation(); }, 250);
+    // abrir
+    btn.addEventListener("click", () => {
+      wrapper.style.display = "block";
+      setTimeout(() => { tryStartConversation(); }, 250);
+    });
+
+    // cerrar con la X
+    btnClose.addEventListener("click", () => {
+      wrapper.style.display = "none";
+      if (widget) {
+        if (typeof widget.endConversation === "function") {
+          widget.endConversation();
+        } else if (typeof widget.stopConversation === "function") {
+          widget.stopConversation();
+        } else if (typeof widget.hide === "function") {
+          widget.hide();
+        }
+      }
+    });
+
+    // cerrar al tocar fuera
+    document.addEventListener("click", (e) => {
+      const isWrapper = e.target.closest("#sommelier-wrapper");
+      const isBtn = e.target.closest("#sommelier-float");
+      if (!isWrapper && !isBtn && wrapper.style.display === "block") {
+        wrapper.style.display = "none";
+        if (widget) {
+          if (typeof widget.endConversation === "function") {
+            widget.endConversation();
+          } else if (typeof widget.stopConversation === "function") {
+            widget.stopConversation();
+          } else if (typeof widget.hide === "function") {
+            widget.hide();
+          }
+        }
+      }
+    });
   });
-
-  // cerrar con la X
-btnClose.addEventListener("click", () => {
-  wrapper.style.display = "none";
-  // intentar cerrar conversación de ElevenLabs
-  if (widget) {
-    if (typeof widget.endConversation === "function") {
-      widget.endConversation();
-    } else if (typeof widget.stopConversation === "function") {
-      widget.stopConversation();
-    } else if (typeof widget.hide === "function") {
-      widget.hide();
-    }
-  }
-});
-
-
-  // cerrar al tocar fuera
-document.addEventListener("click", (e) => {
-  const isWrapper = e.target.closest("#sommelier-wrapper");
-  const isBtn = e.target.closest("#sommelier-float");
-  if (!isWrapper && !isBtn && wrapper.style.display === "block") {
-    wrapper.style.display = "none";
-    if (widget) {
-      if (typeof widget.endConversation === "function") {
-        widget.endConversation();
-      } else if (typeof widget.stopConversation === "function") {
-        widget.stopConversation();
-      } else if (typeof widget.hide === "function") {
-        widget.hide();
-      }
-    }
-  }
-});
-
-
-</script>
-
-</body>
-</html>
-
-
+  </script>
 
 </body>
 </html>
