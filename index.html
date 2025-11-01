@@ -612,50 +612,56 @@
 
   bootstrap();
   </script>
-<!-- Sommelier conversacional (se inserta en #sommelier-slot) -->
+<!-- Sommelier conversacional flotante fijo -->
+<style>
+  #sommelier-float {
+    position: fixed;
+    right: 18px;
+    bottom: 100px; /* Ajusta altura si tapa botones */
+    z-index: 60;
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
+    box-shadow: 0 0 18px rgba(0,0,0,0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.25s ease;
+  }
+  #sommelier-float:hover { transform: scale(1.07); }
+  #sommelier-float span { font-size: 32px; }
+  @media (max-width:768px){
+    #sommelier-float { width:64px; height:64px; bottom:90px; right:12px; }
+    #sommelier-float span { font-size:28px; }
+  }
+</style>
+
+<!-- Botón flotante -->
+<div id="sommelier-float"><span>🎙</span></div>
+
+<!-- Widget oculto, se abre al pulsar -->
 <elevenlabs-convai
   id="sommelier-widget"
   agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-  position="inline"
+  position="floating"
   behavior="expanded"
   variant="compact"
-  style="width:100%;max-width:520px;margin:0 auto;"
+  style="display:none;"
 ></elevenlabs-convai>
 
-<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const btn    = document.getElementById("sommelier-btn");
-    const widget = document.getElementById("sommelier-widget");
-
-    // 👉 cuando la ficha ya está montada, movemos el widget al hueco
-    const slot = document.getElementById("sommelier-slot");
-    if (slot && widget) {
-      slot.appendChild(widget);
-    }
-
-    if (btn && widget) {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-
-        const d = (window.appState && window.appState.fichaData) || {};
-        const vino_id   = d?.ficha?.id || d.vino_id || window.appState?.query?.vino_id || "";
-        const anyada    = d?.ficha?.year || d.anyada  || window.appState?.query?.anyada  || "";
-        const bodega_id = d?.ficha?.bodega_id || d.bodega_id || window.appState?.query?.bodega_id || "";
-        const lang      = d.lang_final || window.appState?.query?.lang || "es";
-        const context   = window.appState?.query?.context || "botella";
-
-        widget.setAttribute("data-vino-id", vino_id);
-        widget.setAttribute("data-anyada", anyada);
-        widget.setAttribute("data-bodega-id", bodega_id);
-        widget.setAttribute("data-lang", lang);
-        widget.setAttribute("data-context", context);
-
-        if (typeof widget.show === "function") widget.show();
-      });
-    }
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("sommelier-float");
+  const widget = document.getElementById("sommelier-widget");
+  btn.addEventListener("click", () => {
+    widget.style.display = "block";
+    if (typeof widget.show === "function") widget.show();
   });
+});
 </script>
 
 </body>
