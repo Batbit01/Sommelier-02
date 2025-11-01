@@ -612,8 +612,9 @@
 
   bootstrap();
   </script>
-<!-- Sommelier conversacional flotante fijo con cierre y auto-voz -->
+<!-- Sommelier conversacional flotante fijo v3 -->
 <style>
+  /* botón flotante */
   #sommelier-float {
     position: fixed;
     right: 18px;
@@ -629,101 +630,116 @@
     padding: 10px 14px;
     transition: transform 0.25s ease, background 0.3s ease;
   }
-  #sommelier-float:hover {
-    transform: scale(1.05);
-    background: radial-gradient(circle at 30% 30%, #fde047 0%, #b45309 90%);
-  }
-  #sommelier-float span.icon { font-size: 30px; }
-  #sommelier-float span.label {
+  #sommelier-float:hover { transform: scale(1.05); }
+  #sommelier-float .icon { font-size: 30px; }
+  #sommelier-float .label {
     font-size: 13px;
     font-weight: 600;
     color: #111;
   }
-  #sommelier-close {
-    display: none;
+  /* contenedor del widget + X integrada */
+  #sommelier-wrapper {
     position: fixed;
-    top: 20px;
-    right: 24px;
-    z-index: 70;
-    background: rgba(0,0,0,0.6);
-    color: #fff;
-    font-size: 20px;
+    right: 18px;
+    bottom: 165px; /* encima de los botones de compra */
+    z-index: 65;
+    display: none;
+  }
+  #sommelier-close {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
     border: none;
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 16px;
     cursor: pointer;
   }
-  @media (max-width:768px){
+  @media (max-width: 768px) {
     #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
-    #sommelier-float span.icon { font-size: 26px; }
-    #sommelier-float span.label { font-size: 12px; }
-    #sommelier-close { top: 14px; right: 14px; }
+    #sommelier-wrapper { right: 12px; bottom: 150px; }
   }
 </style>
 
-<!-- Botón flotante -->
+<!-- botón flotante -->
 <div id="sommelier-float">
   <span class="icon">🎙</span>
   <span class="label">Preguntar al sommelier</span>
 </div>
 
-<!-- Botón de cierre -->
-<button id="sommelier-close">✕</button>
-
-<!-- Widget -->
-<elevenlabs-convai
-  id="sommelier-widget"
-  agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-  position="floating"
-  behavior="expanded"
-  variant="compact"
-  style="display:none;"
-></elevenlabs-convai>
+<!-- wrapper + X + widget -->
+<div id="sommelier-wrapper">
+  <button id="sommelier-close">✕</button>
+  <elevenlabs-convai
+    id="sommelier-widget"
+    agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
+    position="floating"
+    behavior="expanded"
+    variant="compact"
+  ></elevenlabs-convai>
+</div>
 
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("sommelier-float");
-  const closeBtn = document.getElementById("sommelier-close");
+  const wrapper = document.getElementById("sommelier-wrapper");
   const widget = document.getElementById("sommelier-widget");
+  const btnClose = document.getElementById("sommelier-close");
 
-  // 1. Abrir widget y activar voz automáticamente
+  // función que intenta empezar la conversación de todas las formas posibles
+  function tryStartConversation() {
+    // 1) API del widget, si la expone
+    if (widget && typeof widget.startConversation === "function") {
+      try { widget.startConversation(); return; } catch(e) { console.warn("startConversation falló", e); }
+    }
+    // 2) algunos embeds exponen show()
+    if (widget && typeof widget.show === "function") {
+      try { widget.show(); } catch(e) { console.warn("show falló", e); }
+    }
+    // 3) como último recurso: clic virtual dentro del shadowRoot para pulsar su botón
+    setTimeout(() => {
+      try {
+        const sr = widget.shadowRoot;
+        if (!sr) return;
+        // busca un botón de acción
+        const btnMic = sr.querySelector("button, [role='button']");
+        if (btnMic) btnMic.click();
+      } catch(e) {
+        console.warn("no se pudo hacer click interno", e);
+      }
+    }, 450); // espera a que renderice
+  }
+
+  // abrir desde el botón
   btn.addEventListener("click", () => {
-    widget.style.display = "block";
-    closeBtn.style.display = "block";
-    if (typeof widget.show === "function") widget.show();
-    // intento de iniciar conversación directa si el agente lo permite
-    if (typeof widget.startConversation === "function") {
-      try { widget.startConversation(); } catch(e) { console.warn(e); }
-    }
+    wrapper.style.display = "block";
+    // pequeño delay para que el widget cargue y luego iniciar
+    setTimeout(() => {
+      tryStartConversation();
+    }, 250);
   });
 
-  // 2. Cerrar al pulsar la X
-  closeBtn.addEventListener("click", () => {
-    widget.style.display = "none";
-    closeBtn.style.display = "none";
+  // cerrar con la X
+  btnClose.addEventListener("click", () => {
+    wrapper.style.display = "none";
   });
 
-  // 3. Cerrar al tocar fuera
+  // cerrar al tocar fuera
   document.addEventListener("click", (e) => {
-    const isWidget = e.target.closest("elevenlabs-convai");
-    const isButton = e.target.closest("#sommelier-float");
-    const isClose = e.target.closest("#sommelier-close");
-    if (!isWidget && !isButton && !isClose && widget.style.display === "block") {
-      widget.style.display = "none";
-      closeBtn.style.display = "none";
+    const isWrapper = e.target.closest("#sommelier-wrapper");
+    const isBtn = e.target.closest("#sommelier-float");
+    if (!isWrapper && !isBtn) {
+      wrapper.style.display = "none";
     }
-  });
-
-  // 4. Cerrar al hacer clic dentro del widget
-  widget.addEventListener("click", () => {
-    widget.style.display = "none";
-    closeBtn.style.display = "none";
   });
 });
 </script>
+
 
 </body>
 </html>
