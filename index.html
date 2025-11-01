@@ -637,27 +637,37 @@
     font-weight: 600;
     color: #111;
   }
-  /* contenedor del widget + X integrada */
+
+  /* contenedor del widget */
   #sommelier-wrapper {
     position: fixed;
     right: 18px;
-    bottom: 165px; /* encima de los botones de compra */
+    bottom: 165px; /* súbelo/bájalo aquí */
     z-index: 65;
     display: none;
   }
+
+  /* ❌ visible dentro del widget */
   #sommelier-close {
     position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 28px;
-    height: 28px;
-    border-radius: 9999px;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
     border: none;
-    background: rgba(0,0,0,0.55);
-    color: #fff;
+    background: rgba(255,255,255,0.15);
+    color: white;
     font-size: 16px;
+    font-weight: bold;
     cursor: pointer;
+    z-index: 70;
+    transition: background 0.2s ease;
   }
+  #sommelier-close:hover {
+    background: rgba(255,255,255,0.35);
+  }
+
   @media (max-width: 768px) {
     #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
     #sommelier-wrapper { right: 12px; bottom: 150px; }
@@ -672,14 +682,16 @@
 
 <!-- wrapper + X + widget -->
 <div id="sommelier-wrapper">
-  <button id="sommelier-close">✕</button>
-  <elevenlabs-convai
-    id="sommelier-widget"
-    agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-    position="floating"
-    behavior="expanded"
-    variant="compact"
-  ></elevenlabs-convai>
+  <div style="position: relative; display: inline-block;">
+    <button id="sommelier-close">✕</button>
+    <elevenlabs-convai
+      id="sommelier-widget"
+      agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
+      position="floating"
+      behavior="expanded"
+      variant="compact"
+    ></elevenlabs-convai>
+  </div>
 </div>
 
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
@@ -691,37 +703,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const widget = document.getElementById("sommelier-widget");
   const btnClose = document.getElementById("sommelier-close");
 
-  // función que intenta empezar la conversación de todas las formas posibles
   function tryStartConversation() {
-    // 1) API del widget, si la expone
     if (widget && typeof widget.startConversation === "function") {
-      try { widget.startConversation(); return; } catch(e) { console.warn("startConversation falló", e); }
+      try { widget.startConversation(); return; } catch (e) { console.warn(e); }
     }
-    // 2) algunos embeds exponen show()
     if (widget && typeof widget.show === "function") {
-      try { widget.show(); } catch(e) { console.warn("show falló", e); }
+      try { widget.show(); } catch (e) { console.warn(e); }
     }
-    // 3) como último recurso: clic virtual dentro del shadowRoot para pulsar su botón
     setTimeout(() => {
       try {
         const sr = widget.shadowRoot;
         if (!sr) return;
-        // busca un botón de acción
         const btnMic = sr.querySelector("button, [role='button']");
         if (btnMic) btnMic.click();
-      } catch(e) {
-        console.warn("no se pudo hacer click interno", e);
+      } catch (e) {
+        console.warn("no se pudo pulsar el botón interno", e);
       }
-    }, 450); // espera a que renderice
+    }, 450);
   }
 
-  // abrir desde el botón
+  // abrir
   btn.addEventListener("click", () => {
     wrapper.style.display = "block";
-    // pequeño delay para que el widget cargue y luego iniciar
-    setTimeout(() => {
-      tryStartConversation();
-    }, 250);
+    setTimeout(() => { tryStartConversation(); }, 250);
   });
 
   // cerrar con la X
@@ -733,12 +737,16 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("click", (e) => {
     const isWrapper = e.target.closest("#sommelier-wrapper");
     const isBtn = e.target.closest("#sommelier-float");
-    if (!isWrapper && !isBtn) {
+    if (!isWrapper && !isBtn && wrapper.style.display === "block") {
       wrapper.style.display = "none";
     }
   });
 });
 </script>
+
+</body>
+</html>
+
 
 
 </body>
