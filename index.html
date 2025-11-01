@@ -686,20 +686,16 @@
   <span class="label">Preguntar al sommelier</span>
 </div>
 
-<!-- wrapper + X + widget -->
-<div id="sommelier-wrapper" style="position: relative; z-index: 9990;">
-  <div style="position: relative; display: inline-block;">
-    <button id="sommelier-close">✕</button>
-    <elevenlabs-convai
-      id="sommelier-widget"
-      agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-      position="floating"
-      behavior="expanded"
-      variant="compact"
-    ></elevenlabs-convai>
-  </div>
+<div id="sommelier-wrapper" style="position: fixed; right: 18px; bottom: 165px; z-index: 9990; display: none;">
+  <button id="sommelier-close">✕</button>
+  <elevenlabs-convai
+    id="sommelier-widget"
+    agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
+    position="floating"
+    behavior="expanded"
+    variant="compact"
+  ></elevenlabs-convai>
 </div>
-
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
 
 <script>
