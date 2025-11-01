@@ -612,12 +612,12 @@
 
   bootstrap();
   </script>
-<!-- Sommelier conversacional flotante fijo mejorado -->
+<!-- Sommelier conversacional flotante fijo con cierre y auto-voz -->
 <style>
   #sommelier-float {
     position: fixed;
     right: 18px;
-    bottom: 100px; /* Ajusta altura si tapa botones */
+    bottom: 100px;
     z-index: 60;
     background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
     box-shadow: 0 0 18px rgba(0,0,0,0.4);
@@ -633,32 +633,45 @@
     transform: scale(1.05);
     background: radial-gradient(circle at 30% 30%, #fde047 0%, #b45309 90%);
   }
-  #sommelier-float span.icon {
-    font-size: 30px;
-  }
+  #sommelier-float span.icon { font-size: 30px; }
   #sommelier-float span.label {
     font-size: 13px;
     font-weight: 600;
     color: #111;
   }
+  #sommelier-close {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    z-index: 70;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 20px;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+  }
   @media (max-width:768px){
-    #sommelier-float {
-      right: 12px;
-      bottom: 85px;
-      padding: 8px 12px;
-    }
+    #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
     #sommelier-float span.icon { font-size: 26px; }
     #sommelier-float span.label { font-size: 12px; }
+    #sommelier-close { top: 14px; right: 14px; }
   }
 </style>
 
-<!-- Botón flotante con texto -->
+<!-- Botón flotante -->
 <div id="sommelier-float">
   <span class="icon">🎙</span>
   <span class="label">Preguntar al sommelier</span>
 </div>
 
-<!-- Widget oculto -->
+<!-- Botón de cierre -->
+<button id="sommelier-close">✕</button>
+
+<!-- Widget -->
 <elevenlabs-convai
   id="sommelier-widget"
   agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
@@ -673,25 +686,41 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("sommelier-float");
+  const closeBtn = document.getElementById("sommelier-close");
   const widget = document.getElementById("sommelier-widget");
 
-  // Mostrar widget al pulsar el botón
+  // 1. Abrir widget y activar voz automáticamente
   btn.addEventListener("click", () => {
     widget.style.display = "block";
+    closeBtn.style.display = "block";
     if (typeof widget.show === "function") widget.show();
-  });
-
-  // Cerrar widget al hacer clic fuera o dentro
-  document.addEventListener("click", (e) => {
-    const isWidget = e.target.closest("elevenlabs-convai");
-    const isButton = e.target.closest("#sommelier-float");
-    if (!isWidget && !isButton && widget.style.display === "block") {
-      widget.style.display = "none";
+    // intento de iniciar conversación directa si el agente lo permite
+    if (typeof widget.startConversation === "function") {
+      try { widget.startConversation(); } catch(e) { console.warn(e); }
     }
   });
 
+  // 2. Cerrar al pulsar la X
+  closeBtn.addEventListener("click", () => {
+    widget.style.display = "none";
+    closeBtn.style.display = "none";
+  });
+
+  // 3. Cerrar al tocar fuera
+  document.addEventListener("click", (e) => {
+    const isWidget = e.target.closest("elevenlabs-convai");
+    const isButton = e.target.closest("#sommelier-float");
+    const isClose = e.target.closest("#sommelier-close");
+    if (!isWidget && !isButton && !isClose && widget.style.display === "block") {
+      widget.style.display = "none";
+      closeBtn.style.display = "none";
+    }
+  });
+
+  // 4. Cerrar al hacer clic dentro del widget
   widget.addEventListener("click", () => {
     widget.style.display = "none";
+    closeBtn.style.display = "none";
   });
 });
 </script>
