@@ -650,29 +650,23 @@
   /* ❌ visible dentro del widget */
 #sommelier-close {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 26px;
-  height: 26px;
-  border: none;
+  top: -28px;     /* ⬆️ más arriba */
+  right: -14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.65);
-  color: #fff;
+  border: none;
+  background: #facc15;
+  color: #111;
   font-size: 18px;
   font-weight: bold;
-  line-height: 1;
   cursor: pointer;
-  z-index: 9999 !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease, transform 0.2s ease;
+  z-index: 99999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 #sommelier-close:hover {
-  background: rgba(255,255,255,0.25);
-  transform: scale(1.1);
+  background: #fde68a;
 }
-
 
   @media (max-width: 768px) {
     #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
@@ -731,19 +725,40 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // cerrar con la X
-  btnClose.addEventListener("click", () => {
-    wrapper.style.display = "none";
-  });
+btnClose.addEventListener("click", () => {
+  wrapper.style.display = "none";
+  // intentar cerrar conversación de ElevenLabs
+  if (widget) {
+    if (typeof widget.endConversation === "function") {
+      widget.endConversation();
+    } else if (typeof widget.stopConversation === "function") {
+      widget.stopConversation();
+    } else if (typeof widget.hide === "function") {
+      widget.hide();
+    }
+  }
+});
+
 
   // cerrar al tocar fuera
-  document.addEventListener("click", (e) => {
-    const isWrapper = e.target.closest("#sommelier-wrapper");
-    const isBtn = e.target.closest("#sommelier-float");
-    if (!isWrapper && !isBtn && wrapper.style.display === "block") {
-      wrapper.style.display = "none";
+document.addEventListener("click", (e) => {
+  const isWrapper = e.target.closest("#sommelier-wrapper");
+  const isBtn = e.target.closest("#sommelier-float");
+  if (!isWrapper && !isBtn && wrapper.style.display === "block") {
+    wrapper.style.display = "none";
+    if (widget) {
+      if (typeof widget.endConversation === "function") {
+        widget.endConversation();
+      } else if (typeof widget.stopConversation === "function") {
+        widget.stopConversation();
+      } else if (typeof widget.hide === "function") {
+        widget.hide();
+      }
     }
-  });
+  }
 });
+
+
 </script>
 
 </body>
