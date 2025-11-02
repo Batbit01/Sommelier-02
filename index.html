@@ -253,57 +253,86 @@ document.addEventListener("DOMContentLoaded", fetchFichaFromN8N);
     };
   }
 
-  async function fetchFicha(){
-    const {vino_id,anyada,lang,cdn} = appState.query;
-    let data=null;
-    if(!cdn && BASE_API && BASE_API!=="https://n8n-production-cb18.up.railway.app/webhook"){
-      try{ data = await fetchFromResolve(vino_id,anyada,lang); }
-      catch(e){ console.warn('API falló, uso CDN',e); }
+  async function fetchFicha() {
+  const { vino_id, anyada, lang } = appState.query;
+  const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
+
+  // --- 1) FICHA del CDN ---------------------------------
+  let baseData = null;
+  try {
+    const urlFicha = `${CDN_BASE}/qr2/${vino_id}/${anyada}/${lang}/ficha.json`;
+    const res = await fetch(urlFicha, { cache: "no-store" });
+    if (!res.ok) throw new Error("cdn_not_found");
+    baseData = await res.json();
+    baseData.ficha_path = urlFicha;
+  } catch (e) {
+    console.warn("No se encontró la ficha en CDN", e);
+    // fallback a español si el idioma solicitado falla
+    if (lang !== "es") {
+      try {
+        const urlFallback = `${CDN_BASE}/qr2/${vino_id}/${anyada}/es/ficha.json`;
+        const res2 = await fetch(urlFallback, { cache: "no-store" });
+        if (res2.ok) {
+          baseData = await res2.json();
+          baseData.ficha_path = urlFallback;
+          baseData.lang_fallback = "es";
+        }
+      } catch (e2) {
+        console.warn("Tampoco existe la ficha en español", e2);
+      }
     }
-    if(!data){
-      const cdnData = await fetchFromCDN(vino_id,anyada,lang);
-      data = normalizeToFicha(cdnData);
-    }else{
-      data = normalizeToFicha(data);
-    }
-    return data;
   }
 
-  /******** RENDER ********/
-  const el = sel => document.querySelector(sel);
-
-  function renderHeader(d){
-    const langs = (d.available_langs && d.available_langs.length) ? d.available_langs : [appState.query.lang||'es'];
-    const warning = d.lang_requested && d.lang_final && d.lang_requested!==d.lang_final
-      ? `<div class="text-[11px] text-amber-400 mt-1">Mostrando en ${d.lang_final.toUpperCase()} · pedido ${d.lang_requested.toUpperCase()}</div>` : '';
-    const ctx = prettyContext(appState.query.context || d.ficha.context || '');
-    const ctxChip = ctx ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${ctx}</span>` : '';
-
-    return `
-      <header class="py-4 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          ${ d.ficha.bodega_logo_url ? `<img src="${d.ficha.bodega_logo_url}" class="w-10 h-10 rounded-lg border border-neutral-700 object-cover">` : '' }
-          <div>
-            <div class="text-sm text-neutral-300">${d.ficha.bodega||''}</div>
-            <div class="text-2xl font-semibold">${d.ficha.nombre||''} <span class="text-neutral-400">${d.ficha.year||''}</span></div>
-            <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-              ${ d.ficha.do ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.do}</span>` : '' }
-              ${ d.ficha.variedad ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.variedad}</span>` : '' }
-              ${ ctxChip }
-            </div>
-            ${warning}
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-sm">
-            ${ langs.map(l=>`<option value="${l}" ${l===d.lang_final?'selected':''}>${l.toUpperCase()}</option>`).join('') }
-          </select>
-          <button id="shareBtn" class="text-amber-400 underline">${appState.t.share}</button>
-        </div>
-      </header>
-      <hr class="border-neutral-800">
-    `;
+  // --- 2) AUDIO base del CDN ------------------------------
+  let audioUrl = `${CDN_BASE}/qr2/${vino_id}/${anyada}/${lang}/base.mp3`;
+  try {
+    const test = await fetch(audioUrl, { method: "HEAD" });
+    if (!test.ok) throw new Error("audio_not_found");
+  } catch {
+    // Fallback a español
+    if (lang !== "es") {
+      const alt = `${CDN_BASE}/qr2/${vino_id}/${anyada}/es/base.mp3`;
+      const testEs = await fetch(alt, { method: "HEAD" });
+      if (testEs.ok) audioUrl = alt;
+      else {
+        // pedir generación a n8n (flujo 5)
+        try {
+          const urlTTS = `https://n8n-production-cb18.up.railway.app/webhook/qr2/audio/tts?vino_id=${vino_id}&anyada=${anyada}&lang=${lang}`;
+          const resTTS = await fetch(urlTTS);
+          if (resTTS.ok) {
+            const json = await resTTS.json();
+            if (json.audio_url) audioUrl = json.audio_url;
+          }
+        } catch (e3) {
+          console.warn("n8n no pudo generar audio", e3);
+        }
+      }
+    }
   }
+  baseData.audio_base_url = audioUrl;
+
+  // --- 3) HIDRATACIÓN opcional desde n8n -------------------
+  let dynamicData = null;
+  try {
+    const urlResolve = `https://n8n-production-cb18.up.railway.app/webhook/qr2/resolve?vino_id=${vino_id}&anyada=${anyada}&lang=${lang}`;
+    const res = await fetch(urlResolve, { cache: "no-store" });
+    if (res.ok) dynamicData = await res.json();
+  } catch (e) {
+    console.warn("n8n no disponible", e);
+  }
+
+  // --- 4) MERGE y salida final -----------------------------
+  if (dynamicData) {
+    baseData = {
+      ...baseData,
+      ...(dynamicData || {}),
+      audio_base_url: audioUrl,
+    };
+  }
+
+  return baseData;
+}
+
 
   /* PREMIOS */
   function renderAwards(d){
