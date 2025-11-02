@@ -4,11 +4,12 @@
   <meta charset="utf-8">
   <title>SommelierLab · Ficha del vino</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Tailwind solo para MVP -->
+  <!-- Tailwind CDN solo para MVP; en prod compila con PostCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{ --accent-color:#c79a5a; }
     .fade-in{ animation:fadeIn .35s ease-out both }
+  
     @keyframes fadeIn{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
     .grow-x{ transform-origin:left; animation:growX .6s ease-out both }
     @keyframes growX{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
@@ -62,7 +63,7 @@
       opinions:"reviews",
       your_review:"Write your review…",
       send_review:"Send",
-      allergens:"Allergens / Legal",
+      allergens:"Allergens / Legal info",
       drink_responsibly:"Drink responsibly",
       gallery:"Gallery",
       related:"Other wines",
@@ -113,42 +114,19 @@
     body.classList.toggle('tex-bg', !!t.use_texture);
   }
 
-  /******** URL BUILDERS ********/
+  /******** URL BASE CDN ********/
   const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
-
-  function cdnFichaUrl(vino_id,anyada,lang){
-    return `${CDN_BASE}/qr2/${encodeURIComponent(vino_id)}/${encodeURIComponent(anyada)}/${encodeURIComponent(lang)}/ficha.json`;
-  }
-
-  // heurística de audio sin n8n
-  async function tryGuessAudio(vino_id,anyada,lang){
-    const candidates = [
-      `${CDN_BASE}/qr2/audio/${vino_id}/${anyada}/${lang}/base.mp3`,
-      `${CDN_BASE}/qr2/audio/${vino_id}/${anyada}/${lang}.mp3`,
-      `${CDN_BASE}/qr2/audio/${vino_id}/${lang}/base.mp3`,
-      `${CDN_BASE}/qr2/audio/${vino_id}/${lang}.mp3`
-    ];
-    for (const url of candidates){
-      try{
-        const r = await fetch(url,{method:'HEAD'});
-        if (r.ok) return url;
-      }catch(_){}
-    }
-    return "";
-  }
 
   /******** NORMALIZADOR ********/
   function normalizeToFicha(raw, langFallback){
     if (!raw) return null;
     if (raw.ficha) {
-      // asegurar idiomas
       raw.lang_final = raw.lang_final || raw.lang || langFallback || "es";
       raw.lang_requested = raw.lang_requested || langFallback || "es";
       raw.modules = raw.modules || {};
       return raw;
     }
 
-    // caso legacy
     const h  = raw.header || {};
     const b  = raw.bodega || {};
     const v  = raw.vino || {};
@@ -247,47 +225,89 @@
     };
   }
 
-  /******** FETCH PRINCIPAL (solo B2) ********/
-  async function fetchFicha(){
-    const { vino_id, anyada, lang } = appState.query;
-    let data = null;
-    let finalLang = lang;
+  /******** FETCH PRINCIPAL (CDN, idioma correcto, audio por patrón) ********/
+  async function fetchFicha() {
+  const { vino_id, anyada, lang } = appState.query;
+  const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
 
-    // 1. intentar idioma solicitado
-    try{
-      const res = await fetch(cdnFichaUrl(vino_id,anyada,lang), {cache:"no-store"});
-      if (!res.ok) throw new Error("not_found_lang");
-      data = await res.json();
-      data.ficha_path = cdnFichaUrl(vino_id,anyada,lang);
-    }catch(err){
-      console.warn("[SL] ficha no encontrada en", lang, err);
-      // 2. fallback a ES
-      if (lang !== "es") {
-        try{
-          const res2 = await fetch(cdnFichaUrl(vino_id,anyada,"es"), {cache:"no-store"});
-          if (!res2.ok) throw new Error("not_found_es");
-          data = await res2.json();
-          data.ficha_path = cdnFichaUrl(vino_id,anyada,"es");
-          data.lang_fallback = "es";
-          finalLang = "es";
-        }catch(err2){
-          console.error("[SL] tampoco existe en español", err2);
-        }
+  // 1) intentar varios formatos de idioma
+  const langCandidates = Array.from(
+    new Set(
+      [lang, lang && lang.toLowerCase(), lang && lang.toUpperCase()].filter(Boolean)
+    )
+  );
+
+  let data = null;
+  let finalLang = lang;
+
+  // 1.a intento directo por cada variante
+  for (const L of langCandidates) {
+    try {
+      const url = `${CDN_BASE}/qr2/${vino_id}/${anyada}/${L}/ficha.json`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        data = await res.json();
+        data.ficha_path = url;
+        finalLang = L.toLowerCase();
+        break;
       }
+    } catch (e) {
+      console.warn("[SL] no existe ficha en", L, e);
     }
-
-    if (!data) {
-      throw new Error("No se pudo cargar ninguna ficha desde CDN");
-    }
-
-    data.lang_requested = lang;
-    data.lang_final = finalLang;
-    data.vino_id = appState.query.vino_id;
-    data.anyada  = appState.query.anyada;
-    data.context = appState.query.context;
-
-    return data;
   }
+
+  // 1.b fallback a español
+  if (!data && lang !== "es") {
+    try {
+      const urlEs = `${CDN_BASE}/qr2/${vino_id}/${anyada}/es/ficha.json`;
+      const resEs = await fetch(urlEs, { cache: "no-store" });
+      if (resEs.ok) {
+        data = await resEs.json();
+        data.ficha_path = urlEs;
+        data.lang_fallback = "es";
+        finalLang = "es";
+      }
+    } catch (e2) {
+      console.error("[SL] tampoco existe en español", e2);
+    }
+  }
+
+  if (!data) {
+    throw new Error("No se pudo cargar ninguna ficha desde CDN");
+  }
+
+  // 2) set metadatos de idioma
+  data.lang_requested = lang;
+  data.lang_final = finalLang;
+  data.vino_id = vino_id;
+  data.anyada = anyada;
+
+  // 3) intentar localizar audio en CDN con patrón predecible
+  //    SOLO si el JSON no lo trae ya
+  if (!data.ficha) data.ficha = {};
+  if (!data.ficha.narrativa) data.ficha.narrativa = {};
+
+  if (!data.ficha.narrativa.audio_url) {
+    const audioCandidates = [
+      `${CDN_BASE}/qr2/audio/${vino_id}/${anyada}/${finalLang}/base.mp3`,
+      `${CDN_BASE}/qr2/audio/${vino_id}/${anyada}/${finalLang}.mp3`,
+      `${CDN_BASE}/qr2/audio/${vino_id}/${finalLang}/base.mp3`,
+      `${CDN_BASE}/qr2/audio/${vino_id}/${finalLang}.mp3`
+    ];
+
+    for (const au of audioCandidates) {
+      try {
+        const headRes = await fetch(au, { method: "HEAD" });
+        if (headRes.ok) {
+          data.ficha.narrativa.audio_url = au;
+          break;
+        }
+      } catch (_) {}
+    }
+  }
+
+  return data;
+}
 
   /******** RENDERERS ********/
   function renderHeader(d){
@@ -295,7 +315,6 @@
     const lang = d.lang_final || 'es';
     const ctx  = d.context || d.ficha?.context || '';
     const ctxTxt = ctx ? `<span class="text-xs text-neutral-400">${ctx}</span>` : '';
-    // lista de idiomas: si el JSON declara available_langs la usamos
     const langs = Array.isArray(d.available_langs) && d.available_langs.length
       ? d.available_langs
       : ["es","en","fr"];
@@ -310,6 +329,7 @@
             ${f.do ? `<span class="text-neutral-500">·</span><span>${f.do}</span>` : ''}
             ${ctxTxt}
           </div>
+          <div class="text-[10px] text-neutral-500 mt-1">CDN: ${d.ficha_path||"desconocido"}</div>
         </div>
         <div class="flex gap-2 items-center">
           <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-sm">
@@ -690,21 +710,11 @@
   /******** BOOTSTRAP ********/
   async function bootstrap(){
     appState.query = getQueryParams();
-
     try{
-      // 1. ficha estática
-      const raw = await fetchFicha();
-      let data = normalizeToFicha(raw, raw.lang_final || appState.query.lang || "es");
-
-      // 2. audio por heurística (sin n8n, sin tocar flujos)
-      const audioUrl = await tryGuessAudio(appState.query.vino_id, appState.query.anyada, data.lang_final);
-      if (audioUrl) {
-        if (!data.ficha) data.ficha = {};
-        if (!data.ficha.narrativa) data.ficha.narrativa = {};
-        data.ficha.narrativa.audio_url = audioUrl;
-      }
-
-      appState.fichaData = data;
+      const data = await fetchFicha();
+      // normalización extra por si el JSON viene plano
+      const norm = normalizeToFicha(data, data.lang_final || appState.query.lang || "es");
+      appState.fichaData = norm;
       renderApp();
       renderStickyCTA();
     }catch(e){
@@ -716,8 +726,9 @@
   bootstrap();
   </script>
 
-  <!-- Sommelier conversacional flotante -->
+  <!-- Sommelier conversacional flotante fijo v3 -->
   <style>
+    /* botón flotante */
     #sommelier-float {
       position: fixed;
       right: 18px;
