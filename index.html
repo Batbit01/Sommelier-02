@@ -224,7 +224,7 @@
   async function fetchFicha(){
     const {vino_id,anyada,lang,cdn} = appState.query;
     let data=null;
-    if(!cdn && BASE_API && BASE_API!=="PLACEHOLDER"){
+    if(!cdn && BASE_API && BASE_API!=="https://n8n-production-cb18.up.railway.app/webhook"){
       try{ data = await fetchFromResolve(vino_id,anyada,lang); }
       catch(e){ console.warn('API falló, uso CDN',e); }
     }
