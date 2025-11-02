@@ -637,6 +637,37 @@ document.addEventListener("DOMContentLoaded", fetchFichaFromN8N);
     v.addEventListener('stalled',toImg,{once:true});
     v.addEventListener('abort',toImg,{once:true});
   }
+<script>
+// helper mínimo
+function el(sel){
+  return document.querySelector(sel);
+}
+
+// header mínimo
+function renderHeader(d){
+  const f = d.ficha || {};
+  return `
+    <header class="pt-8 pb-4">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-sm text-neutral-400 uppercase tracking-wide">${f.bodega || ''}</p>
+          <h1 class="text-2xl sm:text-3xl font-semibold leading-tight">${f.nombre || 'Vino sin nombre'}</h1>
+          <p class="text-sm text-neutral-400 mt-1">
+            ${f.do ? f.do + ' · ' : ''}${f.year || d.anyada || ''}
+          </p>
+        </div>
+        <div>
+          <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm">
+            <option value="es" ${d.lang_final==='es'?'selected':''}>ES</option>
+            <option value="en" ${d.lang_final==='en'?'selected':''}>EN</option>
+            <option value="fr" ${d.lang_final==='fr'?'selected':''}>FR</option>
+          </select>
+        </div>
+      </div>
+    </header>
+  `;
+}
+</script>
 
   function renderApp(){
     const d = appState.fichaData;
