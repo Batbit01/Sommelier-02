@@ -24,7 +24,39 @@
 
   <script>
   /******** CONFIG ********/
-  const BASE_API = "PLACEHOLDER"; // para probar desde B2
+const BASE_API = "https://n8n-production-cb18.up.railway.app/webhook";
+// Lee params de la URL ?vino_id=...&anyada=...&lang=...
+function getQRParams() {
+  const p = new URLSearchParams(window.location.search);
+  const vino_id = p.get("vino_id") || p.get("id_vino") || "";
+  const anyada  = p.get("anyada")  || p.get("annada")  || "";
+  const lang    = (p.get("lang") || p.get("idioma") || "es").slice(0,2).toLowerCase();
+  return { vino_id, anyada, lang };
+}
+
+// Llama al resolver público 7.3
+async function fetchFichaFromN8N() {
+  const { vino_id, anyada, lang } = getQRParams();
+  if (!vino_id || !anyada) {
+    console.error("Faltan parámetros en la URL");
+    return;
+  }
+  const url = `${BASE_API}/qr2/resolve?vino_id=${encodeURIComponent(vino_id)}&anyada=${encodeURIComponent(anyada)}&lang=${encodeURIComponent(lang)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  console.log("[QR2 resolve]", data);
+  // aquí ya puedes llamar a tu render actual
+  if (data.ok && data.ficha_url) {
+    // si quieres, vuelve a pedir la ficha completa
+    // const fichaRes = await fetch(data.ficha_url);
+    // const ficha = await fichaRes.json();
+    // renderFicha(ficha);
+  }
+}
+
+// dispara al cargar
+document.addEventListener("DOMContentLoaded", fetchFichaFromN8N);
+
 
   window.addEventListener('error',(e)=>{ try{
     const div=document.createElement('div');
