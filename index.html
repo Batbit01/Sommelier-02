@@ -258,65 +258,100 @@
   }
 
   async function fetchFicha() {
-  const { vino_id, anyada, lang } = appState.query;
+  const { vino_id, anyada, lang, context } = appState.query;
   const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
 
-  // --- 1) FICHA del CDN ---------------------------------
-  let baseData = null;
+  // 1) STATIC: B2
+  let ficha = null;
+  let finalLang = lang;
+
+  // intenta idioma pedido
   try {
     const urlFicha = `${CDN_BASE}/qr2/${vino_id}/${anyada}/${lang}/ficha.json`;
     const res = await fetch(urlFicha, { cache: "no-store" });
-    if (!res.ok) throw new Error("cdn_not_found");
-    baseData = await res.json();
-    baseData.ficha_path = urlFicha;
-  } catch (e) {
-    console.warn("No se encontró la ficha en CDN", e);
-    // fallback a español si el idioma solicitado falla
+    if (!res.ok) throw new Error("not_found_lang");
+    ficha = await res.json();
+    ficha.ficha_path = urlFicha;
+  } catch (err) {
+    console.warn("[SL] ficha no encontrada en lang solicitado", err);
     if (lang !== "es") {
       try {
         const urlFallback = `${CDN_BASE}/qr2/${vino_id}/${anyada}/es/ficha.json`;
         const res2 = await fetch(urlFallback, { cache: "no-store" });
         if (res2.ok) {
-          baseData = await res2.json();
-          baseData.ficha_path = urlFallback;
-          baseData.lang_fallback = "es";
+          ficha = await res2.json();
+          ficha.ficha_path = urlFallback;
+          ficha.lang_fallback = "es";
+          finalLang = "es";
         }
-      } catch (e2) {
-        console.warn("Tampoco existe la ficha en español", e2);
+      } catch (err2) {
+        console.error("[SL] tampoco existe en español", err2);
       }
     }
   }
 
-  // --- 2) AUDIO base del CDN ------------------------------
- let audioUrl = `${CDN_BASE}/qr2/audio/${vino_id}/${anyada}/${lang}/base.mp3`;
+  if (!ficha) {
+    throw new Error("No se pudo cargar ninguna ficha desde CDN");
+  }
+
+  ficha.lang_requested = lang;
+  ficha.lang_final = finalLang;
+
+  // 2) DYNAMIC: n8n para valores vivos (y audio_url)
+  let runtime = null;
   try {
-    const test = await fetch(audioUrl, { method: "HEAD" });
-    if (!test.ok) throw new Error("audio_not_found");
-  } catch {
-    // Fallback a español
-    if (lang !== "es") {
-      const alt = `${CDN_BASE}/qr2/${vino_id}/${anyada}/es/base.mp3`;
-      const testEs = await fetch(alt, { method: "HEAD" });
-      if (testEs.ok) audioUrl = alt;
-      else {
-        // pedir generación a n8n (flujo 5)
-        try {
-          const urlTTS = `https://n8n-production-cb18.up.railway.app/webhook/qr2/audio/tts?vino_id=${vino_id}&anyada=${anyada}&lang=${lang}`;
-          const resTTS = await fetch(urlTTS);
-          if (resTTS.ok) {
-            const json = await resTTS.json();
-            if (json.audio_url) audioUrl = json.audio_url;
-          }
-        } catch (e3) {
-          console.warn("n8n no pudo generar audio", e3);
-        }
-      }
+    const urlRuntime =
+      `https://n8n-production-cb18.up.railway.app/webhook/qr2/runtime` +
+      `?vino_id=${encodeURIComponent(vino_id)}` +
+      `&anyada=${encodeURIComponent(anyada)}` +
+      `&lang=${encodeURIComponent(finalLang)}` +
+      (context ? `&context=${encodeURIComponent(context)}` : "");
+    const resRt = await fetch(urlRuntime, { cache: "no-store" });
+    if (resRt.ok) {
+      runtime = await resRt.json();
+    } else {
+      console.warn("[SL] runtime n8n no OK", resRt.status);
+    }
+  } catch (err) {
+    console.warn("[SL] n8n runtime no disponible", err);
+  }
+
+  // 3) MERGE
+  // prioridad: ficha (estático) → runtime (dinámico)
+  const merged = { ...ficha };
+
+  if (runtime) {
+    // 3.1 audio
+    const runtimeAudio =
+      runtime.audio_url ||
+      runtime.narrativa_audio_url ||
+      (runtime.narrativa && runtime.narrativa.audio_url);
+
+    if (runtimeAudio) {
+      if (!merged.ficha) merged.ficha = {};
+      if (!merged.ficha.narrativa) merged.ficha.narrativa = {};
+      merged.ficha.narrativa.audio_url = runtimeAudio;
+    }
+
+    // 3.2 valoraciones
+    if (runtime.valoraciones) {
+      merged.valoraciones = runtime.valoraciones;
+    }
+    if (runtime.valoracion_media !== undefined) {
+      merged.valoracion_media = runtime.valoracion_media;
+    }
+    if (runtime.valoraciones_totales !== undefined) {
+      merged.valoraciones_totales = runtime.valoraciones_totales;
+    }
+
+    // 3.3 tracking / context
+    if (runtime.context_final) {
+      merged.context_final = runtime.context_final;
     }
   }
-  baseData.audio_base_url = audioUrl;
-      if (baseData.ficha && baseData.ficha.narrativa) {
-    baseData.ficha.narrativa.audio_url = audioUrl;
-  }
+
+  return merged;
+}
 
 
   // --- 3) HIDRATACIÓN opcional desde n8n -------------------
