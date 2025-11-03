@@ -59,13 +59,13 @@
 
   async function fetchJSON(u){ const r=await fetch(u,{cache:"no-store"}); if(!r.ok) throw new Error(String(r.status)); return r.json(); }
   async function headOk(u){
-  try {
-    const r = await fetch(u, { method: "HEAD", cache: "no-store" });
-    return r.ok;               // true solo si existe y CORS permite HEAD
-  } catch {
-    return false;
+    try {
+      const r = await fetch(u, { method: "HEAD", cache: "no-store" });
+      return r.ok;
+    } catch {
+      return false;
+    }
   }
-}
 
   async function loadFicha(vino,any,lang){
     const ordered = any
@@ -89,7 +89,6 @@
     const v  = (raw.ficha && raw.ficha.vino) || raw.vino || {};
     const bI = raw.bodega_info || {};
     const langQ = (q?.lang || raw.lang || "es").toLowerCase();
-    const isAirt = (u)=> typeof u === "string" && u.includes("airtableusercontent");
 
     const out = {
       schema_version: "qr2-ficha-1",
@@ -159,13 +158,12 @@
     const logoArr = Array.isArray(bI["Logo de la Bodega"]) ? bI["Logo de la Bodega"] : [];
     out.ficha.bodega_logo_url = logoArr[0]?.url || out.ficha.bodega_logo_url || "";
 
-    // Imagen botella (permitimos Airtable para MVP)
+    // Imagen botella (permitimos URL de Airtable en MVP)
     const fromHeader  = h.imagen || "";
     const fromAssets  = raw.assets?.image_url || "";
     const fromVinoAtt = (Array.isArray(v.Imagen) && v.Imagen[0]?.url) ? v.Imagen[0].url : "";
     const fromFicha   = raw.ficha?.imagen || v.imagen || "";
     let chosenImg = out.ficha.bottle_media.image_url || fromHeader || fromAssets || fromVinoAtt || fromFicha || "";
-    // if (isAirt(chosenImg)) chosenImg = ""; // ← desactivado: mostrar Airtable mientras migramos a B2
     out.ficha.bottle_media.image_url = chosenImg;
 
     // Narrativa
@@ -372,7 +370,7 @@
       border:none; background:#facc15; color:#111; font-size:18px; font-weight:bold; cursor:pointer; z-index:99999; }
   </style>
 
-  <div id="sommelier-float"><span style="font-size:28px">🎙</span><span class="font-semibold text-neutral-900">Preguntar al sommelier</span></div>
+  <div id="sommelier-float"><span style="font-size:28px)">🎙</span><span class="font-semibold text-neutral-900">Preguntar al sommelier</span></div>
   <div id="sommelier-wrapper">
     <button id="sommelier-close">✕</button>
     <elevenlabs-convai id="sommelier-widget"
@@ -399,4 +397,3 @@
   </script>
 </body>
 </html>
-
