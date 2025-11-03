@@ -80,72 +80,134 @@
     throw new Error("No hay ficha en CDN");
   }
 
-  function normalize(raw,q){
-    // Si ya es el esquema final, solo aseguro imagen y estructura mínima
-    if(raw && raw.schema_version==="qr2-ficha-1" && raw.ficha){
-      const h = raw.for_front && raw.for_front.header || {};
-      const img = raw.ficha?.bottle_media?.image_url || h.imagen || raw.assets?.image_url || pickImg(raw.ficha?.vino?.Imagen);
-      raw.ficha.bottle_media = { image_url: img||"", video_url: "" };
-      // narrativa texto si venía plano
-      if(typeof raw.ficha.narrativa === "string"){
-        raw.ficha.narrativa = { texto: raw.ficha.narrativa, audio_url: "" };
-      }else{
-        raw.ficha.narrativa = raw.ficha.narrativa || { texto:"", audio_url:"" };
-      }
-      // organoléptico
-      if(!raw.ficha.organoleptico){
-        const of = raw.for_front?.organoleptico || {};
-        raw.ficha.organoleptico = { texto: of.texto || raw.organoleptico?.texto || "", servicio: of.servicio || raw.organoleptico?.servicio || null, barras: {} };
-      }
-      // DO y variedad
-      raw.ficha.do = raw.ficha.do || raw.for_front?.header?.do || raw.bodega_info?.["Origen/DO"] || "";
-      raw.ficha.variedad = raw.ficha.variedad || raw.for_front?.header?.variedad || raw.ficha?.vino?.["Variedad de uva"] || "";
-      return raw;
-    }
+ function normalize(raw, q){
+  if(!raw) return raw;
 
-    // Normalización defensiva para JSONs previos
-    const h = raw?.for_front?.header || {};
-    const v = raw?.ficha?.vino || raw?.vino || {};
-    const b = raw?.bodega_info || {};
-    return {
-      schema_version:"qr2-ficha-1",
-      vino_id: raw?.vino_id || q.vino_id,
-      anyada:  raw?.anyada  || q.anyada,
-      lang:    raw?.lang    || q.lang,
-      ficha:{
-        bodega: h.bodega || b["Bodega"] || raw?.ficha?.bodega || "",
-        nombre: h.titulo || raw?.ficha?.title || v["Nombre del vino"] || "",
-        year:   h.anyada || raw?.anyada || q.anyada || "",
-        do:     h.do || raw?.ficha?.do || b["Origen/DO"] || v["Origen/DO"] || "",
-        variedad: h.variedad || raw?.ficha?.variedad || v["Variedad de uva"] || "",
-        bottle_media:{ image_url: raw?.assets?.image_url || h.imagen || pickImg(v.Imagen) || "", video_url:"" },
-        narrativa:{ texto: (raw?.ficha?.narrativa && typeof raw.ficha.narrativa==="string") ? raw.ficha.narrativa : (raw?.for_front?.narrativa_es||""),
-                    audio_url:"" },
-        organoleptico:{ texto: raw?.for_front?.organoleptico?.texto || raw?.organoleptico?.texto || "",
-                        servicio: raw?.for_front?.organoleptico?.servicio || raw?.organoleptico?.servicio || null,
-                        barras:{} },
-        tech_info:{
-          vinificacion_y_crianza: raw?.ficha?.["Proceso de crianza"] ? [String(raw.ficha["Proceso de crianza"])] : [],
-          notas_de_cata: v["Notas de cata"] ? [String(v["Notas de cata"])] : [],
-          curiosidad: raw?.modules?.curiosidad ? [String(raw.modules.curiosidad)] : []
-        },
-        cta:{
-          comprar_url:"",
-          visita_url: raw?.for_front?.enoturismo?.reserva_url || b["Reservas_URL_Base"] || "",
-          contacto_url: (raw?.for_front?.contacto?.email || b["Email de contacto"]) ? `mailto:${raw?.for_front?.contacto?.email || b["Email de contacto"]}` : ""
-        },
-        gallery:[]
+  // Entradas auxiliares
+  const ff = raw.for_front || {};
+  const h  = ff.header || {};
+  const v  = (raw.ficha && raw.ficha.vino) || raw.vino || {};
+  const bI = raw.bodega_info || {};
+  const langQ = (q?.lang || raw.lang || "es").toLowerCase();
+
+  const isAirt = (u)=> typeof u === "string" && u.includes("airtableusercontent");
+
+  // Base segura de salida
+  const out = {
+    schema_version: "qr2-ficha-1",
+    vino_id: raw.vino_id || q?.vino_id || "",
+    anyada:  raw.anyada  || q?.anyada  || h.anyada || "",
+    lang:    langQ,
+    lang_requested: (q?.lang || "es").toLowerCase(),
+    lang_final: (raw.lang || q?.lang || "es").toLowerCase(),
+    available_langs: Array.isArray(raw.available_langs) && raw.available_langs.length
+      ? raw.available_langs
+      : [(raw.lang || q?.lang || "es").toLowerCase()],
+    theme: raw.theme || {
+      background_mode: "dark",
+      primary_color: "#0f0a0a",
+      accent_color: "#c79a5a",
+    },
+    ficha: {
+      bodega: "",
+      bodega_logo_url: "",
+      nombre: "",
+      year: "",
+      do: "",
+      variedad: "",
+      tipo: v["Tipo"] || "",
+      context: q?.context || "",
+      bottle_media: { image_url:"", video_url:"" },
+      narrativa: { texto:"", audio_url:"" },
+      organoleptico: { texto:"", servicio:null, barras:{} },
+      tech_info: {
+        vinificacion_y_crianza:[],
+        origen_y_vendimia:[],
+        produccion:[],
+        notas_de_cata:[],
+        curiosidad:[]
       },
-      social:{
-        website: raw?.for_front?.contacto?.web || b["Web URL"] || "",
-        email:   raw?.for_front?.contacto?.email || b["Email de contacto"] || ""
-      },
-      modules: raw?.modules || { narrativa:true, organoleptico:true, tech:true, cta:true, actions:true, social:true, sommelier:true },
-      for_front: raw?.for_front || null,
-      __cdn_url: raw?.__cdn_url || raw?.ficha_path || "",
-      __cdn_lang: raw?.__cdn_lang || (raw?.lang || q.lang || "es")
-    };
+      cta: { comprar_url:"", visita_url:"", contacto_url:"" },
+      gallery: []
+    },
+    modules: (typeof raw.modules === "object") ? raw.modules : {
+      narrativa:true, organoleptico:true, tech:true, cta:true, actions:true, social:true, sommelier:true
+    },
+    social: {
+      instagram: ff.contacto?.instagram || "",
+      website:   ff.contacto?.web || bI["Web URL"] || "",
+      email:     ff.contacto?.email || bI["Email de contacto"] || "",
+      phone:     ""
+    },
+    bodega_info: bI,
+    for_front: ff,
+    reviews_enabled: raw.reviews_enabled || false,
+    reviews_avg: raw.reviews_avg || 0,
+    reviews_count: raw.reviews_count || 0,
+    reviews_recent: raw.reviews_recent || [],
+    related_wines: raw.related_wines || [],
+    __cdn_url: raw.__cdn_url || raw.ficha_path || "",
+    __cdn_lang: raw.__cdn_lang || raw.lang || q?.lang || "es",
+  };
+
+  // Bodega, nombre, año, DO, variedad
+  out.ficha.bodega   = raw.ficha?.bodega || h.bodega || bI["Bodega"] || "";
+  out.ficha.nombre   = raw.ficha?.nombre || raw.ficha?.title || h.titulo || v["Nombre del vino"] || raw.title || "";
+  out.ficha.year     = raw.ficha?.year   || raw.anyada || h.anyada || "";
+  out.ficha.do       = raw.ficha?.do     || h.do || bI["Origen/DO"] || v["Origen/DO"] || raw.do || "";
+  out.ficha.variedad = raw.ficha?.variedad || h.variedad || v["Variedad de uva"] || "";
+
+  // Logo bodega
+  const logoArr = Array.isArray(bI["Logo de la Bodega"]) ? bI["Logo de la Bodega"] : [];
+  out.ficha.bodega_logo_url = logoArr[0]?.url || out.ficha.bodega_logo_url || "";
+
+  // Imagen botella con prioridades
+  const fromHeader  = h.imagen || "";
+  const fromAssets  = raw.assets?.image_url || "";
+  const fromVinoAtt = (Array.isArray(v.Imagen) && v.Imagen[0]?.url) ? v.Imagen[0].url : "";
+  const fromFicha   = raw.ficha?.imagen || v.imagen || "";
+
+  let chosenImg = out.ficha.bottle_media.image_url || fromHeader || fromAssets || fromVinoAtt || fromFicha || "";
+  if (isAirt(chosenImg)) chosenImg = ""; // Evita URLs temporales caducadas de Airtable
+  out.ficha.bottle_media.image_url = chosenImg;
+
+  // Narrativa: string → objeto.texto
+  const narrativaTxt =
+    (typeof raw.ficha?.narrativa === "string" ? raw.ficha.narrativa : "") ||
+    ff.narrativa_es || v["Notas de cata"] || (raw.ficha?.narrativa?.texto || "");
+  if (!out.ficha.narrativa.texto) out.ficha.narrativa.texto = narrativaTxt;
+
+  // Organoléptico
+  const orgRoot = raw.organoleptico || {};
+  const orgFF   = ff.organoleptico || {};
+  out.ficha.organoleptico.texto    = out.ficha.organoleptico.texto    || orgRoot.texto || orgFF.texto || "";
+  out.ficha.organoleptico.servicio = out.ficha.organoleptico.servicio || orgRoot.servicio || orgFF.servicio || null;
+  if (!out.ficha.organoleptico.barras || !Object.keys(out.ficha.organoleptico.barras).length){
+    out.ficha.organoleptico.barras = orgFF.indicadores || {};
   }
+
+  // Tech info
+  const techVinif  = raw.ficha?.["Proceso de crianza"] || v["Proceso de crianza"] || raw.proceso || "";
+  const techVend   = v["Fecha de cosecha"] || "";
+  const techProd   = v["Número de botellas"] ? String(v["Número de botellas"]) : "";
+  const techNotas  = v["Notas de cata"] || "";
+  const techCurios = (raw.modules && raw.modules.curiosidad) || raw.ficha?.Curiosidad || v["Curiosidad"] || "";
+
+  if (techVinif) out.ficha.tech_info.vinificacion_y_crianza = [String(techVinif)];
+  if (techVend)  out.ficha.tech_info.origen_y_vendimia      = [String(techVend)];
+  if (techProd)  out.ficha.tech_info.produccion             = [String(techProd)];
+  if (techNotas) out.ficha.tech_info.notas_de_cata          = [String(techNotas)];
+  if (techCurios)out.ficha.tech_info.curiosidad             = [String(techCurios)];
+
+  // CTA
+  const visita = ff.enoturismo?.reserva_url || bI["Reservas_URL_Base"] || "";
+  const email  = ff.contacto?.email || bI["Email de contacto"] || "";
+  out.ficha.cta.visita_url   = out.ficha.cta.visita_url   || visita;
+  out.ficha.cta.contacto_url = out.ficha.cta.contacto_url || (email ? `mailto:${email}` : "");
+
+  return out;
+}
+
 
   async function attachAudio(data,q){
     const langs=[(q.lang||"es").toLowerCase(),"es"];
