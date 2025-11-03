@@ -1,6 +1,4 @@
-# We'll write a corrected index file with robust CDN fallbacks, proper field mapping, and preserved widget.
-
-index_html = r"""<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
@@ -10,703 +8,338 @@ index_html = r"""<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{ --accent-color:#c79a5a; }
-    body { background:#0f0a0a; color:#fff; }
+    body{ background:#0f0a0a; color:#fff; }
+    .frame-soft{ box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04); }
     .fade-in{ animation:fadeIn .35s ease-out both }
     @keyframes fadeIn{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
-    .grow-x{ transform-origin:left; animation:growX .6s ease-out both }
-    @keyframes growX{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
-    .frame-soft{ box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04); }
-    .frame-bold{ box-shadow:0 12px 40px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.06); }
-    .badge-plain{ border-radius:.75rem; }
-    .badge-circle{ border-radius:9999px; }
-    .tex-bg{ background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size:8px 8px; }
-    #debug { max-height: 260px; overflow:auto; font-size:10px; line-height:1.15rem; }
+    #debug{max-height:280px}
   </style>
 </head>
-<body class="bg-neutral-950 text-neutral-50 min-h-screen selection:bg-amber-500/30">
-
-  <!-- Debug (activar con ?debug=1) -->
-  <pre id="debug" class="hidden bg-neutral-900/60 border border-neutral-800 rounded-xl m-3 p-3"></pre>
-
+<body class="min-h-screen">
+  <pre id="debug" class="hidden bg-red-900/25 text-[10px] leading-snug p-3 overflow-auto"></pre>
   <div id="app" class="max-w-[1100px] mx-auto px-4 sm:px-6 pb-28 sm:pb-12"></div>
 
   <script>
   /* =================== CONFIG =================== */
-  const BASE_API = ""; // vacío → SIEMPRE CDN
   const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
 
   /* =================== I18N =================== */
-  const UI_COPY = {
-    es:{share:"Compartir",ask:"Presentación del sommelier",avg_rating:"Valoración media",based_on:"basada en",opinions:"opiniones",your_review:"Escribe tu reseña…",send_review:"Enviar reseña",allergens:"Alérgenos / Información legal",drink_responsibly:"Bebe con responsabilidad",gallery:"Galería",related:"Otros vinos",social:"Redes y contacto",sommelier:"Hablar con el sommelier",indicators:{ aroma:"Aroma", cuerpo:"Cuerpo", acidez:"Acidez", dulzor:"Dulzor", tanino:"Tanino" }},
-    en:{share:"Share",ask:"Sommelier presentation",avg_rating:"Average rating",based_on:"based on",opinions:"reviews",your_review:"Write your review…",send_review:"Send",allergens:"Allergens / Legal",drink_responsibly:"Drink responsibly",gallery:"Gallery",related:"Other wines",social:"Social & contact",sommelier:"Talk to the sommelier",indicators:{ aroma:"Aroma", cuerpo:"Body", acidez:"Acidity", dulzor:"Sweetness", tanino:"Tannin" }},
-    fr:{share:"Partager",ask:"Présentation du sommelier",avg_rating:"Note moyenne",based_on:"basée sur",opinions:"avis",your_review:"Écrire votre avis…",send_review:"Envoyer",allergens:"Allergènes / Légal",drink_responsibly:"Buvez avec modération",gallery:"Galerie",related:"Autres vins",social:"Réseaux et contact",sommelier:"Parler au sommelier",indicators:{ aroma:"Arôme", cuerpo:"Corps", acidez:"Acidité", dulzor:"Sucre", tanino:"Tanins" }}
+  const UI = {
+    es:{share:"Compartir",sommelier:"Presentación del sommelier",gallery:"Galería",social:"Redes y contacto",legal:"Bebe con responsabilidad"},
+    en:{share:"Share",sommelier:"Sommelier presentation",gallery:"Gallery",social:"Social & contact",legal:"Drink responsibly"},
+    fr:{share:"Partager",sommelier:"Présentation du sommelier",gallery:"Galerie",social:"Réseaux et contact",legal:"Buvez avec modération"}
   };
 
   /* =================== STATE =================== */
-  const appState = { query:{}, fichaData:null, t:UI_COPY.es, debug:false };
+  const S = { q:{}, ficha:null, t:UI.es };
 
   /* =================== HELPERS =================== */
-  const $ = sel => document.querySelector(sel);
-
-  function getQueryParams(){
-    const p = new URLSearchParams(window.location.search);
-    const langRaw = (p.get("lang") || p.get("idioma") || "").slice(0,2).toLowerCase();
-    const ctxRaw  = p.get("context") || p.get("contect") || "";
+  const $ = (s,sc=document)=>sc.querySelector(s);
+  function getQ(){
+    const p=new URLSearchParams(location.search);
     return {
       vino_id: p.get("vino_id")||"",
       anyada:  p.get("anyada")||"",
-      lang:    langRaw || "es",
-      context: ctxRaw,
-      cdn:     p.get("cdn")==="1",
+      lang:    (p.get("lang")||"es").slice(0,2).toLowerCase(),
+      context: p.get("context")||"",
       debug:   p.get("debug")==="1"
     };
   }
+  function dbg(x){ const d=$("#debug"); if(!d||!S.q.debug) return; d.classList.remove("hidden"); d.textContent = typeof x==="string"?x:JSON.stringify(x,null,2).slice(0,4000); }
 
-  function showDebug(obj){
-    if(!appState.debug) return;
-    const d = $("#debug");
-    d.classList.remove("hidden");
-    // limitar tamaño
-    const s = JSON.stringify(obj, null, 2);
-    d.textContent = s.length>6000 ? (s.slice(0,6000)+"\\n...") : s;
-  }
+  const pickImg=(v)=>{
+    if(!v) return "";
+    if(typeof v==="string") return v;
+    if(Array.isArray(v)&&v.length){ const f=v[0]; if(typeof f==="string") return f; if(f&&f.url) return f.url; }
+    return v.url||"";
+  };
 
-  function applyTheme(theme){
-    const body=document.body; const t=theme||{};
-    const dark = (t.background_mode !== 'light');
-    body.style.backgroundColor = dark ? (t.primary_color || '#0f0a0a') : (t.primary_color || '#faf7ef');
-    body.style.color = dark ? '#fff' : '#000';
-    body.style.setProperty('--accent-color', t.accent_color || '#c79a5a');
-    body.classList.toggle('tex-bg', !!t.use_texture);
-  }
+  /* =================== CDN =================== */
+  const urlFicha=(vino,any,lang)=>`${CDN_BASE}/qr2/${encodeURIComponent(vino)}/${encodeURIComponent(any)}/${encodeURIComponent(lang)}/ficha.json`;
+  const urlAudio=(vino,any,lang)=>`${CDN_BASE}/qr2/audio/${encodeURIComponent(vino)}/${encodeURIComponent(any)}/${encodeURIComponent(lang)}/base.mp3`;
 
-  function prettyContext(c){
-    const map={ botella:'Botella', feria:'Feria', restaurante:'Restaurante', carta:'Carta digital' };
-    return map[c] || '';
-  }
+  async function fetchJSON(u){ const r=await fetch(u,{cache:"no-store"}); if(!r.ok) throw new Error(String(r.status)); return r.json(); }
+  async function headOk(u){ try{ const r=await fetch(u,{method:"HEAD"}); return r.ok; }catch{ return false; } }
 
-  /* =================== DATA (CDN helpers) =================== */
-  const pathFicha = (vino_id, anyada, lang) =>
-    \`\${CDN_BASE}/qr2/\${encodeURIComponent(vino_id)}/\${encodeURIComponent(anyada)}/\${encodeURIComponent(lang)}/ficha.json\`;
-
-  const pathAudio = (vino_id, anyada, lang) =>
-    \`\${CDN_BASE}/qr2/audio/\${encodeURIComponent(vino_id)}/\${encodeURIComponent(anyada)}/\${encodeURIComponent(lang)}/base.mp3\`;
-
-  async function fetchWithOk(url, opts){ const r = await fetch(url, opts||{}); return r.ok ? r : null; }
-
-  async function fetchFromCDN(vino_id, anyada, lang){
-    // Estrategia de fallback robusta: (1) anyada/lang solicitados → (2) mismo anyada en 'es' → (3) 'default'/lang → (4) 'default/es'
+  async function loadFicha(vino,any,lang){
     const tries = [
-      pathFicha(vino_id, anyada, lang),
-      pathFicha(vino_id, anyada, "es"),
-      pathFicha(vino_id, "default", lang),
-      pathFicha(vino_id, "default", "es"),
+      urlFicha(vino, any||"default", lang),
+      urlFicha(vino, any||"default", "es"),
+      ...(any? [urlFicha(vino, "default", lang), urlFicha(vino, "default", "es")] : [])
     ];
-    for(const url of tries){
-      try {
-        const r = await fetchWithOk(url, { cache:"no-cache" });
-        if(r){
-          const j = await r.json();
-          j.__cdn_url = url;
-          // deducir lang/anyada efectivas desde URL
-          try {
-            const parts = new URL(url).pathname.split("/"); // ['', 'file', 'SommelierLab-media','qr2', vino, anyada, lang, 'ficha.json']
-            j.__cdn_lang = parts[6] || lang || "es";
-            j.__cdn_anyada = parts[5] || anyada || "default";
-          } catch(_) {
-            j.__cdn_lang = lang || "es";
-            j.__cdn_anyada = anyada || "default";
-          }
-          return j;
-        }
-      } catch(e){ /* seguir probando */ }
+    // ordenar para que si hay anyada se pruebe primero anyada/lang → anyada/es → default/lang → default/es
+    const ordered = any ? [urlFicha(vino,any,lang), urlFicha(vino,any,"es"), urlFicha(vino,"default",lang), urlFicha(vino,"default","es")] :
+                           [urlFicha(vino,"default",lang), urlFicha(vino,"default","es")];
+    for(const u of ordered){
+      try{
+        const j=await fetchJSON(u);
+        j.__cdn_url=u; j.__cdn_lang=(j.lang||lang||"es").toLowerCase();
+        return j;
+      }catch(e){ /* siguiente */ }
     }
-    throw new Error("No existe ficha en CDN (probadas 4 rutas).");
+    throw new Error("No hay ficha en CDN");
   }
 
-  function pickImgFrom(a){
-    if(!a) return "";
-    if(typeof a==="string") return a;
-    if(Array.isArray(a) && a.length){
-      const first = a[0];
-      if(typeof first==="string") return first;
-      if(first && first.url) return first.url;
-    }
-    if(a.url) return a.url;
-    return "";
-  }
-
-  function normStr(x){ return (x===undefined||x===null) ? "" : String(x); }
-
-  function normalizeToFicha(data){
-    if(!data) return data;
-
-    const ff  = data.for_front || {};
-    const hdr = ff.header || {};
-    const v   = (data.ficha && data.ficha.vino) || data.vino || {};
-    const b   = data.bodega_info || data.bodega || {};
-    const socialRoot = data.social || {};
-
-    // Texto narrativa: priorizamos for_front.narrativa_IDIOMA si existe
-    const lang = (data.lang || data.__cdn_lang || appState.query.lang || "es").toLowerCase();
-    const narrativaLangKey = \`narrativa_\${lang}\`;
-    const narrativaTxt =
-      (typeof data.ficha?.narrativa === "string" ? data.ficha.narrativa : "") ||
-      (typeof ff[narrativaLangKey] === "string" ? ff[narrativaLangKey] : "") ||
-      (typeof ff.narrativa_es === "string" ? ff.narrativa_es : "") ||
-      normStr(v["Notas de cata"]) ||
-      "";
-
-    const logoUrl = (Array.isArray(b["Logo de la Bodega"]) && b["Logo de la Bodega"][0]?.url) || "";
-
-    const imageUrl =
-      data.ficha?.imagen ||
-      hdr.imagen ||
-      data.assets?.image_url ||
-      v.imagen ||
-      pickImgFrom(v.Imagen) ||
-      "";
-
-    const enot = ff.enoturismo || {
-      ofrece: (b["Enoturismo"] === "Sí"),
-      reserva_url: b["Reservas_URL_Base"] || ""
-    };
-
-    // CONTACTO: preferimos for_front.contacto; si no, de bodega_info o social root
-    const contacto = ff.contacto || {
-      web: b["Web URL"] || socialRoot.web || socialRoot.website || "",
-      email: b["Email de contacto"] || socialRoot.email || ""
-    };
-
-    // Construcción final
-    const out = {
-      schema_version: "qr2-ficha-1",
-      vino_id: data.vino_id || appState.query.vino_id,
-      anyada:  data.anyada  || data.__cdn_anyada || appState.query.anyada,
-      lang:    lang,
-      lang_requested: appState.query.lang || "es",
-      lang_final:     lang,
-      available_langs: [lang],
-      theme: data.theme || {
-        background_mode: "dark",
-        primary_color: "#0f0a0a",
-        accent_color: "#c79a5a",
-      },
-      ficha: {
-        bodega: hdr.bodega || b["Bodega"] || data.ficha?.bodega || "",
-        bodega_logo_url: logoUrl,
-        nombre: hdr.titulo || data.ficha?.title || v["Nombre del vino"] || data.title || "",
-        year:   hdr.anyada || data.anyada || "",
-        // *** BUG FIX: incluir data.ficha?.do ***
-        do:     hdr.do || data.ficha?.do || v["Origen/DO"] || b["Origen/DO"] || "",
-        variedad: hdr.variedad || data.ficha?.variedad || v["Variedad de uva"] || "",
-        tipo: v["Tipo"] || "",
-        context: appState.query.context || "",
-        bottle_media: { image_url: imageUrl, video_url: "" },
-        narrativa: { texto: narrativaTxt, audio_url: "" },
-        organoleptico: {
-          texto: data.organoleptico?.texto || ff.organoleptico?.texto || "",
-          servicio: data.organoleptico?.servicio || ff.organoleptico?.servicio || null,
-          barras: (ff.organoleptico && ff.organoleptico.indicadores) || {}
-        },
-        tech_info: {
-          vinificacion_y_crianza: data.ficha?.["Proceso de crianza"] ? [String(data.ficha["Proceso de crianza"])] : (v["Proceso de crianza"] ? [String(v["Proceso de crianza"])] : []),
-          origen_y_vendimia: v["Fecha de cosecha"] ? [String(v["Fecha de cosecha"])] : [],
-          produccion: v["Número de botellas"] ? [String(v["Número de botellas"])] : [],
-          notas_de_cata: v["Notas de cata"] ? [String(v["Notas de cata"])] : [],
-          curiosidad: (data.modules && data.modules.curiosidad) ? [String(data.modules.curiosidad)] : []
-        },
-        cta: {
-          comprar_url: "",
-          visita_url: enot.reserva_url || "",
-          contacto_url: contacto.email ? \`mailto:\${contacto.email}\` : ""
-        },
-        gallery: []
-      },
-      modules: data.modules || {
-        narrativa: true, organoleptico: true, tech: true, cta: true, actions: true, social: true, sommelier: true
-      },
-      social: {
-        instagram: contacto.instagram || "",
-        website:   contacto.web || "",
-        email:     contacto.email || "",
-        phone:     ""
-      },
-      bodega_info: b,
-      for_front: ff,
-      reviews_enabled: false,
-      reviews_avg: 0,
-      reviews_count: 0,
-      reviews_recent: [],
-      related_wines: [],
-      __cdn_url: data.__cdn_url || data.ficha_path || "",
-      __cdn_lang: data.__cdn_lang || lang,
-      __cdn_anyada: data.__cdn_anyada || data.anyada || ""
-    };
-
-    return out;
-  }
-
-  async function fetchFicha(){
-    const {vino_id,anyada,lang,cdn} = appState.query;
-    let data=null;
-    // API desactivada → saltará a CDN
-    if(!cdn && BASE_API){
-      try{ data = await fetch(\`\${BASE_API}/qr2/resolve?vino_id=\${encodeURIComponent(vino_id)}&anyada=\${encodeURIComponent(anyada)}&lang=\${encodeURIComponent(lang)}\`).then(r=>r.ok?r.json():Promise.reject(r.status)); }
-      catch(e){ console.warn('API falló, uso CDN',e); }
-    }
-    if(!data){
-      const cdnData = await fetchFromCDN(vino_id,anyada,lang);
-      data = normalizeToFicha(cdnData);
-    }else{
-      data = normalizeToFicha(data);
-    }
-
-    // ===== añadir audio si existe en B2 =====
-    try {
-      const langEff = data.lang_final || lang || "es";
-      const anyEff  = data.anyada || appState.query.anyada || "default";
-      const audioCandidates = [
-        pathAudio(vino_id, anyEff, langEff),
-        pathAudio(vino_id, anyEff, "es"),
-        pathAudio(vino_id, "default", langEff),
-        pathAudio(vino_id, "default", "es"),
-      ];
-      for(const au of audioCandidates){
-        const head = await fetch(au, { method:"HEAD" });
-        if (head.ok) { data.ficha.narrativa.audio_url = au; break; }
+  function normalize(raw,q){
+    // Si ya es el esquema final, solo aseguro imagen y estructura mínima
+    if(raw && raw.schema_version==="qr2-ficha-1" && raw.ficha){
+      const h = raw.for_front && raw.for_front.header || {};
+      const img = raw.ficha?.bottle_media?.image_url || h.imagen || raw.assets?.image_url || pickImg(raw.ficha?.vino?.Imagen);
+      raw.ficha.bottle_media = { image_url: img||"", video_url: "" };
+      // narrativa texto si venía plano
+      if(typeof raw.ficha.narrativa === "string"){
+        raw.ficha.narrativa = { texto: raw.ficha.narrativa, audio_url: "" };
+      }else{
+        raw.ficha.narrativa = raw.ficha.narrativa || { texto:"", audio_url:"" };
       }
-    } catch(e){
-      console.warn("audio no disponible", e);
+      // organoléptico
+      if(!raw.ficha.organoleptico){
+        const of = raw.for_front?.organoleptico || {};
+        raw.ficha.organoleptico = { texto: of.texto || raw.organoleptico?.texto || "", servicio: of.servicio || raw.organoleptico?.servicio || null, barras: {} };
+      }
+      // DO y variedad
+      raw.ficha.do = raw.ficha.do || raw.for_front?.header?.do || raw.bodega_info?.["Origen/DO"] || "";
+      raw.ficha.variedad = raw.ficha.variedad || raw.for_front?.header?.variedad || raw.ficha?.vino?.["Variedad de uva"] || "";
+      return raw;
     }
 
-    showDebug({query: appState.query, used:data.__cdn_url, lang:data.lang_final, anyada:data.anyada, fields:{
-      nombre:data.ficha?.nombre, do:data.ficha?.do, variedad:data.ficha?.variedad, img:data.ficha?.bottle_media?.image_url?.slice(0,80)+'…'
-    }});
+    // Normalización defensiva para JSONs previos
+    const h = raw?.for_front?.header || {};
+    const v = raw?.ficha?.vino || raw?.vino || {};
+    const b = raw?.bodega_info || {};
+    return {
+      schema_version:"qr2-ficha-1",
+      vino_id: raw?.vino_id || q.vino_id,
+      anyada:  raw?.anyada  || q.anyada,
+      lang:    raw?.lang    || q.lang,
+      ficha:{
+        bodega: h.bodega || b["Bodega"] || raw?.ficha?.bodega || "",
+        nombre: h.titulo || raw?.ficha?.title || v["Nombre del vino"] || "",
+        year:   h.anyada || raw?.anyada || q.anyada || "",
+        do:     h.do || raw?.ficha?.do || b["Origen/DO"] || v["Origen/DO"] || "",
+        variedad: h.variedad || raw?.ficha?.variedad || v["Variedad de uva"] || "",
+        bottle_media:{ image_url: raw?.assets?.image_url || h.imagen || pickImg(v.Imagen) || "", video_url:"" },
+        narrativa:{ texto: (raw?.ficha?.narrativa && typeof raw.ficha.narrativa==="string") ? raw.ficha.narrativa : (raw?.for_front?.narrativa_es||""),
+                    audio_url:"" },
+        organoleptico:{ texto: raw?.for_front?.organoleptico?.texto || raw?.organoleptico?.texto || "",
+                        servicio: raw?.for_front?.organoleptico?.servicio || raw?.organoleptico?.servicio || null,
+                        barras:{} },
+        tech_info:{
+          vinificacion_y_crianza: raw?.ficha?.["Proceso de crianza"] ? [String(raw.ficha["Proceso de crianza"])] : [],
+          notas_de_cata: v["Notas de cata"] ? [String(v["Notas de cata"])] : [],
+          curiosidad: raw?.modules?.curiosidad ? [String(raw.modules.curiosidad)] : []
+        },
+        cta:{
+          comprar_url:"",
+          visita_url: raw?.for_front?.enoturismo?.reserva_url || b["Reservas_URL_Base"] || "",
+          contacto_url: (raw?.for_front?.contacto?.email || b["Email de contacto"]) ? `mailto:${raw?.for_front?.contacto?.email || b["Email de contacto"]}` : ""
+        },
+        gallery:[]
+      },
+      social:{
+        website: raw?.for_front?.contacto?.web || b["Web URL"] || "",
+        email:   raw?.for_front?.contacto?.email || b["Email de contacto"] || ""
+      },
+      modules: raw?.modules || { narrativa:true, organoleptico:true, tech:true, cta:true, actions:true, social:true, sommelier:true },
+      for_front: raw?.for_front || null,
+      __cdn_url: raw?.__cdn_url || raw?.ficha_path || "",
+      __cdn_lang: raw?.__cdn_lang || (raw?.lang || q.lang || "es")
+    };
+  }
 
+  async function attachAudio(data,q){
+    const langs=[(q.lang||"es").toLowerCase(),"es"];
+    const anys=[q.anyada||"default", "default"];
+    for(const a of (q.anyada? [q.anyada,"default"] : ["default"])){
+      for(const l of langs){
+        const u = urlAudio(q.vino_id, a, l);
+        if(await headOk(u)){ data.ficha.narrativa.audio_url=u; return data; }
+      }
+    }
     return data;
   }
 
   /* =================== RENDER =================== */
-  function barsBlock(map){
-    if(!map || !Object.keys(map).length) return '';
-    const t=appState.t;
-    const rows = Object.entries(map).map(([k,val])=>{
-      const pct = Math.max(0, Math.min(10, Number(val||0)))*10;
-      const label = (t.indicators && t.indicators[k]) || k;
-      return \`
-        <div class="flex items-center gap-3">
-          <div class="w-28 text-[12px] text-neutral-300">\${label}</div>
-          <div class="flex-1 h-2 bg-neutral-800 rounded">
-            <div class="h-2 bg-amber-500 grow-x rounded" style="width:\${pct}%"></div>
-          </div>
-          <div class="w-10 text-right text-[12px] text-neutral-400">\${val||0}/10</div>
-        </div>\`;
-    }).join('');
-    return \`<div class="space-y-2 fade-in">\${rows}</div>\`;
-  }
-
   function headerHTML(d){
-    const langs = (d.available_langs && d.available_langs.length) ? d.available_langs : [appState.query.lang||'es'];
-    const warning = d.lang_requested && d.lang_final && d.lang_requested!==d.lang_final
-      ? \`<div class="text-[11px] text-amber-400 mt-1">Mostrando en \${d.lang_final.toUpperCase()} · pedido \${d.lang_requested.toUpperCase()}</div>\` : '';
-    const ctx = prettyContext(appState.query.context || d.ficha.context || '');
-    const ctxChip = ctx ? \`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">\${ctx}</span>\` : '';
-
-    return \`
-      <header class="py-4 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          \${ d.ficha.bodega_logo_url ? \`<img src="\${d.ficha.bodega_logo_url}" class="w-10 h-10 rounded-lg border border-neutral-700 object-cover">\` : '' }
-          <div>
-            <div class="text-sm text-neutral-300">\${d.ficha.bodega||''}</div>
-            <div class="text-2xl font-semibold">\${d.ficha.nombre||''} <span class="text-neutral-400">\${d.ficha.year||''}</span></div>
-            <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-              \${ d.ficha.do ? \`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">\${d.ficha.do}</span>\` : '' }
-              \${ d.ficha.variedad ? \`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">\${d.ficha.variedad}</span>\` : '' }
-              \${ ctxChip }
-            </div>
-            <div class="text-[10px] text-neutral-600 mt-1">CDN: \${d.__cdn_url||"–"} (\${d.__cdn_lang||"?"})</div>
-            \${warning}
-          </div>
+    const langs = d.available_langs?.length ? d.available_langs : [d.__cdn_lang||S.q.lang||"es"];
+    return `
+    <header class="py-4 flex items-center justify-between gap-3">
+      <div>
+        <div class="text-sm text-neutral-300">${d.ficha.bodega||''}</div>
+        <div class="text-2xl font-semibold">${d.ficha.nombre||''} <span class="text-neutral-400">${d.ficha.year||''}</span></div>
+        <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+          ${ d.ficha.do ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.do}</span>` : '' }
+          ${ d.ficha.variedad ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.variedad}</span>` : '' }
         </div>
-        <div class="flex items-center gap-3">
-          <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-sm">
-            \${ langs.map(l=>\`<option value="\${l}" \${l===d.lang_final?'selected':''}>\${l.toUpperCase()}</option>\`).join('') }
-          </select>
-          <button id="shareBtn" class="text-amber-400 underline">\${appState.t.share}</button>
-        </div>
-      </header>
-      <hr class="border-neutral-800">\`;
+        <div class="text-[10px] text-neutral-600 mt-1">CDN: ${d.__cdn_url||"–"} (${d.__cdn_lang||"?"})</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-sm">
+          ${ langs.map(l=>`<option value="${l}" ${l===(d.__cdn_lang||S.q.lang)?'selected':''}>${l.toUpperCase()}</option>`).join('') }
+        </select>
+        <button id="shareBtn" class="text-amber-400 underline">${S.t.share}</button>
+      </div>
+    </header>
+    <hr class="border-neutral-800">`;
   }
-
   function heroHTML(d){
-    const f=d.ficha||{}; const frame = (d.theme?.bottle_frame==='bold')?'frame-bold':'frame-soft';
-    let mediaBlock='';
-    if(f.bottle_media?.video_url){
-      mediaBlock = \`
-        <video data-bottle data-fallback="\${f.bottle_media.image_url||''}"
-          class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 \${frame}"
-          src="\${f.bottle_media.video_url}" autoplay muted loop playsinline></video>\`;
-    }else if(f.bottle_media?.image_url){
-      mediaBlock = \`<img src="\${f.bottle_media.image_url}" alt="bottle"
-        class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 \${frame}">\`;
-    }
-    return \`
+    const img = d.ficha?.bottle_media?.image_url;
+    if(!img) return "";
+    return `
       <section class="py-6">
-        \${mediaBlock}
+        <img src="${img}" alt="bottle"
+          class="w-40 h-64 mx-auto object-contain rounded-xl border border-neutral-700 bg-neutral-800 frame-soft shadow-xl">
       </section>
-      <hr class="border-neutral-800">\`;
+      <hr class="border-neutral-800">`;
   }
-
   function narrativaHTML(d){
-    const n = d.ficha?.narrativa?.texto || "";
-    const audio = d.ficha?.narrativa?.audio_url || "";
-    if(!n && !audio) return '';
-    return \`
+    const n=d.ficha?.narrativa?.texto||"";
+    const au=d.ficha?.narrativa?.audio_url||"";
+    if(!n && !au) return "";
+    return `
       <section class="py-6">
-        <h2 class="text-xl font-semibold mb-2">\${appState.t.ask}</h2>
-        \${ n ? \`<p class="text-neutral-200 leading-relaxed mb-3">\${n.replace(/\\n/g,'<br>')}</p>\` : '' }
-        \${ audio ? \`<audio controls class="w-full"><source src="\${audio}" type="audio/mpeg"></audio>\` : \`<p class="text-[11px] text-neutral-500">Audio no disponible.</p>\` }
+        <h2 class="text-xl font-semibold mb-2">${S.t.sommelier}</h2>
+        ${ n ? `<p class="text-neutral-200 leading-relaxed mb-3">${n.replace(/\n/g,"<br>")}</p>` : "" }
+        ${ au ? `<audio controls class="w-full"><source src="${au}" type="audio/mpeg"></audio>` : `<p class="text-[11px] text-neutral-500">Audio no disponible.</p>` }
       </section>
-      <hr class="border-neutral-800">\`;
+      <hr class="border-neutral-800">`;
   }
-
-  function organolepticoHTML(d){
-    const o = d.ficha?.organoleptico || {};
-    if(!(o.texto || o.servicio || Object.keys(o.barras||{}).length)) return '';
-    return \`
-      <section class="py-6 space-y-5">
-        \${ o.texto ? \`<p class="text-sm leading-relaxed text-neutral-200">\${o.texto.replace(/\\n/g,"<br>")}</p>\` : "" }
-        \${ barsBlock(o.barras) }
-        \${ o.servicio?.temperatura ? \`<p class="text-[12px] text-neutral-400">Temperatura de servicio: \${o.servicio.temperatura}</p>\` : "" }
+  function organoHTML(d){
+    const o=d.ficha?.organoleptico||{};
+    if(!(o.texto || o.servicio?.temperatura)) return "";
+    return `
+      <section class="py-6">
+        ${ o.texto ? `<p class="text-sm leading-relaxed text-neutral-200">${o.texto.replace(/\n/g,"<br>")}</p>` : "" }
+        ${ o.servicio?.temperatura ? `<p class="text-[12px] text-neutral-400 mt-2">Temperatura de servicio: ${o.servicio.temperatura}</p>` : "" }
       </section>
-      <hr class="border-neutral-800">\`;
+      <hr class="border-neutral-800">`;
   }
-
   function techHTML(d){
-    const t=d.ficha?.tech_info||{}; const entries=[
-      ['Vinificación y crianza', t.vinificacion_y_crianza],
-      ['Origen y vendimia', t.origen_y_vendimia],
-      ['Producción', t.produccion],
-      ['Notas de cata', t.notas_de_cata],
-      ['Curiosidad', t.curiosidad],
-    ].filter(([,arr])=>arr&&arr.length);
-    if(!entries.length) return '';
-    return \`
+    const t=d.ficha?.tech_info||{};
+    const entries = Object.entries(t).filter(([,v])=>Array.isArray(v)&&v.length);
+    if(!entries.length) return "";
+    return `
       <section class="py-6">
         <div class="space-y-4">
-          \${entries.map(([title,arr])=>\`
+          ${entries.map(([k,arr])=>`
            <details class="group border border-neutral-800 rounded-xl p-3">
-             <summary class="cursor-pointer font-medium text-neutral-100">\${title}</summary>
-             <div class="mt-2 text-neutral-300">\${arr.map(x=>\`<p class="mb-2">\${x}</p>\`).join('')}</div>
-           </details>\`).join('')}
+             <summary class="cursor-pointer font-medium text-neutral-100">${k.replaceAll('_',' ')}</summary>
+             <div class="mt-2 text-neutral-300">${arr.map(x=>`<p class="mb-2">${x}</p>`).join('')}</div>
+           </details>`).join('')}
         </div>
       </section>
-      <hr class="border-neutral-800">\`;
+      <hr class="border-neutral-800">`;
   }
-
   function ctaHTML(d){
     const c=d.ficha?.cta||{};
-    if(!c.comprar_url && !c.visita_url && !c.contacto_url) return '';
-    return \`
+    if(!c.comprar_url && !c.visita_url && !c.contacto_url) return "";
+    return `
       <section class="py-6 flex flex-wrap gap-3">
-        \${ c.comprar_url ? \`<a href="\${c.comprar_url}" class="bg-amber-500 text-neutral-900 rounded-xl px-4 py-2">Comprar</a>\`:'' }
-        \${ c.visita_url ? \`<a href="\${c.visita_url}" class="bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2">Visitar bodega</a>\`:'' }
-        \${ c.contacto_url ? \`<a href="\${c.contacto_url}" class="underline text-amber-400">Contacto</a>\`:'' }
+        ${ c.comprar_url ? `<a href="${c.comprar_url}" class="bg-amber-500 text-neutral-900 rounded-xl px-4 py-2">Comprar</a>` : "" }
+        ${ c.visita_url ? `<a href="${c.visita_url}" class="bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2">Visitar bodega</a>` : "" }
+        ${ c.contacto_url ? `<a href="${c.contacto_url}" class="underline text-amber-400">Contacto</a>` : "" }
       </section>
-      <hr class="border-neutral-800">\`;
+      <hr class="border-neutral-800">`;
   }
-
-  function actionsHTML(d){
-    const actions = (d.modules && d.modules.actions_list) || [
-      { id: "curiosidad", label: "Curiosidad", icon: "✨" },
-      { id: "maridaje", label: "Sugerencia de maridaje", icon: "🍽️" },
-      { id: "bodega", label: "Más sobre la bodega", icon: "🏡" },
-      { id: "otro", label: "Ver otro vino", icon: "🍷" },
-    ];
-    return \`
-      <section class="py-4">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          \${actions.map(a=>\`
-            <button class="bg-neutral-900/40 border border-neutral-800 rounded-xl px-3 py-3 flex flex-col gap-1 items-start hover:border-amber-400 transition" data-action-id="\${a.id}">
-              <span class="text-lg">\${a.icon || "•"}</span>
-              <span class="text-sm font-medium text-neutral-100">\${a.label}</span>
-              <span class="text-[11px] text-neutral-500">Tap para ampliar</span>
-            </button>\`).join("")}
-        </div>
-      </section>
-      <hr class="border-neutral-800">\`;
-  }
-
   function socialHTML(d){
-    const s = d.social || {};
-    if (!(s.website || s.email || s.instagram)) return "";
-    return \`
+    const s=d.social||{};
+    if(!(s.website||s.email)) return "";
+    return `
       <section class="py-6">
-        <h2 class="text-lg mb-3 text-neutral-100">\${UI_COPY[d.lang_final||'es'].social}</h2>
+        <h2 class="text-lg mb-3 text-neutral-100">${S.t.social}</h2>
         <div class="flex flex-wrap gap-3 text-sm">
-          \${s.website ? \`<a href="\${s.website}" class="underline text-amber-400" target="_blank">Web</a>\` : ""}
-          \${s.instagram ? \`<a href="\${s.instagram}" class="underline text-amber-400" target="_blank">Instagram</a>\` : ""}
-          \${s.email ? \`<a href="mailto:\${s.email}" class="underline text-amber-400">Email</a>\` : ""}
+          ${ s.website ? `<a href="${s.website}" class="underline text-amber-400" target="_blank">Web</a>` : "" }
+          ${ s.email ? `<a href="mailto:${s.email}" class="underline text-amber-400">Email</a>` : "" }
         </div>
       </section>
-      <hr class="border-neutral-800">\`;
+      <hr class="border-neutral-800">`;
+  }
+  function footerHTML(d){
+    return `<footer class="py-10 text-center text-neutral-400">
+      <div><a href="https://sommelierlab.com" class="underline">Powered by SommelierLab</a></div>
+      <div class="mt-4">${(UI[d.__cdn_lang]||UI.es).legal}</div>
+    </footer>`;
   }
 
-  function sommelierBtnHTML(){
-    return \`
-      <section class="py-6">
-        <button id="sommelier-btn"
-          class="w-full sm:w-auto flex items-center gap-3 bg-amber-500/90 hover:bg-amber-400 text-neutral-950 px-4 py-2 rounded-2xl shadow-lg transition">
-          <span class="relative flex h-8 w-8">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-8 w-8 bg-neutral-950 text-amber-200 items-center justify-center text-sm">🎙</span>
-          </span>
-          <div class="text-left">
-            <div class="text-[13px] leading-4 font-semibold">\${UI_COPY.es.sommelier}</div>
-            <div class="text-[11px] leading-3 text-neutral-800">Habla y te responde</div>
-          </div>
-        </button>
-      </section>
-      <hr class="border-neutral-800">\`;
-  }
-
-  function footerHTML(){
-    return \`
-      <footer class="py-10 text-center text-neutral-400">
-        <div class="text-neutral-300"><a href="https://sommelierlab.com" class="underline">Powered by SommelierLab</a></div>
-        <div class="mt-4">\${UI_COPY.es.drink_responsibly}</div>
-        <div class="mt-1"><a class="underline" href="#">\${UI_COPY.es.allergens}</a></div>
-      </footer>\`;
-  }
-
-  function attachMediaFallback(){
-    const v=document.querySelector('video[data-bottle]'); if(!v) return;
-    const imgUrl=v.getAttribute('data-fallback');
-    const toImg=()=>{
-      const img=document.createElement('img');
-      img.src=imgUrl||''; img.alt=appState?.fichaData?.ficha?.nombre||'bottle'; img.className=v.className;
-      v.replaceWith(img);
-    };
-    v.addEventListener('error',toImg,{once:true});
-    v.addEventListener('stalled',toImg,{once:true});
-    v.addEventListener('abort',toImg,{once:true});
-  }
-
-  function renderApp(){
-    const d = appState.fichaData;
-    appState.t = UI_COPY[(d.lang_final||'es')] || UI_COPY.es;
-    applyTheme(d.theme);
-
-    const m = d.modules || {};
-    const html = [
+  function render(d){
+    S.t = UI[d.__cdn_lang] || UI.es;
+    const app=$("#app");
+    app.innerHTML = [
       headerHTML(d),
       heroHTML(d),
-      m.narrativa !== false ? narrativaHTML(d) : "",
-      m.organoleptico !== false ? organolepticoHTML(d) : "",
-      m.tech !== false ? techHTML(d) : "",
-      m.cta !== false ? ctaHTML(d) : "",
-      m.actions !== false ? actionsHTML(d) : "",
-      '<div id="sommelier-slot" class="py-4" style="min-height:420px"></div>',
-      m.social !== false ? socialHTML(d) : "",
-      m.sommelier !== false ? sommelierBtnHTML(d) : "",
-      footerHTML()
-    ].join('');
+      narrativaHTML(d),
+      organoHTML(d),
+      techHTML(d),
+      ctaHTML(d),
+      socialHTML(d),
+      footerHTML(d)
+    ].join("");
 
-    $('#app').innerHTML = html;
-    wireInteractionsAfterRender();
+    const sel=$("#langSel");
+    if(sel){ sel.addEventListener("change",()=>{ const u=new URL(location.href); u.searchParams.set("lang", sel.value); location.href=u.toString(); }); }
+    const sb=$("#shareBtn");
+    if(sb){ sb.addEventListener("click", async ()=>{ try{
+      if(navigator.share) await navigator.share({title:document.title, url:location.href});
+      else { await navigator.clipboard.writeText(location.href); sb.textContent="Copiado"; setTimeout(()=>sb.textContent=S.t.share,1200); }
+    }catch{} }); }
   }
 
-  function wireInteractionsAfterRender(){
-    const sel=$('#langSel');
-    if(sel){
-      sel.addEventListener('change',()=>{
-        const url=new URL(location.href);
-        url.searchParams.set('lang', sel.value.toLowerCase());
-        location.href=url.toString();
-      });
-    }
-    const sb=$('#shareBtn');
-    if(sb){
-      sb.addEventListener('click', async ()=>{
-        try{
-          const u=location.href;
-          if(navigator.share){ await navigator.share({title:document.title,url:u}); }
-          else{ await navigator.clipboard.writeText(u); sb.textContent='Copiado'; setTimeout(()=>sb.textContent=UI_COPY.es.share,1200); }
-        }catch(e){ console.warn('share',e); }
-      });
-    }
-
-    document.querySelectorAll("[data-action-id]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const actionId = btn.getAttribute("data-action-id");
-        const ctx = {
-          vino_id: appState?.query?.vino_id || appState?.fichaData?.vino_id || "",
-          anyada: appState?.query?.anyada || appState?.fichaData?.ficha?.year || "",
-          lang: appState?.fichaData?.lang_final || appState?.query?.lang || "es",
-          context: appState?.query?.context || "botella"
-        };
-        console.log("[SommelierLab][action]", actionId, ctx);
-      });
-    });
-
-    // Sommelier widget
-    const innerSom = document.getElementById("sommelier-btn");
-    if(innerSom){
-      innerSom.addEventListener("click", ()=>{
-        const wrap = document.getElementById("sommelier-wrapper");
-        if(wrap) wrap.style.display = "block";
-      });
-    }
-
-    attachMediaFallback();
-  }
-
-  async function bootstrap(){
-    appState.query = getQueryParams();
-    appState.debug = !!appState.query.debug;
-    if(!appState.query.vino_id || !appState.query.anyada){
-      $('#app').innerHTML = '<div class="p-6 text-red-400">Faltan parámetros ?vino_id=...&anyada=...</div>';
+  /* =================== BOOT =================== */
+  (async function(){
+    S.q = getQ();
+    if(!S.q.vino_id || !S.q.anyada){
+      $("#app").innerHTML = '<div class="p-6 text-red-400">Faltan parámetros ?vino_id=...&anyada=...</div>';
       return;
     }
     try{
-      const data = await fetchFicha();
-      appState.fichaData = data;
-      renderApp();
-      renderStickyCTA();
+      const raw = await loadFicha(S.q.vino_id, S.q.anyada, S.q.lang);
+      dbg(raw);
+      const norm = normalize(raw, S.q);
+      await attachAudio(norm, S.q);
+      S.ficha = norm;
+      render(norm);
     }catch(e){
       console.error(e);
-      $('#app').innerHTML = '<div class="p-6 text-red-400">Error cargando la ficha.</div>';
+      $("#app").innerHTML = '<div class="p-6 text-red-400">Error cargando la ficha.</div>';
     }
-  }
-
-  function renderStickyCTA(){
-    const c = appState.fichaData?.ficha?.cta || {};
-    const btns = [];
-    if(c.comprar_url) btns.push(\`<button data-action="comprar" data-url="\${c.comprar_url}" class="cta-btn flex-1 bg-amber-500 text-neutral-900 rounded-xl px-3 py-2">Comprar</button>\`);
-    if(c.visita_url)  btns.push(\`<button data-action="visita"  data-url="\${c.visita_url}"  class="cta-btn flex-1 bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2">Visitar</button>\`);
-    if(!btns.length) return;
-    const bar=document.createElement('div');
-    bar.id='cta-sticky';
-    bar.innerHTML = \`<div class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-neutral-900/95 backdrop-blur border-t border-neutral-700 px-4 py-3"><div class="max-w-[1100px] mx-auto flex gap-3">\${btns.join('')}</div></div>\`;
-    document.body.appendChild(bar);
-    bar.querySelectorAll('.cta-btn').forEach(b=>{
-      b.addEventListener('click',()=>{ location.href=b.getAttribute('data-url'); });
-    });
-  }
-
-  bootstrap();
+  })();
   </script>
 
-  <!-- Sommelier conversacional flotante fijo -->
+  <!-- Sommelier conversacional flotante -->
   <style>
-    #sommelier-float {
-      position: fixed;
-      right: 18px;
-      bottom: 100px;
-      z-index: 60;
+    #sommelier-float{ position:fixed; right:18px; bottom:100px; z-index:60;
       background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
-      box-shadow: 0 0 18px rgba(0,0,0,0.4);
-      border-radius: 50px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      transition: transform 0.25s ease, background 0.3s ease;
-    }
-    #sommelier-float:hover { transform: scale(1.05); }
-    #sommelier-float .icon { font-size: 30px; }
-    #sommelier-float .label { font-size: 13px; font-weight: 600; color: #111; }
-    #sommelier-wrapper { position: fixed; right: 18px; bottom: 165px; z-index: 65; display: none; }
-    #sommelier-close {
-      position: absolute; top: -28px; right: -14px; width: 28px; height: 28px;
-      border-radius: 50%; border: none; background: #facc15; color: #111;
-      font-size: 18px; font-weight: bold; cursor: pointer; z-index: 99999;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-    }
-    #sommelier-close:hover { background: #fde68a; }
-    @media (max-width: 768px) {
-      #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
-      #sommelier-wrapper { right: 12px; bottom: 150px; }
-    }
+      box-shadow:0 0 18px rgba(0,0,0,0.4); border-radius:50px; cursor:pointer;
+      display:flex; align-items:center; gap:10px; padding:10px 14px; }
+    #sommelier-wrapper{ position:fixed; right:18px; bottom:165px; z-index:65; display:none; }
+    #sommelier-close{ position:absolute; top:-28px; right:-14px; width:28px; height:28px; border-radius:50%;
+      border:none; background:#facc15; color:#111; font-size:18px; font-weight:bold; cursor:pointer; z-index:99999; }
   </style>
 
-  <div id="sommelier-float">
-    <span class="icon">🎙</span>
-    <span class="label">Preguntar al sommelier</span>
-  </div>
-
-  <div id="sommelier-wrapper" style="position: fixed; right: 18px; bottom: 165px; z-index: 9990; display: none;">
+  <div id="sommelier-float"><span style="font-size:28px">🎙</span><span class="font-semibold text-neutral-900">Preguntar al sommelier</span></div>
+  <div id="sommelier-wrapper">
     <button id="sommelier-close">✕</button>
-    <elevenlabs-convai
-      id="sommelier-widget"
+    <elevenlabs-convai id="sommelier-widget"
       agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-      position="floating"
-      behavior="expanded"
-      variant="compact"
-    ></elevenlabs-convai>
+      position="floating" behavior="expanded" variant="compact"></elevenlabs-convai>
   </div>
   <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("sommelier-float");
-    const wrapper = document.getElementById("sommelier-wrapper");
-    const widget = document.getElementById("sommelier-widget");
-    const btnClose = document.getElementById("sommelier-close");
-
-    function tryStartConversation() {
-      if (widget && typeof widget.startConversation === "function") {
-        try { widget.startConversation(); return; } catch (e) { console.warn(e); }
-      }
-      if (widget && typeof widget.show === "function") {
-        try { widget.show(); } catch (e) { console.warn(e); }
-      }
-      setTimeout(() => {
-        try {
-          const sr = widget.shadowRoot;
-          if (!sr) return;
-          const btnMic = sr.querySelector("button, [role='button']");
-          if (btnMic) btnMic.click();
-        } catch (e) {
-          console.warn("no se pudo pulsar el botón interno", e);
-        }
-      }, 450);
-    }
-
-    btn.addEventListener("click", () => {
-      wrapper.style.display = "block";
-      setTimeout(() => { tryStartConversation(); }, 250);
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("sommelier-float");
+      const wrapper = document.getElementById("sommelier-wrapper");
+      const widget = document.getElementById("sommelier-widget");
+      const btnClose = document.getElementById("sommelier-close");
+      const start = ()=>{
+        if(widget?.startConversation) try{ widget.startConversation(); }catch{}
+        setTimeout(()=>{ try{
+          const sr = widget.shadowRoot; const b = sr && sr.querySelector("button,[role='button']"); if(b) b.click();
+        }catch{} }, 400);
+      };
+      btn.addEventListener("click", ()=>{ wrapper.style.display="block"; setTimeout(start, 200); });
+      btnClose.addEventListener("click", ()=>{ wrapper.style.display="none"; if(widget?.endConversation) widget.endConversation(); });
+      document.addEventListener("click",(e)=>{ if(!e.target.closest("#sommelier-wrapper") && !e.target.closest("#sommelier-float")) wrapper.style.display="none"; });
     });
-
-    btnClose.addEventListener("click", () => {
-      wrapper.style.display = "none";
-      if (widget) {
-        if (typeof widget.endConversation === "function") widget.endConversation();
-        else if (typeof widget.stopConversation === "function") widget.stopConversation();
-        else if (typeof widget.hide === "function") widget.hide();
-      }
-    });
-
-    document.addEventListener("click", (e) => {
-      const isWrapper = e.target.closest("#sommelier-wrapper");
-      const isBtn = e.target.closest("#sommelier-float");
-      if (!isWrapper && !isBtn && wrapper.style.display === "block") {
-        wrapper.style.display = "none";
-        if (widget) {
-          if (typeof widget.endConversation === "function") widget.endConversation();
-          else if (typeof widget.stopConversation === "function") widget.stopConversation();
-          else if (typeof widget.hide === "function") widget.hide();
-        }
-      }
-    });
-  });
   </script>
 </body>
 </html>
-"""
-with open("/mnt/data/index-fixed.html","w",encoding="utf-8") as f:
-    f.write(index_html)
-
-"/mnt/data/index-fixed.html"
-
