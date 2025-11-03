@@ -30,7 +30,7 @@
       en:{share:"Share",sommelier:"Sommelier presentation",gallery:"Gallery",social:"Social & contact",legal:"Drink responsibly",
           indicators:{aroma:"Aroma",cuerpo:"Body",acidez:"Acidity",dulzor:"Sweetness",tanino:"Tannin"}},
       fr:{share:"Partager",sommelier:"Présentation du sommelier",gallery:"Galerie",social:"Réseaux et contact",legal:"Buvez avec modération",
-          indicators:{aroma:"Arôme",cuerpo:"Corps",acidez:"Acidité",dulzor:"Sucré",tanino:"Tanin"}}
+          indicators:{aroma:"Arôme",cuerpo:"Corps",acidez:"Acidité",dulzor:"Sucré",tanino:"Tanin"}},
     };
 
     /* =================== STATE =================== */
@@ -52,52 +52,7 @@
 
     /* =================== CDN PATHS =================== */
     const cdnFichaUrl=(vino,any,lang)=>`${CDN_BASE}/qr2/${encodeURIComponent(vino)}/${encodeURIComponent(any)}/${encodeURIComponent(lang)}/ficha.json`;
-
-    // NUEVO: utilidades audio y enriquecido mínimo
-    function cdnBaseFromFichaUrl(u){
-      try{
-        const url=new URL(u);
-        // ya tenemos el base directo
-        return `${url.origin}/file/SommelierLab-media`;
-      }catch{ return CDN_BASE; }
-    }
-    function cdnAudioUrl(cdnBase, vino, any, lang){
-      return `${cdnBase}/qr2/audio/${encodeURIComponent(vino)}/${encodeURIComponent(any)}/${encodeURIComponent(lang)}/base.mp3`;
-    }
-
-    function enrichLegacy(d){
-      if(!d || !d.ficha) return d;
-
-      // Audio fallback
-      if(!d.ficha.narrativa?.audio_url){
-        const base = cdnBaseFromFichaUrl(cdnFichaUrl(d.vino_id||'', d.anyada||'default', d.lang||'es'));
-        const vino = d.vino_id || '';
-        const any  = d.anyada || 'default';
-        const lang = (d.lang||'es').toLowerCase();
-        const tries = [
-          cdnAudioUrl(base, vino, any, lang),
-          cdnAudioUrl(base, vino, any, 'es'),
-          cdnAudioUrl(base, vino, 'default', lang),
-          cdnAudioUrl(base, vino, 'default', 'es'),
-        ];
-        d.ficha.narrativa = d.ficha.narrativa || {};
-        d.ficha.narrativa.audio_url = tries[0];
-      }
-
-      // Social → CTA fallback
-      if(d.social){
-        d.ficha.cta ??= {};
-        if(!d.ficha.cta.visita_url && d.social.website) d.ficha.cta.visita_url = d.social.website;
-        if(!d.ficha.cta.contacto_url && d.social.email)  d.ficha.cta.contacto_url = `mailto:${d.social.email}`;
-      }
-
-      // Premios a estructura simple
-      if(Array.isArray(d.premios) && d.premios.length){
-        d.ficha.awards = d.premios.map(p=>({label:p.fuente||'Award', score:p.puntuacion||null}));
-      }
-
-      return d;
-    }
+    const cdnAudioUrl=(vino,any,lang)=>`${CDN_BASE}/qr2/audio/${encodeURIComponent(vino)}/${encodeURIComponent(any)}/${encodeURIComponent(lang)}/base.mp3`;
 
     /* =================== FETCH =================== */
     async function fetchJSON(u){
@@ -109,19 +64,114 @@
     // Fallbacks: anyada/lang → anyada/es → default/lang → default/es
     async function fetchFicha(){
       const {vino_id, anyada, lang} = appState.q;
-      const list = anyada
+      const urls = anyada
         ? [cdnFichaUrl(vino_id,anyada,lang), cdnFichaUrl(vino_id,anyada,'es'), cdnFichaUrl(vino_id,'default',lang), cdnFichaUrl(vino_id,'default','es')]
         : [cdnFichaUrl(vino_id,'default',lang), cdnFichaUrl(vino_id,'default','es')];
 
-      let lastErr=null;
-      for(const u of list){
+      const errors=[];
+      for(const u of urls){
         try{
           const j=await fetchJSON(u);
           j.__cdn_url=u; j.__cdn_lang=(j.lang||lang||'es').toLowerCase();
           return j;
-        }catch(e){ lastErr=e; }
+        }catch(e){ errors.push({u,err:String(e)}); }
       }
-      throw lastErr||new Error('No ficha found');
+      dbg({fetch_errors:errors});
+      throw new Error('NO_FICHA_CDN');
+    }
+
+    /* =================== NORMALIZE =================== */
+    function normalizeForFront(raw, q){
+      if (!raw) return raw;
+      const ff = raw.for_front || {};
+      const h  = ff.header || {};
+      const bi = raw.bodega_info || {};
+      const lang = (raw.lang || q?.lang || 'es').toLowerCase();
+
+      const out = structuredClone(raw);
+      out.ficha           = out.ficha || {};
+      out.ficha.narrativa = out.ficha.narrativa || {};
+      out.ficha.cta       = out.ficha.cta || {};
+      out.social          = out.social || {};
+
+      // Header básicos
+      out.ficha.bodega   = out.ficha.bodega   || h.bodega || bi['Bodega'] || '';
+      out.ficha.nombre   = out.ficha.nombre   || h.titulo || '';
+      out.ficha.year     = out.ficha.year     || h.anyada || out.anyada || '';
+      out.ficha.do       = out.ficha.do       || h.do || bi['Origen/DO'] || '';
+      out.ficha.variedad = out.ficha.variedad || h.variedad || '';
+
+      // Botella
+      out.ficha.bottle_media = out.ficha.bottle_media || { image_url:'', video_url:'' };
+      if(!out.ficha.bottle_media.image_url) out.ficha.bottle_media.image_url = h.imagen || '';
+
+      // Narrativa
+      if(!out.ficha.narrativa.texto) out.ficha.narrativa.texto = ff.narrativa_es || '';
+
+      // Organoléptico merge
+      const orgF  = out.ficha.organoleptico || {};
+      const orgFF = ff.organoleptico || {};
+      out.ficha.organoleptico = {
+        texto:    orgF.texto    ?? orgFF.texto    ?? '',
+        servicio: orgF.servicio ?? orgFF.servicio ?? null,
+        aromatico: orgF.aromatico ?? orgFF.aromatico ?? [],
+        gustativo: orgF.gustativo ?? orgFF.gustativo ?? [],
+        sensor ial: orgF.sensorial ?? orgFF.sensorial ?? [],
+        chips: orgF.chips ?? orgFF.chips ?? { aromatico:[], gustativo:[], sensorial:[] },
+        barras: orgF.barras ?? orgFF.indicadores ?? {}
+      };
+
+      // Tech info
+      out.ficha.tech_info = out.ficha.tech_info || {};
+      const ti = out.ficha.tech_info;
+      ti.vinificacion_y_crianza = ti.vinificacion_y_crianza || [];
+      ti.origen_y_vendimia      = ti.origen_y_vendimia || [];
+      ti.produccion             = ti.produccion || [];
+      ti.notas_de_cata          = ti.notas_de_cata || [];
+      ti.curiosidad             = ti.curiosidad || [];
+
+      // Premios → badges simples si vienen como raíz `premios`
+      if(Array.isArray(out.premios) && out.premios.length){
+        out.ficha.awards = out.premios.map(p=>({label:p.fuente||'Award', score:p.puntuacion||null}));
+      }
+
+      // CTA desde social/bodega_info
+      out.ficha.cta.visita_url   = out.ficha.cta.visita_url || ff.enoturismo?.reserva_url || bi['Reservas_URL_Base'] || out.social.website || '';
+      out.ficha.cta.contacto_url = out.ficha.cta.contacto_url || (out.social.email ? `mailto:${out.social.email}` : '');
+
+      // Social mínimos
+      out.social.website = out.social.website || ff.contacto?.web || bi['Web URL'] || '';
+      out.social.email   = out.social.email   || ff.contacto?.email || bi['Email de contacto'] || '';
+
+      out.available_langs = Array.isArray(out.available_langs) && out.available_langs.length
+        ? out.available_langs.map(x=>String(x).toLowerCase())
+        : [lang];
+      out.__cdn_lang = (out.__cdn_lang || lang);
+      return out;
+    }
+
+    function enrichLegacy(d){
+      if(!d || !d.ficha) return d;
+
+      // Audio fallback preferente anyada/lang
+      if(!d.ficha.narrativa?.audio_url){
+        const tries = [
+          cdnAudioUrl(d.vino_id||'', d.anyada||'default', (d.lang||'es').toLowerCase()),
+          cdnAudioUrl(d.vino_id||'', d.anyada||'default', 'es'),
+          cdnAudioUrl(d.vino_id||'', 'default', (d.lang||'es').toLowerCase()),
+          cdnAudioUrl(d.vino_id||'', 'default', 'es'),
+        ];
+        d.ficha.narrativa = d.ficha.narrativa || {};
+        d.ficha.narrativa.audio_url = tries[0];
+      }
+
+      // Social → CTA fallback
+      if(d.social){
+        d.ficha.cta ??= {};
+        if(!d.ficha.cta.visita_url && d.social.website) d.ficha.cta.visita_url = d.social.website;
+        if(!d.ficha.cta.contacto_url && d.social.email)  d.ficha.cta.contacto_url = `mailto:${d.social.email}`;
+      }
+      return d;
     }
 
     /* =================== RENDER =================== */
@@ -172,7 +222,6 @@
         <hr class="border-neutral-800">`;
     }
 
-    // NUEVO: organoléptico completo
     function renderOrganoleptico(d){
       const o=d.ficha?.organoleptico || {};
       const hasTexto = !!(o.texto && String(o.texto).trim());
@@ -200,8 +249,9 @@
       const bars = !hasBars ? '' : (()=>{
         const rows = Object.entries(o.barras).map(([k,val])=>{
           const pct = Math.max(0,Math.min(10,Number(val||0)))*10;
+          const label = (UI[d.__cdn_lang]?.indicators?.[k]) || k;
           return `<div class="flex items-center gap-3">
-            <div class="w-28 text-[12px] text-neutral-300">${(appState.t.indicators?.[k])||k}</div>
+            <div class="w-28 text-[12px] text-neutral-300">${label}</div>
             <div class="flex-1 h-2 bg-neutral-800 rounded">
               <div class="h-2 bg-amber-500 grow-x rounded" style="width:${pct}%"></div>
             </div>
@@ -317,9 +367,12 @@
         return;
       }
       try{
-        const data = await fetchFicha();
-        enrichLegacy(data);
-        dbg(data);
+        const raw = await fetchFicha();
+        const data = normalizeForFront(enrichLegacy(raw), appState.q);
+        dbg({loaded_from:data.__cdn_url, lang:data.__cdn_lang, organoleptico:{
+          texto: !!data.ficha?.organoleptico?.texto,
+          barras: data.ficha?.organoleptico?.barras && Object.keys(data.ficha.organoleptico.barras).length
+        }});
         appState.fichaData = data;
         render(data);
       }catch(e){
