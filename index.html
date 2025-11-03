@@ -1,745 +1,369 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>SommelierLab · Ficha del vino</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Tailwind CDN solo para MVP; en prod compila con PostCSS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{ --accent-color:#c79a5a; }
-    .fade-in{ animation:fadeIn .35s ease-out both }
-    @keyframes fadeIn{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
-    .grow-x{ transform-origin:left; animation:growX .6s ease-out both }
-    @keyframes growX{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
-    .frame-soft{ box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04); }
-    .frame-bold{ box-shadow:0 12px 40px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.06); }
-    .badge-plain{ border-radius:.75rem; }
-    .badge-circle{ border-radius:9999px; }
-    .tex-bg{ background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size:8px 8px; }
+    :root{ --accent:#c79a5a }
+    body{ background:#0f0a0a; color:#fff }
+    .frame-soft{ box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04) }
+    .fade-in{ animation:fadeIn .25s ease-out both }
+    @keyframes fadeIn{ from{opacity:.0;transform:translateY(4px)} to{opacity:1;transform:none} }
+    .grow-x{ transition:width .35s ease }
+    #debug{max-height:280px}
   </style>
 </head>
-<body class="bg-neutral-950 text-neutral-50 min-h-screen selection:bg-amber-500/30">
+<body class="min-h-screen">
+  <pre id="debug" class="hidden bg-red-900/25 text-[10px] leading-snug p-3 overflow-auto"></pre>
   <div id="app" class="max-w-[1100px] mx-auto px-4 sm:px-6 pb-28 sm:pb-12"></div>
 
-  <script>
-  /******** CONFIG ********/
-  const BASE_API = "PLACEHOLDER"; // para probar desde B2
+  <script type="module">
+    /* =================== CONFIG =================== */
+    const CDN_BASE = "https://f005.backblazeb2.com/file/SommelierLab-media";
 
-  window.addEventListener('error',(e)=>{ try{
-    const div=document.createElement('div');
-    Object.assign(div.style,{position:'fixed',top:'0',left:'0',right:'0',background:'rgba(180,0,0,.9)',color:'#fff',zIndex:'99999',font:'12px/1.4 monospace',padding:'8px 10px'});
-    div.textContent='JS error: '+(e?.message||'Unknown');
-    document.body.appendChild(div);
-    console.error('[SommelierLab] JS error',e);
-  }catch(_){}});
-
-  /******** I18N ********/
-  const UI_COPY = {
-    es:{
-      share:"Compartir",
-      ask:"Preguntar al sommelier",
-      avg_rating:"Valoración media",
-      based_on:"basada en",
-      opinions:"opiniones",
-      your_review:"Escribe tu reseña…",
-      send_review:"Enviar reseña",
-      allergens:"Alérgenos / Información legal",
-      drink_responsibly:"Bebe con responsabilidad",
-      gallery:"Galería",
-      related:"Otros vinos",
-      social:"Redes y contacto",
-      sommelier:"Hablar con el sommelier",
-      indicators:{ aroma:"Aroma", cuerpo:"Cuerpo", acidez:"Acidez", dulzor:"Dulzor", tanino:"Tanino" }
-    },
-    en:{
-      share:"Share",
-      ask:"Ask the sommelier",
-      avg_rating:"Average rating",
-      based_on:"based on",
-      opinions:"reviews",
-      your_review:"Write your review…",
-      send_review:"Send",
-      allergens:"Allergens / Legal",
-      drink_responsibly:"Drink responsibly",
-      gallery:"Gallery",
-      related:"Other wines",
-      social:"Social & contact",
-      sommelier:"Talk to the sommelier",
-      indicators:{ aroma:"Aroma", cuerpo:"Body", acidez:"Acidity", dulzor:"Sweetness", tanino:"Tannin" }
-    }
-  };
-
-  /******** STATE ********/
-  const appState = { query:{}, fichaData:null, t:UI_COPY.es };
-
-  function getQueryParams(){
-    const p = new URLSearchParams(window.location.search);
-    const langRaw = (p.get("lang") || p.get("idioma") || "").slice(0,2).toLowerCase();
-    const ctxRaw  = p.get("context") || p.get("contect") || "";
-    return {
-      vino_id: p.get("vino_id")||"",
-      anyada:  p.get("anyada")||"",
-      lang:    langRaw || "es",
-      context: ctxRaw,
-      cdn:     p.get("cdn")==="1"
+    /* =================== I18N =================== */
+    const UI = {
+      es:{share:"Compartir",sommelier:"Presentación del sommelier",gallery:"Galería",social:"Redes y contacto",legal:"Bebe con responsabilidad",
+          indicators:{aroma:"Aroma",cuerpo:"Cuerpo",acidez:"Acidez",dulzor:"Dulzor",tanino:"Tanino"}},
+      en:{share:"Share",sommelier:"Sommelier presentation",gallery:"Gallery",social:"Social & contact",legal:"Drink responsibly",
+          indicators:{aroma:"Aroma",cuerpo:"Body",acidez:"Acidity",dulzor:"Sweetness",tanino:"Tannin"}},
+      fr:{share:"Partager",sommelier:"Présentation du sommelier",gallery:"Galerie",social:"Réseaux et contact",legal:"Buvez avec modération",
+          indicators:{aroma:"Arôme",cuerpo:"Corps",acidez:"Acidité",dulzor:"Sucré",tanino:"Tanin"}}
     };
-  }
 
-  function applyTheme(theme){
-    const body=document.body; const t=theme||{};
-    const dark = (t.background_mode !== 'light');
-    body.style.backgroundColor = dark ? (t.primary_color || '#0f0a0a') : (t.primary_color || '#faf7ef');
-    body.style.color = dark ? '#fff' : '#000';
-    body.style.setProperty('--accent-color', t.accent_color || '#c79a5a');
-    body.classList.toggle('tex-bg', !!t.use_texture);
-  }
+    /* =================== STATE =================== */
+    const appState = { q:{}, fichaData:null, t:UI.es };
 
-  function prettyContext(c){
-    const map={ botella:'Botella', feria:'Feria', restaurante:'Restaurante', carta:'Carta digital' };
-    return map[c] || '';
-  }
-
-  /******** DATA ********/
-  function cdnFichaUrl(vino_id,anyada,lang){
-    return `https://f005.backblazeb2.com/file/SommelierLab-media/qr2/${encodeURIComponent(vino_id)}/${encodeURIComponent(anyada)}/${encodeURIComponent(lang)}/ficha.json`;
-  }
-
-  async function fetchFromCDN(vino_id,anyada,lang){
-    const url = cdnFichaUrl(vino_id,anyada,lang);
-    const r = await fetch(url,{cache:'no-cache'});
-    if(!r.ok) throw new Error('CDN '+r.status);
-    return r.json();
-  }
-
-  async function fetchFromResolve(vino_id,anyada,lang){
-    const u = `${BASE_API}/qr2/resolve?vino_id=${encodeURIComponent(vino_id)}&anyada=${encodeURIComponent(anyada)}&lang=${encodeURIComponent(lang)}`;
-    const r = await fetch(u,{credentials:'omit'});
-    if(!r.ok) throw new Error('/qr2/resolve '+r.status);
-    return r.json();
-  }
-
- function normalizeToFicha(data){
-  if(!data) return data;
-  // si ya viene normalizado
-  if(data.ficha) return data;
-
-  const h  = data.header || (data.for_front && data.for_front.header) || {};
-  const b  = data.bodega || {};
-  const v  = data.vino || {};
-  const ff = data.for_front || {};
-  const contacto = ff.contacto || {};
-  const enot     = ff.enoturismo || {};
-  const narrativaTxt =
-    data.narrative_text ||
-    ff.narrativa_es ||
-    v["Notas de cata"] ||
-    "";
-
-  const logo =
-    (Array.isArray(b["Logo de la Bodega"]) && b["Logo de la Bodega"][0]?.url) ||
-    "";
-
-  const imageUrl =
-    h.imagen ||
-    (data.assets && data.assets.image_url) ||
-    v.imagen ||
-    "";
-
-  return {
-    schema_version: "qr2-ficha-1",
-    lang_requested: data.lang || appState.query.lang || "es",
-    lang_final:     data.lang || appState.query.lang || "es",
-    available_langs: [data.lang || appState.query.lang || "es"],
-    theme: {
-      background_mode: "dark",
-      primary_color: "#0f0a0a",
-      accent_color: "#c79a5a",
-    },
-    ficha: {
-      bodega: h.bodega || b["Bodega"] || "",
-      bodega_logo_url: logo,
-      nombre: h.titulo || v["Nombre del vino"] || data.title || "",
-      year:   h.anyada || data.anyada || "",
-      do:     h.do || data.do || v["Origen/DO"] || "",
-      variedad: h.variedad || v["Variedad de uva"] || "",
-      tipo: "",
-      context: appState.query.context || "",
-      ubicacion: {},
-      bottle_media: {
-        image_url: imageUrl,
-        video_url: ""
-      },
-      narrativa: {
-        texto: narrativaTxt,
-        audio_url: ""
-      },
-      organoleptico: {
-        aromatico: (ff.organoleptico && ff.organoleptico.aromatico) || [],
-        gustativo: (ff.organoleptico && ff.organoleptico.gustativo) || [],
-        sensorial: (ff.organoleptico && ff.organoleptico.sensorial) || [],
-        barras:    (ff.organoleptico && ff.organoleptico.indicadores) || {},
-        radar: {}
-      },
-      tech_info: {
-        vinificacion_y_crianza: v["Proceso de crianza"]
-          ? [String(v["Proceso de crianza"])]
-          : [],
-        origen_y_vendimia: v["Fecha de cosecha"]
-          ? [String(v["Fecha de cosecha"])]
-          : [],
-        produccion: v["Número de botellas"]
-          ? [String(v["Número de botellas"])]
-          : [],
-        notas_de_cata: v["Notas de cata"]
-          ? [String(v["Notas de cata"])]
-          : [],
-        curiosidad:
-          (data.modules && data.modules.curiosidad)
-            ? [String(data.modules.curiosidad)]
-            : []
-      },
-      cta: {
-        comprar_url: "",
-        visita_url: enot.reserva_url || b["Reservas_URL_Base"] || "",
-        contacto_url: contacto.email ? `mailto:${contacto.email}` : ""
-      },
-      gallery: []
-    },
-    reviews_enabled: false,
-    reviews_avg: 0,
-    reviews_count: 0,
-    reviews_recent: [],
-    related_wines: [],
-    social: {
-      instagram: contacto.instagram || "",
-      website:   contacto.web || "",
-      email:     contacto.email || "",
-      phone:     ""
-    },
-    sommelier: { enabled: false },
-    source_hash: data.source_hash || ""
-  };
-}
-
-  async function fetchFicha(){
-    const {vino_id,anyada,lang,cdn} = appState.query;
-    let data=null;
-    if(!cdn && BASE_API && BASE_API!=="PLACEHOLDER"){
-      try{ data = await fetchFromResolve(vino_id,anyada,lang); }
-      catch(e){ console.warn('API falló, uso CDN',e); }
+    /* =================== HELPERS =================== */
+    const $ = (s,sc=document)=>sc.querySelector(s);
+    function getQ(){
+      const p=new URLSearchParams(location.search);
+      return {
+        vino_id: p.get("vino_id")||"",
+        anyada:  p.get("anyada")||"",
+        lang:    (p.get("lang")||"es").slice(0,2).toLowerCase(),
+        context: p.get("context")||"",
+        debug:   p.get("debug")==="1"
+      };
     }
-    if(!data){
-      const cdnData = await fetchFromCDN(vino_id,anyada,lang);
-      data = normalizeToFicha(cdnData);
-    }else{
-      data = normalizeToFicha(data);
+    function dbg(x){ const d=$("#debug"); if(!d||!appState.q.debug) return; d.classList.remove("hidden"); d.textContent = typeof x==="string"?x:JSON.stringify(x,null,2).slice(0,4000); }
+
+    /* =================== CDN PATHS =================== */
+    const cdnFichaUrl=(vino,any,lang)=>`${CDN_BASE}/qr2/${encodeURIComponent(vino)}/${encodeURIComponent(any)}/${encodeURIComponent(lang)}/ficha.json`;
+
+    // NUEVO: utilidades audio y enriquecido mínimo
+    function cdnBaseFromFichaUrl(u){
+      try{
+        const url=new URL(u);
+        // ya tenemos el base directo
+        return `${url.origin}/file/SommelierLab-media`;
+      }catch{ return CDN_BASE; }
     }
-    return data;
-  }
+    function cdnAudioUrl(cdnBase, vino, any, lang){
+      return `${cdnBase}/qr2/audio/${encodeURIComponent(vino)}/${encodeURIComponent(any)}/${encodeURIComponent(lang)}/base.mp3`;
+    }
 
-  /******** RENDER ********/
-  const el = sel => document.querySelector(sel);
+    function enrichLegacy(d){
+      if(!d || !d.ficha) return d;
 
-  function renderHeader(d){
-    const langs = (d.available_langs && d.available_langs.length) ? d.available_langs : [appState.query.lang||'es'];
-    const warning = d.lang_requested && d.lang_final && d.lang_requested!==d.lang_final
-      ? `<div class="text-[11px] text-amber-400 mt-1">Mostrando en ${d.lang_final.toUpperCase()} · pedido ${d.lang_requested.toUpperCase()}</div>` : '';
-    const ctx = prettyContext(appState.query.context || d.ficha.context || '');
-    const ctxChip = ctx ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${ctx}</span>` : '';
+      // Audio fallback
+      if(!d.ficha.narrativa?.audio_url){
+        const base = cdnBaseFromFichaUrl(cdnFichaUrl(d.vino_id||'', d.anyada||'default', d.lang||'es'));
+        const vino = d.vino_id || '';
+        const any  = d.anyada || 'default';
+        const lang = (d.lang||'es').toLowerCase();
+        const tries = [
+          cdnAudioUrl(base, vino, any, lang),
+          cdnAudioUrl(base, vino, any, 'es'),
+          cdnAudioUrl(base, vino, 'default', lang),
+          cdnAudioUrl(base, vino, 'default', 'es'),
+        ];
+        d.ficha.narrativa = d.ficha.narrativa || {};
+        d.ficha.narrativa.audio_url = tries[0];
+      }
 
-    return `
+      // Social → CTA fallback
+      if(d.social){
+        d.ficha.cta ??= {};
+        if(!d.ficha.cta.visita_url && d.social.website) d.ficha.cta.visita_url = d.social.website;
+        if(!d.ficha.cta.contacto_url && d.social.email)  d.ficha.cta.contacto_url = `mailto:${d.social.email}`;
+      }
+
+      // Premios a estructura simple
+      if(Array.isArray(d.premios) && d.premios.length){
+        d.ficha.awards = d.premios.map(p=>({label:p.fuente||'Award', score:p.puntuacion||null}));
+      }
+
+      return d;
+    }
+
+    /* =================== FETCH =================== */
+    async function fetchJSON(u){
+      const r=await fetch(u,{cache:"no-store"});
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }
+
+    // Fallbacks: anyada/lang → anyada/es → default/lang → default/es
+    async function fetchFicha(){
+      const {vino_id, anyada, lang} = appState.q;
+      const list = anyada
+        ? [cdnFichaUrl(vino_id,anyada,lang), cdnFichaUrl(vino_id,anyada,'es'), cdnFichaUrl(vino_id,'default',lang), cdnFichaUrl(vino_id,'default','es')]
+        : [cdnFichaUrl(vino_id,'default',lang), cdnFichaUrl(vino_id,'default','es')];
+
+      let lastErr=null;
+      for(const u of list){
+        try{
+          const j=await fetchJSON(u);
+          j.__cdn_url=u; j.__cdn_lang=(j.lang||lang||'es').toLowerCase();
+          return j;
+        }catch(e){ lastErr=e; }
+      }
+      throw lastErr||new Error('No ficha found');
+    }
+
+    /* =================== RENDER =================== */
+    function headerHTML(d){
+      const langs = d.available_langs?.length ? d.available_langs : [d.__cdn_lang||appState.q.lang||"es"];
+      return `
       <header class="py-4 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          ${ d.ficha.bodega_logo_url ? `<img src="${d.ficha.bodega_logo_url}" class="w-10 h-10 rounded-lg border border-neutral-700 object-cover">` : '' }
-          <div>
-            <div class="text-sm text-neutral-300">${d.ficha.bodega||''}</div>
-            <div class="text-2xl font-semibold">${d.ficha.nombre||''} <span class="text-neutral-400">${d.ficha.year||''}</span></div>
-            <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-              ${ d.ficha.do ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.do}</span>` : '' }
-              ${ d.ficha.variedad ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.variedad}</span>` : '' }
-              ${ ctxChip }
-            </div>
-            ${warning}
+        <div>
+          <div class="text-sm text-neutral-300">${d.ficha.bodega||''}</div>
+          <div class="text-2xl font-semibold">${d.ficha.nombre||''} <span class="text-neutral-400">${d.ficha.year||''}</span></div>
+          <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+            ${ d.ficha.do ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.do}</span>` : '' }
+            ${ d.ficha.variedad ? `<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">${d.ficha.variedad}</span>` : '' }
           </div>
+          <div class="text-[10px] text-neutral-600 mt-1">CDN: ${d.__cdn_url||"–"} (${d.__cdn_lang||"?"})</div>
         </div>
         <div class="flex items-center gap-3">
           <select id="langSel" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-sm">
-            ${ langs.map(l=>`<option value="${l}" ${l===d.lang_final?'selected':''}>${l.toUpperCase()}</option>`).join('') }
+            ${ langs.map(l=>`<option value="${l}" ${l===(d.__cdn_lang||appState.q.lang)?'selected':''}>${l.toUpperCase()}</option>`).join('') }
           </select>
           <button id="shareBtn" class="text-amber-400 underline">${appState.t.share}</button>
         </div>
       </header>
-      <hr class="border-neutral-800">
-    `;
-  }
-
-  /* PREMIOS */
-  function renderAwards(d){
-    const awards = d.ficha?.awards || [];
-    if(!awards.length) return "";
-    if(!document.getElementById('awards-style')){
-      const style = document.createElement("style");
-      style.id = "awards-style";
-      style.textContent = `
-        @keyframes floatPulse {
-          0%,100% { transform: translateY(0) scale(1); opacity: .95; }
-          50% { transform: translateY(-4px) scale(1.04); opacity: 1; }
-        }
-        .award-badge-anim { animation: floatPulse 3s ease-in-out infinite; }
-      `;
-      document.head.appendChild(style);
+      <hr class="border-neutral-800">`;
     }
-    const badgeShape = (d.theme?.award_badge_style === 'circle') ? 'badge-circle' : 'badge-plain';
-    return `
-      <div class="flex flex-wrap justify-center gap-4 py-4 fade-in">
-        ${awards.map(a => `
-          <div class="award-badge-anim relative ${badgeShape} bg-neutral-900 border border-neutral-700 shadow-md w-16 h-16 flex flex-col items-center justify-center">
-            <img src="${a.image_url}" alt="${a.label}" class="object-contain w-12 h-12 opacity-90">
-            ${a.score ? `<div class="absolute bottom-0 right-0 bg-amber-500 text-neutral-900 text-[10px] font-bold rounded-full px-1.5 py-[1px]">${a.score}</div>` : ""}
-          </div>
-        `).join("")}
-      </div>
-    `;
-  }
 
-  function renderHero(d){
-    const f=d.ficha||{}; const frame = (d.theme?.bottle_frame==='bold')?'frame-bold':'frame-soft';
-    let mediaBlock='';
-    if(f.bottle_media?.video_url){
-      mediaBlock = `
-        <video data-bottle data-fallback="${f.bottle_media.image_url||''}"
-          class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 ${frame}"
-          src="${f.bottle_media.video_url}" autoplay muted loop playsinline></video>`;
-    }else if(f.bottle_media?.image_url){
-      mediaBlock = `<img src="${f.bottle_media.image_url}" alt="bottle"
-        class="w-40 h-64 mx-auto object-contain rounded-xl shadow-xl border border-neutral-700 bg-neutral-800 ${frame}">`;
-    }
-    return `
-      <section class="py-6">
-        ${mediaBlock}
-        ${renderAwards(d)}
-      </section>
-      <hr class="border-neutral-800">
-    `;
-  }
-
-  function chipsBlock(title, arr){
-    if(!arr||!arr.length) return '';
-    return `
-      <div class="fade-in">
-        <div class="text-sm mb-2 text-neutral-300">${title}</div>
-        <div class="flex flex-wrap gap-2">
-          ${arr.map(x=>`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${x}</span>`).join('')}
-        </div>
-      </div>`;
-  }
-
-  function barsBlock(map){
-    if(!map || !Object.keys(map).length) return '';
-    const t=appState.t;
-    const rows = Object.entries(map).map(([k,val])=>{
-      const pct = Math.max(0, Math.min(10, Number(val||0)))*10;
-      const label = (t.indicators && t.indicators[k]) || k;
+    function heroHTML(d){
+      const img = d.ficha?.bottle_media?.image_url || d.for_front?.header?.imagen || "";
+      if(!img) return "";
       return `
-        <div class="flex items-center gap-3">
-          <div class="w-28 text-[12px] text-neutral-300">${label}</div>
-          <div class="flex-1 h-2 bg-neutral-800 rounded">
-            <div class="h-2 bg-amber-500 grow-x rounded" style="width:${pct}%"></div>
+        <section class="py-6">
+          <img src="${img}" alt="bottle"
+            class="w-40 h-64 mx-auto object-contain rounded-xl border border-neutral-700 bg-neutral-800 frame-soft shadow-xl">
+        </section>
+        <hr class="border-neutral-800">`;
+    }
+
+    function narrativaHTML(d){
+      const n=d.ficha?.narrativa?.texto||"";
+      const au=d.ficha?.narrativa?.audio_url||"";
+      if(!n && !au) return "";
+      return `
+        <section class="py-6">
+          <h2 class="text-xl font-semibold mb-2">${appState.t.sommelier}</h2>
+          ${ n ? `<p class="text-neutral-200 leading-relaxed mb-3">${String(n).replace(/\n/g,"<br>")}</p>` : "" }
+          ${ au ? `<audio controls class="w-full"><source src="${au}" type="audio/mpeg"></audio>` : `<p class="text-[11px] text-neutral-500">Audio no disponible.</p>` }
+        </section>
+        <hr class="border-neutral-800">`;
+    }
+
+    // NUEVO: organoléptico completo
+    function renderOrganoleptico(d){
+      const o=d.ficha?.organoleptico || {};
+      const hasTexto = !!(o.texto && String(o.texto).trim());
+      const hasTemp  = !!(o.servicio && o.servicio.temperatura);
+      const hasChips = (o.aromatico?.length||o.gustativo?.length||o.sensorial?.length);
+      const hasBars  = !!(o.barras && Object.keys(o.barras).length);
+      if(!(hasTexto || hasTemp || hasChips || hasBars)) return '';
+
+      const textoHTML = hasTexto
+        ? `<p class="text-sm leading-relaxed text-neutral-200 mb-3">${String(o.texto).replace(/\n/g,'<br>')}</p>`
+        : '';
+
+      const tempHTML = hasTemp
+        ? `<p class="text-[12px] text-neutral-400 mb-4">Temperatura de servicio: ${o.servicio.temperatura}</p>`
+        : '';
+
+      const chips = (title, arr)=>!arr?.length ? '' : `
+        <div class="fade-in">
+          <div class="text-sm mb-2 text-neutral-300">${title}</div>
+          <div class="flex flex-wrap gap-2">
+            ${arr.map(x=>`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${x}</span>`).join('')}
           </div>
-          <div class="w-10 text-right text-[12px] text-neutral-400">${val||0}/10</div>
         </div>`;
-    }).join('');
-    return `<div class="space-y-2 fade-in">${rows}</div>`;
-  }
 
-  function renderNarrativa(d){
-    const n = d.ficha?.narrativa?.texto || "";
-    const audio = d.ficha?.narrativa?.audio_url || "";
-    if(!n && !audio) return '';
-    return `
-      <section class="py-6">
-        <h2 class="text-xl font-semibold mb-2">${appState.t.ask}</h2>
-        ${ n ? `<p class="text-neutral-200 leading-relaxed mb-3">${n.replace(/\n/g,'<br>')}</p>` : '' }
-        ${ audio ? `<audio controls class="w-full"><source src="${audio}" type="audio/mpeg"></audio>`:'' }
-      </section>
-      <hr class="border-neutral-800">`;
-  }
-
-  function renderOrganoleptico(d){
-    const o = d.ficha?.organoleptico || {};
-    if(!(o.aromatico?.length||o.gustativo?.length||o.sensorial?.length||Object.keys(o.barras||{}).length)) return '';
-    return `
-      <section class="py-6 space-y-5">
-        ${barsBlock(o.barras)}
-        ${chipsBlock('Aromas', o.aromatico)}
-        ${chipsBlock('Boca', o.gustativo)}
-        ${chipsBlock('Sensorial', o.sensorial)}
-      </section>
-      <hr class="border-neutral-800">`;
-  }
-
-  function renderTech(d){
-    const t=d.ficha?.tech_info||{}; const entries=[
-      ['Vinificación y crianza', t.vinificacion_y_crianza],
-      ['Origen y vendimia', t.origen_y_vendimia],
-      ['Producción', t.produccion],
-      ['Notas de cata', t.notas_de_cata],
-      ['Curiosidad', t.curiosidad],
-    ].filter(([,arr])=>arr&&arr.length);
-    if(!entries.length) return '';
-    return `
-      <section class="py-6">
-        <div class="space-y-4">
-          ${entries.map(([title,arr])=>`
-           <details class="group border border-neutral-800 rounded-xl p-3">
-             <summary class="cursor-pointer font-medium text-neutral-100">${title}</summary>
-             <div class="mt-2 text-neutral-300">${arr.map(x=>`<p class="mb-2">${x}</p>`).join('')}</div>
-           </details>`).join('')}
-        </div>
-      </section>
-      <hr class="border-neutral-800">`;
-  }
-
-  function renderCTASection(d){
-    const c=d.ficha?.cta||{};
-    if(!c.comprar_url && !c.visita_url && !c.contacto_url) return '';
-    return `
-      <section class="py-6 flex flex-wrap gap-3">
-        ${ c.comprar_url ? `<a href="${c.comprar_url}" class="bg-amber-500 text-neutral-900 rounded-xl px-4 py-2">Comprar</a>`:'' }
-        ${ c.visita_url ? `<a href="${c.visita_url}" class="bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2">Visitar bodega</a>`:'' }
-        ${ c.contacto_url ? `<a href="${c.contacto_url}" class="underline text-amber-400">Contacto</a>`:'' }
-      </section>
-      <hr class="border-neutral-800">`;
-  }
-
-  /* NUEVO: GALERÍA */
-  function renderGallery(d){
-    const g = d.ficha?.gallery || [];
-    if (!g.length) return "";
-    return `
-      <section class="py-6">
-        <h2 class="text-lg mb-3 text-neutral-100">${appState.t.gallery}</h2>
-        <div class="flex gap-4 overflow-x-auto pb-2">
-          ${g.map(url => `
-            <img src="${url}" class="w-36 h-24 rounded-lg object-cover border border-neutral-800" alt="gallery">
-          `).join("")}
-        </div>
-      </section>
-      <hr class="border-neutral-800">
-    `;
-  }
-
-  /* NUEVO: RELACIONADOS */
-  function renderRelated(d){
-    const r = d.related_wines || [];
-    if (!r.length) return "";
-    return `
-      <section class="py-6">
-        <h2 class="text-lg mb-3 text-neutral-100">${appState.t.related}</h2>
-        <div class="flex gap-4 overflow-x-auto pb-2">
-          ${r.map(v => `
-            <div class="min-w-[140px] bg-neutral-900/40 border border-neutral-800 rounded-xl p-3">
-              <div class="text-sm font-semibold mb-1">${v.nombre || "Vino"}</div>
-              <div class="text-xs text-neutral-400 mb-2">${v.year || ""}</div>
-              ${v.image_url ? `<img src="${v.image_url}" class="w-full h-24 object-cover rounded-lg border border-neutral-800">` : ""}
+      const bars = !hasBars ? '' : (()=>{
+        const rows = Object.entries(o.barras).map(([k,val])=>{
+          const pct = Math.max(0,Math.min(10,Number(val||0)))*10;
+          return `<div class="flex items-center gap-3">
+            <div class="w-28 text-[12px] text-neutral-300">${(appState.t.indicators?.[k])||k}</div>
+            <div class="flex-1 h-2 bg-neutral-800 rounded">
+              <div class="h-2 bg-amber-500 grow-x rounded" style="width:${pct}%"></div>
             </div>
-          `).join("")}
-        </div>
-      </section>
-      <hr class="border-neutral-800">
-    `;
-  }
+            <div class="w-10 text-right text-[12px] text-neutral-400">${val||0}/10</div>
+          </div>`;
+        }).join('');
+        return `<div class="space-y-2 fade-in mb-4">${rows}</div>`;
+      })();
 
-  /* NUEVO: SOCIAL */
-  function renderSocial(d){
-    const s = d.social || {};
-    if (!(s.instagram || s.website || s.email)) return "";
-    return `
-      <section class="py-6">
-        <h2 class="text-lg mb-3 text-neutral-100">${appState.t.social}</h2>
-        <div class="flex flex-wrap gap-3 text-sm">
-          ${s.website ? `<a href="${s.website}" class="underline text-amber-400" target="_blank">Web</a>` : ""}
-          ${s.instagram ? `<a href="${s.instagram}" class="underline text-amber-400" target="_blank">Instagram</a>` : ""}
-          ${s.email ? `<a href="mailto:${s.email}" class="underline text-amber-400">Email</a>` : ""}
-        </div>
-      </section>
-      <hr class="border-neutral-800">
-    `;
-  }
+      return `
+        <section class="py-6">
+          ${textoHTML}
+          ${tempHTML}
+          ${bars}
+          ${chips('Aromas', o.aromatico)}
+          ${chips('Boca', o.gustativo)}
+          ${chips('Sensorial', o.sensorial)}
+        </section>
+        <hr class="border-neutral-800">`;
+    }
 
-  /* NUEVO: SOMMELIER (con botón de voz) */
-  function renderSommelierBtn(d){
-    // lo mostramos siempre, o si quieres solo cuando venga enabled:
-    // if (!d.sommelier?.enabled) return "";
-    return `
-      <section class="py-6">
-        <button id="sommelier-btn"
-          class="w-full sm:w-auto flex items-center gap-3 bg-amber-500/90 hover:bg-amber-400 text-neutral-950 px-4 py-2 rounded-2xl shadow-lg transition">
-          <span class="relative flex h-8 w-8">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-8 w-8 bg-neutral-950 text-amber-200 items-center justify-center text-sm">
-              🎙
-            </span>
-          </span>
-          <div class="text-left">
-            <div class="text-[13px] leading-4 font-semibold">${appState.t.sommelier}</div>
-            <div class="text-[11px] leading-3 text-neutral-800">Habla y te responde</div>
+    function renderTech(d){
+      const t=d.ficha?.tech_info||{};
+      const entries = Object.entries(t).filter(([,v])=>Array.isArray(v)&&v.length);
+      if(!entries.length) return "";
+      return `
+        <section class="py-6">
+          <div class="space-y-4">
+            ${entries.map(([k,arr])=>`
+             <details open class="group border border-neutral-800 rounded-xl p-3">
+               <summary class="cursor-pointer font-medium text-neutral-100">${k.replaceAll('_',' ')}</summary>
+               <div class="mt-2 text-neutral-300">${arr.map(x=>`<p class="mb-2">${x}</p>`).join('')}</div>
+             </details>`).join('')}
           </div>
-        </button>
-      </section>
-      <hr class="border-neutral-800">
-    `;
-  }
+        </section>
+        <hr class="border-neutral-800">`;
+    }
 
-  function renderReviews(d){
-    if(!d.reviews_enabled) return '';
-    const t=appState.t, avg=d.reviews_avg, count=d.reviews_count||0, recent=d.reviews_recent||[];
-    return `
-      <section class="py-6">
-        <div class="mb-4 flex items-baseline gap-2">
-          <div class="text-base font-semibold">${t.avg_rating}${avg?` ${avg}/5`:''}</div>
-          <div class="text-[11px] text-neutral-400">${t.based_on} ${count} ${t.opinions}</div>
-        </div>
-        ${ recent.length ? `<div class="space-y-3 mb-6">${recent.map(r=>`
-          <div class="bg-neutral-800 border border-neutral-700 rounded-xl p-3 text-[13px] text-neutral-200">
-            <div class="flex justify-between text-[11px] text-neutral-400 mb-1"><span>${r.name||'Anónimo'}</span><span>${r.date||''}</span></div>
-            <div class="text-neutral-100 mb-2">${r.text||''}</div>
-            <div class="text-[11px] text-amber-400 font-medium">★ ${r.rating||''}/5</div>
-          </div>`).join('')}</div>`:''}
-      </section>
-      <hr class="border-neutral-800">`;
-  }
+    function renderAwards(d){
+      const a = d.ficha?.awards || [];
+      if(!a.length) return '';
+      return `
+        <section class="py-4">
+          <div class="flex flex-wrap gap-2">
+            ${a.map(w=>`<span class="px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-[11px]">${w.label}${w.score?` · ${w.score}`:''}</span>`).join('')}
+          </div>
+        </section>
+        <hr class="border-neutral-800">`;
+    }
 
-  function renderFooter(){
-    return `
-      <footer class="py-10 text-center text-neutral-400">
-        <div class="text-neutral-300"><a href="https://sommelierlab.com" class="underline">Powered by SommelierLab</a></div>
-        <div class="mt-4">${UI_COPY.es.drink_responsibly}</div>
-        <div class="mt-1"><a class="underline" href="#">${UI_COPY.es.allergens}</a></div>
+    function ctaHTML(d){
+      const c=d.ficha?.cta||{};
+      if(!c.comprar_url && !c.visita_url && !c.contacto_url) return "";
+      return `
+        <section class="py-6 flex flex-wrap gap-3">
+          ${ c.comprar_url ? `<a href="${c.comprar_url}" class="bg-amber-500 text-neutral-900 rounded-xl px-4 py-2">Comprar</a>` : "" }
+          ${ c.visita_url ? `<a href="${c.visita_url}" class="bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2">Visitar bodega</a>` : "" }
+          ${ c.contacto_url ? `<a href="${c.contacto_url}" class="underline text-amber-400">Contacto</a>` : "" }
+        </section>
+        <hr class="border-neutral-800">`;
+    }
+
+    function socialHTML(d){
+      const s=d.social||{};
+      if(!(s.website||s.email)) return "";
+      return `
+        <section class="py-6">
+          <h2 class="text-lg mb-3 text-neutral-100">${appState.t.social}</h2>
+          <div class="flex flex-wrap gap-3 text-sm">
+            ${ s.website ? `<a href="${s.website}" class="underline text-amber-400" target="_blank">Web</a>` : "" }
+            ${ s.email ? `<a href="mailto:${s.email}" class="underline text-amber-400">Email</a>` : "" }
+          </div>
+        </section>
+        <hr class="border-neutral-800">`;
+    }
+
+    function footerHTML(d){
+      return `<footer class="py-10 text-center text-neutral-400">
+        <div><a href="https://sommelierlab.com" class="underline">Powered by SommelierLab</a></div>
+        <div class="mt-4">${(UI[d.__cdn_lang]||UI.es).legal}</div>
       </footer>`;
-  }
-
-  function renderStickyCTA(){
-    const c = appState.fichaData?.ficha?.cta || {};
-    const btns = [];
-    if(c.comprar_url) btns.push(`<button data-action="comprar" data-url="${c.comprar_url}" class="cta-btn flex-1 bg-amber-500 text-neutral-900 rounded-xl px-3 py-2">Comprar</button>`);
-    if(c.visita_url)  btns.push(`<button data-action="visita"  data-url="${c.visita_url}"  class="cta-btn flex-1 bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2">Visitar</button>`);
-    if(!btns.length) return;
-    const bar=document.createElement('div');
-    bar.id='cta-sticky';
-    bar.innerHTML = `<div class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-neutral-900/95 backdrop-blur border-t border-neutral-700 px-4 py-3"><div class="max-w-[1100px] mx-auto flex gap-3">${btns.join('')}</div></div>`;
-    document.body.appendChild(bar);
-    bar.querySelectorAll('.cta-btn').forEach(b=>{
-      b.addEventListener('click',()=>{ location.href=b.getAttribute('data-url'); });
-    });
-  }
-
-  function attachMediaFallback(){
-    const v=document.querySelector('video[data-bottle]'); if(!v) return;
-    const imgUrl=v.getAttribute('data-fallback');
-    const toImg=()=>{
-      const img=document.createElement('img');
-      img.src=imgUrl||''; img.alt=appState?.fichaData?.ficha?.nombre||'bottle'; img.className=v.className;
-      v.replaceWith(img);
-    };
-    v.addEventListener('error',toImg,{once:true});
-    v.addEventListener('stalled',toImg,{once:true});
-    v.addEventListener('abort',toImg,{once:true});
-  }
-
-  function renderApp(){
-    const d = appState.fichaData;
-    appState.t = UI_COPY[(d.lang_final||'es')] || UI_COPY.es;
-    applyTheme(d.theme);
-    const html = [
-  renderHeader(d),
-  renderHero(d),
-  renderNarrativa(d),
-  renderOrganoleptico(d),
-  renderTech(d),
-  renderCTASection(d),
-
-  // 👇 AQUI dejamos el hueco fijo para el widget
-  `<div id="sommelier-slot" class="py-4" style="min-height:420px"></div>`,
-
-  renderGallery(d),
-  renderRelated(d),
-  renderSocial(d),
-  renderSommelierBtn(d),
-  renderReviews(d),
-  renderFooter()
-].join('');
-
-    el('#app').innerHTML = html;
-    wireInteractionsAfterRender();
-  }
-
-  function wireInteractionsAfterRender(){
-    const sel=el('#langSel');
-    if(sel){
-      sel.addEventListener('change',()=>{
-        const url=new URL(location.href);
-        url.searchParams.set('lang', sel.value.toLowerCase());
-        location.href=url.toString();
-      });
     }
-    const sb=el('#shareBtn');
-    if(sb){
-      sb.addEventListener('click', async ()=>{
-        try{
-          const u=location.href;
-          if(navigator.share){ await navigator.share({title:document.title,url:u}); }
-          else{ await navigator.clipboard.writeText(u); sb.textContent='Copiado'; setTimeout(()=>sb.textContent=UI_COPY.es.share,1200); }
-        }catch(e){ console.warn('share',e); }
-      });
+
+    function render(d){
+      appState.t = UI[d.__cdn_lang] || UI.es;
+      const app=$("#app");
+      app.innerHTML = [
+        headerHTML(d),
+        heroHTML(d),
+        narrativaHTML(d),
+        renderAwards(d),
+        renderOrganoleptico(d),
+        renderTech(d),
+        ctaHTML(d),
+        socialHTML(d),
+        footerHTML(d)
+      ].join("");
+
+      const sel=$("#langSel");
+      if(sel){ sel.addEventListener("change",()=>{ const u=new URL(location.href); u.searchParams.set("lang", sel.value); location.href=u.toString(); }); }
+      const sb=$("#shareBtn");
+      if(sb){ sb.addEventListener("click", async ()=>{ try{
+        if(navigator.share) await navigator.share({title:document.title, url:location.href});
+        else { await navigator.clipboard.writeText(location.href); sb.textContent="Copiado"; setTimeout(()=>sb.textContent=appState.t.share,1200); }
+      }catch{} }); }
     }
-    attachMediaFallback();
-  }
 
-  async function bootstrap(){
-    appState.query = getQueryParams();
-    try{
-      const data = await fetchFicha();
-      appState.fichaData = data;
-      renderApp();
-      renderStickyCTA();
-    }catch(e){
-      console.error(e);
-      el('#app').innerHTML = `<div class="p-6 text-red-400">Error cargando la ficha.</div>`;
-    }
-  }
-
-  bootstrap();
-  </script>
-<!-- Sommelier conversacional flotante fijo v3 -->
-<style>
-  /* botón flotante */
-  #sommelier-float {
-    position: fixed;
-    right: 18px;
-    bottom: 100px;
-    z-index: 60;
-    background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
-    box-shadow: 0 0 18px rgba(0,0,0,0.4);
-    border-radius: 50px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    transition: transform 0.25s ease, background 0.3s ease;
-  }
-  #sommelier-float:hover { transform: scale(1.05); }
-  #sommelier-float .icon { font-size: 30px; }
-  #sommelier-float .label {
-    font-size: 13px;
-    font-weight: 600;
-    color: #111;
-  }
-  /* contenedor del widget + X integrada */
-  #sommelier-wrapper {
-    position: fixed;
-    right: 18px;
-    bottom: 165px; /* encima de los botones de compra */
-    z-index: 65;
-    display: none;
-  }
-  #sommelier-close {
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 28px;
-    height: 28px;
-    border-radius: 9999px;
-    border: none;
-    background: rgba(0,0,0,0.55);
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  @media (max-width: 768px) {
-    #sommelier-float { right: 12px; bottom: 85px; padding: 8px 12px; }
-    #sommelier-wrapper { right: 12px; bottom: 150px; }
-  }
-</style>
-
-<!-- botón flotante -->
-<div id="sommelier-float">
-  <span class="icon">🎙</span>
-  <span class="label">Preguntar al sommelier</span>
-</div>
-
-<!-- wrapper + X + widget -->
-<div id="sommelier-wrapper">
-  <button id="sommelier-close">✕</button>
-  <elevenlabs-convai
-    id="sommelier-widget"
-    agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
-    position="floating"
-    behavior="expanded"
-    variant="compact"
-  ></elevenlabs-convai>
-</div>
-
-<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("sommelier-float");
-  const wrapper = document.getElementById("sommelier-wrapper");
-  const widget = document.getElementById("sommelier-widget");
-  const btnClose = document.getElementById("sommelier-close");
-
-  // función que intenta empezar la conversación de todas las formas posibles
-  function tryStartConversation() {
-    // 1) API del widget, si la expone
-    if (widget && typeof widget.startConversation === "function") {
-      try { widget.startConversation(); return; } catch(e) { console.warn("startConversation falló", e); }
-    }
-    // 2) algunos embeds exponen show()
-    if (widget && typeof widget.show === "function") {
-      try { widget.show(); } catch(e) { console.warn("show falló", e); }
-    }
-    // 3) como último recurso: clic virtual dentro del shadowRoot para pulsar su botón
-    setTimeout(() => {
-      try {
-        const sr = widget.shadowRoot;
-        if (!sr) return;
-        // busca un botón de acción
-        const btnMic = sr.querySelector("button, [role='button']");
-        if (btnMic) btnMic.click();
-      } catch(e) {
-        console.warn("no se pudo hacer click interno", e);
+    /* =================== BOOT =================== */
+    (async function bootstrap(){
+      appState.q = getQ();
+      if(!appState.q.vino_id || !appState.q.anyada){
+        $("#app").innerHTML = '<div class="p-6 text-red-400">Faltan parámetros ?vino_id=...&anyada=...</div>';
+        return;
       }
-    }, 450); // espera a que renderice
-  }
+      try{
+        const data = await fetchFicha();
+        enrichLegacy(data);
+        dbg(data);
+        appState.fichaData = data;
+        render(data);
+      }catch(e){
+        console.error(e);
+        $("#app").innerHTML = '<div class="p-6 text-red-400">Error cargando la ficha.</div>';
+      }
+    })();
+  </script>
 
-  // abrir desde el botón
-  btn.addEventListener("click", () => {
-    wrapper.style.display = "block";
-    // pequeño delay para que el widget cargue y luego iniciar
-    setTimeout(() => {
-      tryStartConversation();
-    }, 250);
-  });
+  <!-- Sommelier conversacional flotante -->
+  <style>
+    #sommelier-float{ position:fixed; right:18px; bottom:100px; z-index:60;
+      background: radial-gradient(circle at 30% 30%, #facc15 0%, #b45309 90%);
+      box-shadow:0 0 18px rgba(0,0,0,0.4); border-radius:50px; cursor:pointer;
+      display:flex; align-items:center; gap:10px; padding:10px 14px; }
+    #sommelier-wrapper{ position:fixed; right:18px; bottom:165px; z-index:65; display:none; }
+    #sommelier-close{ position:absolute; top:-28px; right:-14px; width:28px; height:28px; border-radius:50%;
+      border:none; background:#facc15; color:#111; font-size:18px; font-weight:bold; cursor:pointer; z-index:99999; }
+  </style>
 
-  // cerrar con la X
-  btnClose.addEventListener("click", () => {
-    wrapper.style.display = "none";
-  });
-
-  // cerrar al tocar fuera
-  document.addEventListener("click", (e) => {
-    const isWrapper = e.target.closest("#sommelier-wrapper");
-    const isBtn = e.target.closest("#sommelier-float");
-    if (!isWrapper && !isBtn) {
-      wrapper.style.display = "none";
-    }
-  });
-});
-</script>
-
-
+  <div id="sommelier-float"><span style="font-size:28px">🎙</span><span class="font-semibold text-neutral-900">Preguntar al sommelier</span></div>
+  <div id="sommelier-wrapper">
+    <button id="sommelier-close">✕</button>
+    <elevenlabs-convai id="sommelier-widget"
+      agent-id="agent_01jy4198vjepzb9yz3jwz3b93c"
+      position="floating" behavior="expanded" variant="compact"></elevenlabs-convai>
+  </div>
+  <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("sommelier-float");
+      const wrapper = document.getElementById("sommelier-wrapper");
+      const widget = document.getElementById("sommelier-widget");
+      const btnClose = document.getElementById("sommelier-close");
+      const start = ()=>{
+        if(widget?.startConversation) try{ widget.startConversation(); }catch{}
+        setTimeout(()=>{ try{
+          const sr = widget.shadowRoot; const b = sr && sr.querySelector("button,[role='button']"); if(b) b.click();
+        }catch{} }, 400);
+      };
+      btn.addEventListener("click", ()=>{ wrapper.style.display="block"; setTimeout(start, 200); });
+      btnClose.addEventListener("click", ()=>{ wrapper.style.display="none"; if(widget?.endConversation) widget.endConversation(); });
+      document.addEventListener("click",(e)=>{ if(!e.target.closest("#sommelier-wrapper") && !e.target.closest("#sommelier-float")) wrapper.style.display="none"; });
+    });
+  </script>
 </body>
 </html>
